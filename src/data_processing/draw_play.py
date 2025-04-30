@@ -27,23 +27,42 @@ import pandas as pd
 - Make a driver so I can start loading all these plays (later)
 """
 
-def animate_play(week_df, game_id, play_id):
-    game_id = week_df['gameId'].iloc[0]
-    play_id = week_df[week_df['gameId'] == game_id]['playId'].iloc[0]
-    play_df = week_df[(week_df['gameId'] == game_id) & (week_df['playId'] == play_id)]
+def animate_play(game_info_df, play_data_single_play_df, players_df, location_data_single_play_df):
 
-    frame_ids = sorted(play_df['frameId'].unique())
+    # Unpack contents
+    game_id = game_info_df['gameId']
+    week = game_info_df['week']
+    home_team = game_info_df['homeTeamAbbr']
+    away_team = game_info_df['visitorTeamAbbr']
+    home_score = game_info_df['homeFinalScore']
+    away_score = game_info_df['visitorFinalScore']
+    play_id = play_data_single_play_df['playId'].values[0]
+    quarter = play_data_single_play_df['quarter'].values[0]
+    down = play_data_single_play_df['down'].values[0]
+    yards_to_go = play_data_single_play_df['yardsToGo'].values[0]
+    play_description = play_data_single_play_df['playDescription'].values[0]
 
-    # 🔍 Find the frameId of the snap
-    snap_row = play_df[play_df['event'] == 'ball_snap']
-    snap_frame_id = snap_row['frameId'].min() if not snap_row.empty else frame_ids[0]
+    # Grab contents of the play
+    frame_ids = sorted(location_data_single_play_df['frameId'].unique())
 
+    # Find the frame where the ball is snapped
+    snap_row = location_data_single_play_df[location_data_single_play_df['event'] == 'ball_snap']
+    if not snap_row.empty:
+        snap_frame_id = snap_row['frameId'].min()
+    else:
+        if len(frame_ids) == 0:
+            raise ValueError(f"No frames found for game {game_id}, play {play_id}.")
+        snap_frame_id = frame_ids[0]
+        print(f"No 'ball_snap' event found for game {game_id}, play {play_id}. Using first frame ({snap_frame_id}) as snap.")
+
+    # Setup plot
     fig, ax = plt.subplots(figsize=(15, 6))
     ax.set_xlim(0, 120)
     ax.set_ylim(0, 53.3)
     ax.set_facecolor('green')
     ax.set_aspect('equal')
 
+    # Draw football field
     for x in range(10, 111, 10):
         ax.axvline(x, color='white', linewidth=1)
     ax.axhline(0, color='white')
@@ -53,7 +72,7 @@ def animate_play(week_df, game_id, play_id):
     arrows = []
     labels = []
 
-    # ⏱️ Placeholder for relative time display
+    # Placeholder for relative time display
     time_text = ax.text(60, 51, '', fontsize=12, ha='center', color='white', bbox=dict(facecolor='black', alpha=0.5))
 
     def init():
@@ -66,7 +85,7 @@ def animate_play(week_df, game_id, play_id):
         arrows.clear()
         labels.clear()
 
-        frame_df = play_df[play_df['frameId'] == frame_id]
+        frame_df = location_data_single_play_df[location_data_single_play_df['frameId'] == frame_id]
 
         for _, row in frame_df.iterrows():
             x, y = row['x'], row['y']
@@ -85,12 +104,22 @@ def animate_play(week_df, game_id, play_id):
                 labels.append(label)
                 player_dots.append(dot)
 
-        # ⏱️ Show relative time from snap
+        # Show relative time from snap
         frame_offset = frame_id - snap_frame_id
         time_sec = frame_offset * 0.1  # 0.1 seconds per frame
         time_text.set_text(f"Time: {time_sec:+.1f} s (relative to snap)")
+
+        # Down specification
+        if down == 1:
+            down_text = "1st"
+        elif down == 2:
+            down_text = "2nd"
+        elif down == 3:
+            down_text = "3rd"
+        else:
+            down_text = "4th"
         
-        ax.set_title(f'Game {game_id}, Play {play_id}, Frame {frame_id}')
+        ax.set_title(f'Week {week}: {away_team} ({away_score}) vs {home_team} ({home_score}) \n Q{quarter} {down_text} and {yards_to_go} \n {play_description}',)
         
         return player_dots + arrows + labels + [time_text]
 

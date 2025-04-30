@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 # ML utils
 from scipy.interpolate import griddata
 from scipy.stats import f_oneway
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import LabelEncoder
@@ -74,14 +74,17 @@ if __name__ == "__main__":
     print("----------------------------------------------------------------------------------------------------")
     print("Printing flavor of ingested data")
     print(games_df.head())
-    print(games_df.tail())
+    print(games_df.columns)
     print(plays_df.head())
+    print(plays_df.columns)
     print(players_df.head())
+    print(players_df.columns)
     print(week1_df.head())
+    print(week1_df.columns)
     print("----------------------------------------------------------------------------------------------------")
 
     #--------------------------------------------------
-    # Filter for specific game (Buffalo vs LA Rams)
+    # Data cleaning
     #--------------------------------------------------
     # Filter out rows with 'PENALTY' in the 'playDescription' column
     plays_df = plays_df[~plays_df['playDescription'].str.contains("PENALTY", na=False)]
@@ -89,6 +92,24 @@ if __name__ == "__main__":
     # Filter for only rows that indicate a pass play
     plays_df = plays_df[plays_df['passResult'].notna()]
 
+    # Filter for only plays where the win probablity isn't lopsided (between 0.2 and 0.8)
+    plays_df = plays_df[(plays_df['preSnapHomeTeamWinProbability'] > 0.2) & (plays_df['preSnapHomeTeamWinProbability'] < 0.8)]
+
+    # Filter out play action (fooling the defense)
+    plays_df = plays_df[plays_df['playAction']==False]
+
+    # Filter for only third down or fourth down plays
+    plays_df = plays_df[plays_df['down'].isin([3, 4])]
+
+    # Filter for only 3rd/4th and long (equal or more than 5 yards to go)
+    plays_df = plays_df[plays_df['yardsToGo'] >= 5]
+
+    print(f'Total amount of samples: {len(plays_df)}')
+
+    #--------------------------------------------------
+    # Feature engineering
+    #--------------------------------------------------
+    # Create new feature - gameClockSeconds (convert game clock to seconds)
     def clock_to_seconds(clock_str):
         try:
             minutes, seconds = map(int, clock_str.split(':'))
@@ -96,11 +117,26 @@ if __name__ == "__main__":
         except:
             return None  # handle unexpected formats
 
-    plays_df['gameClock_seconds'] = plays_df['gameClock'].apply(clock_to_seconds)
+    plays_df['gameClockSeconds'] = plays_df['gameClock'].apply(clock_to_seconds)
 
-    # Define your columns
+    # Create new feature - offenseScoreDelta
+    def calculate_offense_score_delta(row):
+        # Get the home team abbreviation for the current game_id
+        home_team_abbr = games_df.loc[games_df['gameId'] == row['gameId'], 'homeTeamAbbr'].values[0]
+        
+        # Calculate the offense score delta based on possession team
+        if row['possessionTeam'] == home_team_abbr:
+            return row['preSnapHomeScore'] - row['preSnapVisitorScore']
+        else:
+            return row['preSnapVisitorScore'] - row['preSnapHomeScore']
+
+    plays_df['offenseScoreDelta'] = plays_df.apply(calculate_offense_score_delta, axis=1)
+    print(plays_df['offenseScoreDelta'].describe())
+
+
+    # Defining columns
     categorical_cols = ['offenseFormation', 'receiverAlignment', 'pff_passCoverage']
-    numeric_cols = ['down', 'yardsToGo', 'quarter', 'gameClock_seconds', 'absoluteYardlineNumber']
+    numeric_cols = ['down', 'yardsToGo', 'quarter', 'gameClockSeconds', 'absoluteYardlineNumber', 'offenseScoreDelta']
     input_cols = categorical_cols + numeric_cols
 
     # Make a copy of just those columns
@@ -119,91 +155,136 @@ if __name__ == "__main__":
     scaler = StandardScaler()
     label_encoded_df[numeric_cols] = scaler.fit_transform(label_encoded_df[numeric_cols])
 
+    #--------------------------------------------------
+    # Target engineering
+    #--------------------------------------------------
     output_cols = ['yardsGained']
 
-    #--------------------------------------------------------------------
-    # Slice data into training and test
-    #--------------------------------------------------------------------
-    # Splitting the dataset into training and testing sets
-    x_train, x_test, y_train, y_test = train_test_split(label_encoded_df, plays_df[output_cols], test_size=0.2, random_state=42)
+    corr_columns = numeric_cols + ['yardsGained']
+    corr_matrix = plays_df[corr_columns].corr()
+    print(corr_matrix["yardsGained"].sort_values(ascending=False))
 
-    # Convert y_train and y_test to 1D arrays
-    y_train = y_train.values.ravel()
-    y_test = y_test.values.ravel()
+    #--------------------------------------------------
+    # Step 1: Split into training and test sets
+    #--------------------------------------------------
+    X = label_encoded_df
+    y = plays_df[output_cols].values.ravel()  # Flatten output
 
-    print(len(x_train), "train samples")
-    print(len(x_test), "test samples")
+    # Hold out 20% as the final test set
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    #--------------------------------------------------------------------
-    # Apply different regression approaches
-    #--------------------------------------------------------------------
-    # Init results dict
-    results = {
-        "dtr": [],           # Decision tree 
-        "rfr": [],           # Random forest 
-        "knn": [],           # K-nearest neighbors 
-        "gbr": [],           # Gradient boosting 
-        "xgbr": [],          # XGBoost 
-        "catbr": [],         # CatBoost 
+    #--------------------------------------------------
+    # Step 2: Perform 10-fold cross-validation on training data
+    #--------------------------------------------------
+    # Setup the models that will be used for k-fold cross-validation (trying to see what performs the best)
+    models = {
+        "dtr": DecisionTreeRegressor(),             # Decision tree 
+        "rfr": RandomForestRegressor(),             # Random forest 
+        "knn": KNeighborsRegressor(),               # K-nearest neighbors 
+        "gbr": GradientBoostingRegressor(),         # Gradient boosting 
+        "xgbr": XGBRegressor(),                     # XGBoost 
+        "catbr": CatBoostRegressor(silent=True),    # CatBoost 
     }
 
-    models = {}
-    predictions = {}
-    table = []
-    best_transformed_features = None
+    # Set up folds
+    kf = KFold(n_splits=10, shuffle=True, random_state=42)
+    fold_rmse = {key: [] for key in models.keys()}  # Store RMSE for each fold
 
-    # Train different regression models
-    models["dtr"] = DecisionTreeRegressor().fit(x_train, y_train)
-    models["rfr"] = RandomForestRegressor().fit(x_train, y_train)
-    models["knn"] = KNeighborsRegressor().fit(x_train, y_train)
-    models["gbr"] = GradientBoostingRegressor().fit(x_train, y_train)
-    models["xgbr"] = XGBRegressor().fit(x_train, y_train)
-    models["catbr"] = CatBoostRegressor(silent=True).fit(x_train, y_train)
+    # Perform k-fold cross-validation
+    # Note: this is picking random indexes each iteration of data to call training or val: https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html
+    for fold, (train_index, val_index) in enumerate(kf.split(x_train)):                 
+        x_fold_train, x_fold_val = x_train.iloc[train_index], x_train.iloc[val_index]   
+        y_fold_train, y_fold_val = y_train[train_index], y_train[val_index]
 
-    # Predict and calculate rmse
-    for regressor in models:
-        predictions[regressor] = models[regressor].predict(x_test)
-        rmse = np.sqrt(mean_squared_error(y_test, predictions[regressor]))
+        # Train each model on the training fold
+        for key in models:
 
-        # Store the results
-        results[regressor].append((rmse, predictions[regressor]))
+            # Fit model
+            models[key].fit(x_fold_train, y_fold_train)
 
-    #--------------------------------------------------------------------
-    # Post process and plot different regressors for comparison
-    #--------------------------------------------------------------------
-    # Init table for txt output
-    table = []
+            # Predict on validation fold
+            y_pred = models[key].predict(x_fold_val)
 
-    # Post-process different regression approaches
-    for regressor in results:
-        # Extract the rmse and best predictions
-        min_rmse, best_predictions = results[regressor][0]
+            # Calculate, store, and print RMSE
+            rmse = np.sqrt(mean_squared_error(y_fold_val, y_pred))
+            fold_rmse[key].append(rmse)
+            print(f"Fold {fold+1}, Model: {key}, MSE: {rmse:.4f}")
 
-        # Update table
-        table.append([regressor, min_rmse])
+    # Calculate average RMSE for each model across folds
+    for key, values in fold_rmse.items():
+        fold_rmse[key] = np.mean(values)
+        print(f"Model: {key}, Average CV RMSE: {fold_rmse[key]:.4f}")
 
-        # Print the rmse
-        print(f"Regressor: {regressor}")
-        print(f"rmse: {min_rmse}")
+    # #--------------------------------------------------------------------
+    # # Apply different regression approaches
+    # #--------------------------------------------------------------------
+    # # Init results dict
+    # results = {
+    #     "dtr": [],           # Decision tree 
+    #     "rfr": [],           # Random forest 
+    #     "knn": [],           # K-nearest neighbors 
+    #     "gbr": [],           # Gradient boosting 
+    #     "xgbr": [],          # XGBoost 
+    #     "catbr": [],         # CatBoost 
+    # }
 
-        # Plotting predictions against actual values
-        plt.figure(figsize=(10, 6))
-        plt.scatter(y_test, best_predictions, alpha=0.7)
+    # models = {}
+    # predictions = {}
+    # table = []
+    # best_transformed_features = None
 
-        # Make sure both actual and predicted are 1D
-        y_test_flat = y_test.ravel()
-        preds_flat = best_predictions.ravel()
+    # # Train different regression models
+    # models["dtr"] = DecisionTreeRegressor().fit(x_train, y_train)
+    # models["rfr"] = RandomForestRegressor().fit(x_train, y_train)
+    # models["knn"] = KNeighborsRegressor().fit(x_train, y_train)
+    # models["gbr"] = GradientBoostingRegressor().fit(x_train, y_train)
+    # models["xgbr"] = XGBRegressor().fit(x_train, y_train)
+    # models["catbr"] = CatBoostRegressor(silent=True).fit(x_train, y_train)
 
-        min_val = min(min(y_test_flat), min(preds_flat))
-        max_val = max(max(y_test_flat), max(preds_flat))
+    # # Predict and calculate rmse
+    # for regressor in models:
+    #     predictions[regressor] = models[regressor].predict(x_test)
+    #     rmse = np.sqrt(mean_squared_error(y_test, predictions[regressor]))
 
-        plt.plot([min_val, max_val], [min_val, max_val], color='red', linestyle='--')  # Diagonal line
+    #     # Store the results
+    #     results[regressor].append((rmse, predictions[regressor]))
 
-        plt.xlabel("Yads Gained (Actual)")
-        plt.ylabel("Yards Gained (Predicted)")
-        plt.title(f"Predictions vs Actual for {regressor} with rmse: {"{:.5f}".format(min_rmse)}")
-        plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', regressor + '.png'))
-        plt.close()
+    # #--------------------------------------------------------------------
+    # # Post process and plot different regressors for comparison
+    # #--------------------------------------------------------------------
+    # # Init table for txt output
+    # table = []
+
+    # # Post-process different regression approaches
+    # for regressor in results:
+    #     # Extract the rmse and best predictions
+    #     min_rmse, best_predictions = results[regressor][0]
+
+    #     # Update table
+    #     table.append([regressor, min_rmse])
+
+    #     # Print the rmse
+    #     print(f"Regressor: {regressor}")
+    #     print(f"rmse: {min_rmse}")
+
+    #     # Plotting predictions against actual values
+    #     plt.figure(figsize=(10, 6))
+    #     plt.scatter(y_test, best_predictions, alpha=0.7)
+
+    #     # Make sure both actual and predicted are 1D
+    #     y_test_flat = y_test.ravel()
+    #     preds_flat = best_predictions.ravel()
+
+    #     min_val = min(min(y_test_flat), min(preds_flat))
+    #     max_val = max(max(y_test_flat), max(preds_flat))
+
+    #     plt.plot([min_val, max_val], [min_val, max_val], color='red', linestyle='--')  # Diagonal line
+
+    #     plt.xlabel("Yads Gained (Actual)")
+    #     plt.ylabel("Yards Gained (Predicted)")
+    #     plt.title(f"Predictions vs Actual for {regressor} with rmse: {"{:.5f}".format(min_rmse)}")
+    #     plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', regressor + '.png'))
+    #     plt.close()
 
 
 
