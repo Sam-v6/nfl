@@ -39,53 +39,21 @@ from xgboost import XGBRegressor
 from catboost import CatBoostRegressor
 from sklearn.linear_model import ElasticNet, Lasso, Ridge, BayesianRidge
 
-# Local imports
-# None
 
-# Load data
-def load_data(file_path):
+def model_critical_downs_yardage(games_df, plays_df):
     """
-    Load data from a CSV file.
+    Process NFL data for machine learning model creation.
     Args:
-        file_path (str): Path to the CSV file.
+        games_df (pd.DataFrame): DataFrame containing game data.
+        plays_df (pd.DataFrame): DataFrame containing play data.
     Returns:
-        pd.DataFrame: Loaded data as a DataFrame.
+        None
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-    
-    data = pd.read_csv(file_path)
-    return data
-
-
-if __name__ == "__main__":
-
-    #--------------------------------------------------
-    # Load data
-    #--------------------------------------------------
-    games_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','games.csv'))
-    plays_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','plays.csv'))
-    players_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','players.csv'))
-    week1_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_1.csv'))
-
-    #--------------------------------------------------
-    # Printing some summary details of the data
-    #--------------------------------------------------
-    print("----------------------------------------------------------------------------------------------------")
-    print("Printing flavor of ingested data")
-    print(games_df.head())
-    print(games_df.columns)
-    print(plays_df.head())
-    print(plays_df.columns)
-    print(players_df.head())
-    print(players_df.columns)
-    print(week1_df.head())
-    print(week1_df.columns)
-    print("----------------------------------------------------------------------------------------------------")
 
     #--------------------------------------------------
     # Data cleaning
     #--------------------------------------------------
+
     # Filter out rows with 'PENALTY' in the 'playDescription' column
     plays_df = plays_df[~plays_df['playDescription'].str.contains("PENALTY", na=False)]
 
@@ -94,9 +62,6 @@ if __name__ == "__main__":
 
     # Filter for only plays where the win probablity isn't lopsided (between 0.2 and 0.8)
     plays_df = plays_df[(plays_df['preSnapHomeTeamWinProbability'] > 0.2) & (plays_df['preSnapHomeTeamWinProbability'] < 0.8)]
-
-    # Filter out play action (fooling the defense)
-    plays_df = plays_df[plays_df['playAction']==False]
 
     # Filter for only third down or fourth down plays
     plays_df = plays_df[plays_df['down'].isin([3, 4])]
@@ -132,7 +97,6 @@ if __name__ == "__main__":
 
     plays_df['offenseScoreDelta'] = plays_df.apply(calculate_offense_score_delta, axis=1)
     print(plays_df['offenseScoreDelta'].describe())
-
 
     # Defining columns
     categorical_cols = ['offenseFormation', 'receiverAlignment', 'pff_passCoverage']
@@ -214,77 +178,4 @@ if __name__ == "__main__":
     for key, values in fold_rmse.items():
         fold_rmse[key] = np.mean(values)
         print(f"Model: {key}, Average CV RMSE: {fold_rmse[key]:.4f}")
-
-    # #--------------------------------------------------------------------
-    # # Apply different regression approaches
-    # #--------------------------------------------------------------------
-    # # Init results dict
-    # results = {
-    #     "dtr": [],           # Decision tree 
-    #     "rfr": [],           # Random forest 
-    #     "knn": [],           # K-nearest neighbors 
-    #     "gbr": [],           # Gradient boosting 
-    #     "xgbr": [],          # XGBoost 
-    #     "catbr": [],         # CatBoost 
-    # }
-
-    # models = {}
-    # predictions = {}
-    # table = []
-    # best_transformed_features = None
-
-    # # Train different regression models
-    # models["dtr"] = DecisionTreeRegressor().fit(x_train, y_train)
-    # models["rfr"] = RandomForestRegressor().fit(x_train, y_train)
-    # models["knn"] = KNeighborsRegressor().fit(x_train, y_train)
-    # models["gbr"] = GradientBoostingRegressor().fit(x_train, y_train)
-    # models["xgbr"] = XGBRegressor().fit(x_train, y_train)
-    # models["catbr"] = CatBoostRegressor(silent=True).fit(x_train, y_train)
-
-    # # Predict and calculate rmse
-    # for regressor in models:
-    #     predictions[regressor] = models[regressor].predict(x_test)
-    #     rmse = np.sqrt(mean_squared_error(y_test, predictions[regressor]))
-
-    #     # Store the results
-    #     results[regressor].append((rmse, predictions[regressor]))
-
-    # #--------------------------------------------------------------------
-    # # Post process and plot different regressors for comparison
-    # #--------------------------------------------------------------------
-    # # Init table for txt output
-    # table = []
-
-    # # Post-process different regression approaches
-    # for regressor in results:
-    #     # Extract the rmse and best predictions
-    #     min_rmse, best_predictions = results[regressor][0]
-
-    #     # Update table
-    #     table.append([regressor, min_rmse])
-
-    #     # Print the rmse
-    #     print(f"Regressor: {regressor}")
-    #     print(f"rmse: {min_rmse}")
-
-    #     # Plotting predictions against actual values
-    #     plt.figure(figsize=(10, 6))
-    #     plt.scatter(y_test, best_predictions, alpha=0.7)
-
-    #     # Make sure both actual and predicted are 1D
-    #     y_test_flat = y_test.ravel()
-    #     preds_flat = best_predictions.ravel()
-
-    #     min_val = min(min(y_test_flat), min(preds_flat))
-    #     max_val = max(max(y_test_flat), max(preds_flat))
-
-    #     plt.plot([min_val, max_val], [min_val, max_val], color='red', linestyle='--')  # Diagonal line
-
-    #     plt.xlabel("Yads Gained (Actual)")
-    #     plt.ylabel("Yards Gained (Predicted)")
-    #     plt.title(f"Predictions vs Actual for {regressor} with rmse: {"{:.5f}".format(min_rmse)}")
-    #     plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', regressor + '.png'))
-    #     plt.close()
-
-
 
