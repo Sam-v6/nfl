@@ -50,19 +50,18 @@ if __name__ == "__main__":
     plays_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','plays.csv'))
     players_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','players.csv'))
     week1_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_1.csv'))
-    week2_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_2.csv'))
-    week3_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_3.csv'))
-    week4_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_4.csv'))
-    week5_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_5.csv'))
-    week6_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_6.csv'))
-    week7_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_7.csv'))
-    week8_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_8.csv'))
-    week9_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_9.csv'))
+    # week2_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_2.csv'))
+    # week3_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_3.csv'))
+    # week4_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_4.csv'))
+    # week5_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_5.csv'))
+    # week6_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_6.csv'))
+    # week7_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_7.csv'))
+    # week8_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_8.csv'))
+    # week9_df = pd.read_csv(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_9.csv'))
 
     # Combine the weeks data into a single location data df
-    location_data_df = pd.concat([week1_df, week2_df, week3_df, week4_df, week5_df, week6_df, week7_df, week8_df, week9_df], ignore_index=True)
-    #location_data_df = week1_df
-
+    #location_data_df = pd.concat([week1_df, week2_df, week3_df, week4_df, week5_df, week6_df, week7_df, week8_df, week9_df], ignore_index=True)
+    location_data_df = week1_df
 
     #--------------------------------------------------
     # Printing some summary details of the data

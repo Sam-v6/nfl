@@ -13,7 +13,6 @@ import random
 
 # General imports
 import numpy as np
-import itertools
 import pandas as pd
 
 # Plotting imports
@@ -21,23 +20,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # ML utils
-from scipy.interpolate import griddata
-from scipy.stats import f_oneway
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import confusion_matrix, classification_report
 
 # Regressors imports
-from sklearn.linear_model import LinearRegression
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
-from xgboost import XGBRegressor
-from catboost import CatBoostRegressor
-from sklearn.linear_model import ElasticNet, Lasso, Ridge, BayesianRidge
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_predict
 
 
 def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
@@ -50,26 +37,21 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
         None
     """
 
+    random.seed(42)
+    np.random.seed(42)
+
     #--------------------------------------------------
     # Data cleaning
     #--------------------------------------------------
-    # Filter out rows with 'PENALTY' in the 'playDescription' column or that were nullified by penalty
-    plays_df = plays_df[~plays_df['playDescription'].str.contains("PENALTY", na=False)]
-    plays_df = plays_df[plays_df['playNullifiedByPenalty']=='N']
-
-    # Filter for only rows that indicate a pass play
-    #plays_df = plays_df[plays_df['passResult'].notna()]
-
-    # Filter plays that only have man or zone coverage
-    pplays_df = plays_df[plays_df['pff_manZone'].isin(['Man', 'Zone'])]
-
-    # TODO: Remove this once downstream logic is setup, this is purely to make things go faster
-    # Filter down plays_df to only plays that occur in games in week 1
-
-    game_id_list = location_data_df['gameId'].unique()          # Grabs list of games (location_data_df is fed in only being comprised of week1)
-    plays_df = plays_df[plays_df['gameId'].isin(game_id_list)]  # Filters down to only plays that have gameIds from week 1
-
-    print(f'Total amount of samples: {len(plays_df)}')
+    # Filter out rows
+    print(f'Total plays: {len(plays_df)}')
+    plays_df = plays_df[
+        (~plays_df['playDescription'].str.contains("PENALTY", na=False)) &  # Filter out penalty plays
+        (plays_df['playNullifiedByPenalty'] == 'N') &                       # Robustely filter out penalty plays
+        (plays_df['pff_manZone'].isin(['Man', 'Zone'])) &                   # Only get plays that are man or zone
+        (plays_df['gameId'].isin(location_data_df['gameId'].unique()))      # Somewhat temp, only to make things go faster and get games in week 1
+    ]
+    print(f'Total plays after filtering: {len(plays_df)}')
 
     #--------------------------------------------------
     # Feature engineering
@@ -78,21 +60,29 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     # Figure out minimum frames
     #-------------------------------
     frame_length = []
-    for play_id in plays_df['playId'].unique():
+    incomplete_players = []
+    for i in range(0, len(plays_df)):
+
+        # Pull the play id and game id
+        game_id = plays_df.iloc[i]['gameId']
+        play_id = plays_df.iloc[i]['playId']
 
         # Create a subset df of just players location data for the specific play
-        game_id = plays_df[plays_df['playId'] == play_id]['gameId'].iloc[0]             # Feel like I may need gameid later?
-        location_play_df = location_data_df[location_data_df['playId'] == play_id]
+        location_play_df = location_data_df[
+            (location_data_df['playId'] == play_id) &
+            (location_data_df['gameId'] == game_id)
+        ]
 
         # Filter down the location specific play df to pre snap
         location_play_df = location_play_df[location_play_df['frameType'] == 'BEFORE_SNAP']
 
         # Filter down the location specific play df to just players on defense (includes figuring out who's on defense)
-        defense_team = plays_df[plays_df['playId']== play_id]['defensiveTeam'].iloc[0]
+        defense_team = plays_df.iloc[i]['defensiveTeam']
         location_play_df = location_play_df[location_play_df['club'] == defense_team]
 
         # Skip play if there aren't 11 defenders for some reason (Ole Billy or Vrabel filtering here)
         if location_play_df['nflId'].nunique() != 11:
+            incomplete_players.append(1)
             continue
 
         # Determine number of frames in this dataset
@@ -105,23 +95,30 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     frame_df = pd.DataFrame(frame_length)
     min_frames = int(np.ceil(frame_df.quantile(0.20).iloc[0]))
     print(f'Minium Frames: {min_frames}')
+    print(f'Plays removed due to not 11 players: {len(incomplete_players)}')
 
     #-------------------------------
     # Put data into format for x input
     #-------------------------------
     X_data = []
     y_data = []
-    for play_id in plays_df['playId'].unique():
+    for i in range(0, len(plays_df)):
+
+        # Pull the play id and game id
+        game_id = plays_df.iloc[i]['gameId']
+        play_id = plays_df.iloc[i]['playId']
 
         # Create a subset df of just players location data for the specific play
-        game_id = plays_df[plays_df['playId'] == play_id]['gameId'].iloc[0]             # Feel like I may need gameid later?
-        location_play_df = location_data_df[location_data_df['playId'] == play_id]
+        location_play_df = location_data_df[
+            (location_data_df['playId'] == play_id) &
+            (location_data_df['gameId'] == game_id)
+        ]
 
         # Filter down the location specific play df to pre snap
         location_play_df = location_play_df[location_play_df['frameType'] == 'BEFORE_SNAP']
 
         # Filter down the location specific play df to just players on defense (includes figuring out who's on defense)
-        defense_team = plays_df[plays_df['playId']== play_id]['defensiveTeam'].iloc[0]
+        defense_team = plays_df.iloc[i]['defensiveTeam']
         location_play_df = location_play_df[location_play_df['club'] == defense_team]
 
         # Skip play if there aren't 11 defenders for some reason (Ole Billy or Vrabel filtering here)
@@ -150,29 +147,51 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
         play_features = np.concatenate(player_data_list)
         X_data.append(play_features)
 
-        # Set Man Coverage to 1 and Zone to 0 for y data
-        # TODO: Somehow label is getting Other or Nan, need to see if it's not actually filtering and I need to do copy
-        label = plays_df[plays_df['playId'] == play_id]['pff_manZone'].iloc[0]
+        # Set Man Coverage to 0 and Zone to 1 for y data
+        label = plays_df.iloc[i]['pff_manZone']
         if label == 'Man':
-            y_data.append(1)
-        elif label == 'Zone':
             y_data.append(0)
+        elif label == 'Zone':
+            y_data.append(1)
         else:
             print(label)
 
     # Convert to arrays
-    X = np.array(X_data)
-    y = np.array(y_data)
+    x_array = np.array(X_data)
+    y_array = np.array(y_data)
 
-    print(f"Final dataset shape: {X.shape}")
-    print(f"Labels distribution: {np.bincount(y)}")  # Counts of 0 and 1
+    print(f"Final dataset shape: {x_array.shape}")
+    print(f"Labels distribution: {np.bincount(y_array)}")  # Counts of 0 and 1
 
     # Validation checks
     expected_shape = min_frames * 11 * 2
-    if X.shape[1] != expected_shape:
-        raise ValueError(f"X.shape[1] ({X.shape[1]}) does not match expected value ({expected_shape}).")
-    if X.shape[0] != np.bincount(y)[0]:
-        raise ValueError("X[0] is not equal to np.bincount(y).")
+    if x_array.shape[1] != expected_shape:
+        raise ValueError(f"x_array.shape[1] ({x_array.shape[1]}) does not match expected value ({expected_shape}).")
+    if x_array.shape[0] != (np.bincount(y_array)[0] + np.bincount(y_array)[1]) :
+        raise ValueError("x_array[0] is not equal to np.bincount(y_array).")
+    
+    #--------------------------------------------------
+    # Build models
+    #--------------------------------------------------
+    # Define model
+    clf = LogisticRegression(max_iter=1000)
+
+    # Define 10-fold stratified cross-validation
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+    # Cross-validated accuracy scores
+    scores = cross_val_score(clf, x_array, y_array, cv=skf, scoring='accuracy')
+    print(f"\n10-Fold Cross-Validation Accuracy Scores: {scores}")
+    print(f"Mean Accuracy: {scores.mean():.4f} (+/- {scores.std():.4f})")
+
+    # Get cross-validated predictions to build confusion matrix
+    y_pred = cross_val_predict(clf, x_array, y_array, cv=skf)
+
+    print("\nConfusion Matrix (Cross-Validated):")
+    print(confusion_matrix(y_array, y_pred))
+
+    print("\nClassification Report (Cross-Validated):")
+    print(classification_report(y_array, y_pred, target_names=['Man', 'Zone']))
 
     # Return
     return 0
