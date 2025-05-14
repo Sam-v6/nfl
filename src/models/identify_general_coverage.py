@@ -10,6 +10,7 @@ Date: April 2025
 # Standard imports
 import os
 import random
+import time
 
 # General imports
 import numpy as np
@@ -20,12 +21,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # ML utils
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_predict, train_test_split
+from sklearn.metrics import roc_auc_score, log_loss, precision_score, recall_score, f1_score, classification_report, roc_curve, RocCurveDisplay
+from sklearn.preprocessing import StandardScaler
 
-# Regressors imports
+# Model imports
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_predict
-
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 
 def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     """
@@ -41,9 +44,10 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     np.random.seed(42)
 
     #--------------------------------------------------
-    # Data cleaning
+    # Filter out data we don't want
     #--------------------------------------------------
-    # Filter out rows
+    print("----------------------------------------------------------")
+    print("STATUS: Filtering data...")
     print(f'Total plays: {len(plays_df)}')
     plays_df = plays_df[
         (~plays_df['playDescription'].str.contains("PENALTY", na=False)) &  # Filter out penalty plays
@@ -59,6 +63,9 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     #-------------------------------
     # Figure out minimum frames
     #-------------------------------
+    min_frame_start = time.time()
+    print("----------------------------------------------------------")
+    print("STATUS: Determining minimum frames...")
     frame_length = []
     incomplete_players = []
     for i in range(0, len(plays_df)):
@@ -94,12 +101,18 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
 
     frame_df = pd.DataFrame(frame_length)
     min_frames = int(np.ceil(frame_df.quantile(0.20).iloc[0]))
+
     print(f'Minium Frames: {min_frames}')
     print(f'Plays removed due to not 11 players: {len(incomplete_players)}')
+    min_frame_end = time.time()
+    print(f"Min frame time: {min_frame_end - min_frame_start:.2f} seconds")
 
     #-------------------------------
     # Put data into format for x input
     #-------------------------------
+    flatten_data_start = time.time()
+    print("----------------------------------------------------------")
+    print("STATUS: Flattening data for machine learning application...")
     X_data = []
     y_data = []
     for i in range(0, len(plays_df)):
@@ -150,9 +163,9 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
         # Set Man Coverage to 0 and Zone to 1 for y data
         label = plays_df.iloc[i]['pff_manZone']
         if label == 'Man':
-            y_data.append(0)
-        elif label == 'Zone':
             y_data.append(1)
+        elif label == 'Zone':
+            y_data.append(0)
         else:
             print(label)
 
@@ -161,7 +174,7 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     y_array = np.array(y_data)
 
     print(f"Final dataset shape: {x_array.shape}")
-    print(f"Labels distribution: {np.bincount(y_array)}")  # Counts of 0 and 1
+    print(f"Target distribution (Zone is 0, Man is 1): {np.bincount(y_array)}")  # Counts of 0 and 1
 
     # Validation checks
     expected_shape = min_frames * 11 * 2
@@ -170,28 +183,72 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     if x_array.shape[0] != (np.bincount(y_array)[0] + np.bincount(y_array)[1]) :
         raise ValueError("x_array[0] is not equal to np.bincount(y_array).")
     
+    flatten_data_end = time.time()
+    print(f"Flatten data time: {flatten_data_end - flatten_data_start:.2f} seconds")
+    
+    #-------------------------------
+    # Scale data
+    #-------------------------------
+    print("----------------------------------------------------------")
+    print("STATUS: Scaling data...")
+    scaler = StandardScaler()
+    x_array_scaled = scaler.fit_transform(x_array)
+    x_train, x_test, y_train, y_test = train_test_split(x_array_scaled, y_array, test_size=0.2, stratify=y_array, random_state=42)
+
     #--------------------------------------------------
     # Build models
     #--------------------------------------------------
-    # Define model
-    clf = LogisticRegression(max_iter=1000)
+    model_data_start = time.time()
+    print("----------------------------------------------------------")
+    print("STATUS: Bulding models...")
+
+    models = {}
+    models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
+    models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
 
     # Define 10-fold stratified cross-validation
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
-    # Cross-validated accuracy scores
-    scores = cross_val_score(clf, x_array, y_array, cv=skf, scoring='accuracy')
-    print(f"\n10-Fold Cross-Validation Accuracy Scores: {scores}")
-    print(f"Mean Accuracy: {scores.mean():.4f} (+/- {scores.std():.4f})")
+    for model_name, model in models.items():
+        print("----------------------------------------------------------")
+        print(f"Model: {model_name}")
 
-    # Get cross-validated predictions to build confusion matrix
-    y_pred = cross_val_predict(clf, x_array, y_array, cv=skf)
+        # K Fold validation
+        print("K-Fold Cross-Validation on Training Data:")
+        cv_scores = cross_val_score(model, x_train, y_train, cv=skf, scoring='roc_auc')
+        print(f"10-Fold Cross-Validation ROC AUC Scores: {cv_scores}")
+        print(f"Mean ROC AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
 
-    print("\nConfusion Matrix (Cross-Validated):")
-    print(confusion_matrix(y_array, y_pred))
+        # Fit on training data
+        model.fit(x_train, y_train)
 
-    print("\nClassification Report (Cross-Validated):")
-    print(classification_report(y_array, y_pred, target_names=['Man', 'Zone']))
+        # Predict on test data
+        y_pred = model.predict(x_test)
+        y_proba = model.predict_proba(x_test)
+
+        # Metrics on Test Data
+        print(f"Precision (Man): {precision_score(y_test, y_pred, pos_label=1):.4f}")
+        print(f"Recall (Man): {recall_score(y_test, y_pred, pos_label=1):.4f}")
+        print(f"F1 Score (Man): {f1_score(y_test, y_pred, pos_label=1):.4f}")
+        print(f"Log Loss: {log_loss(y_test, y_proba):.4f}")
+        print(f"Overall ROC AUC: {roc_auc_score(y_test, y_proba[:, 1]):.4f}")
+        print(classification_report(y_test, y_pred, target_names=['Zone', 'Man']))
+
+        # Plot ROC AUC Curve
+        fpr, tpr, thresholds = roc_curve(y_test, y_proba[:, 1], pos_label=1)
+        plt.figure()
+        plt.plot(fpr, tpr, label=f'ROC Curve (AUC = {roc_auc_score(y_test, y_proba[:, 1]):.4f})')
+        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title(f'ROC Curve - {model_name.upper()}')
+        plt.legend(loc='lower right')
+        plt.grid(True)
+        image_name = f'man_zone_{model_name}_roc_auc.png'
+        plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', image_name))
+
+    model_data_end = time.time()
+    print(f"Model generation time: {model_data_end - model_data_start:.2f} seconds")
 
     # Return
     return 0
