@@ -178,4 +178,8 @@ cython_debug/
 catboost_info/
 
 # Data
-data/
+data/**/*.pkl
+data/source/
+
+# Output
+output/**/*.png

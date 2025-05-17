@@ -11,6 +11,7 @@ Date: April 2025
 import os
 import random
 import time
+import pickle
 
 # General imports
 import numpy as np
@@ -28,17 +29,11 @@ from sklearn.preprocessing import StandardScaler
 # Model imports
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
+import xgboost as xgb
+import lightgbm as lgb
 
-def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
-    """
-    Process NFL data for machine learning model creation.
-    Args:
-        games_df (pd.DataFrame): DataFrame containing game data.
-        plays_df (pd.DataFrame): DataFrame containing play data.
-    Returns:
-        None
-    """
+
+def process_data(games_df, plays_df, players_df, location_data_df):
 
     random.seed(42)
     np.random.seed(42)
@@ -187,24 +182,57 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     print(f"Flatten data time: {flatten_data_end - flatten_data_start:.2f} seconds")
     
     #-------------------------------
-    # Scale data
+    # Scale data and save it off
     #-------------------------------
     print("----------------------------------------------------------")
-    print("STATUS: Scaling data...")
+    print("STATUS: Scaling and saving training and test data...")
     scaler = StandardScaler()
     x_array_scaled = scaler.fit_transform(x_array)
     x_train, x_test, y_train, y_test = train_test_split(x_array_scaled, y_array, test_size=0.2, stratify=y_array, random_state=42)
 
+    # Define the directory where you want to save the files
+    save_dir = os.path.join(os.getenv('NFL_HOME'), 'data', 'coverage')  # Create a directory called 'splits' in your data folder
+
+    # Create the directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)  # exist_ok=True prevents errors if the directory already exists
+
+    # Save the data splits
+    with open(os.path.join(save_dir, 'x_train.pkl'), 'wb') as f:
+        pickle.dump(x_train, f)
+    with open(os.path.join(save_dir, 'x_test.pkl'), 'wb') as f:
+        pickle.dump(x_test, f)
+    with open(os.path.join(save_dir, 'y_train.pkl'), 'wb') as f:
+        pickle.dump(y_train, f)
+    with open(os.path.join(save_dir, 'y_test.pkl'), 'wb') as f:
+        pickle.dump(y_test, f)
+    print(f"Data splits saved to {save_dir}")
+
+    # Return
+    return 0
+
+def create_models(x_train, y_train, x_test, y_test):
+
     #--------------------------------------------------
     # Build models
     #--------------------------------------------------
+    # NOTES
+    # - Consider oversampling/undersampling techniues like SMOTE, RandomOverSampler
+    # - Organize the data into positions and then analyze feature importance
+    # - Grid search on parameters
+    # - Try additional tree based models XGBoost and LightGBM
+    # - Save data out that I can load it later
+
     model_data_start = time.time()
     print("----------------------------------------------------------")
     print("STATUS: Bulding models...")
 
     models = {}
-    models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
-    models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    #models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
+    #models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    #models['xgb'] = xgb.XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42)
+    #models['knn'] = KNeighborsClassifier(n_neighbors=5)
+    #models['svm'] = SVC(kernel='rbf', class_weight='balanced', probability=True, random_state=42)
+    models['lgb'] = lgb.LGBMClassifier(n_estimators=100, class_weight='balanced', random_state=42)
 
     # Define 10-fold stratified cross-validation
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
@@ -212,6 +240,12 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
     for model_name, model in models.items():
         print("----------------------------------------------------------")
         print(f"Model: {model_name}")
+
+        if model_name == 'lgb':
+            x_test = pd.DataFrame(x_test)
+            x_train = pd.DataFrame(x_train)
+            y_train = pd.Series(y_train).ravel()
+            y_test = pd.Series(y_test).ravel()
 
         # K Fold validation
         print("K-Fold Cross-Validation on Training Data:")
@@ -245,10 +279,43 @@ def model_man_vs_zone(games_df, plays_df, players_df, location_data_df):
         plt.legend(loc='lower right')
         plt.grid(True)
         image_name = f'man_zone_{model_name}_roc_auc.png'
-        plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', image_name))
+        plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', 'coverage', image_name))
 
     model_data_end = time.time()
     print(f"Model generation time: {model_data_end - model_data_start:.2f} seconds")
+
+    # Return 
+    return 0
+
+def load_data():
+    RUN_DATA_PROCESSING = False
+    base_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'coverage')
+    data_file_list = ['x_train', 'y_train', 'x_test', 'y_test']
+    data_dict = {}
+    for file in data_file_list:
+        file_name = file + '.pkl'
+        file_path = os.path.join(base_path, file_name)
+        if not os.path.exists(file_path):
+            print(f"File {file_name} does not exist. Exiting...")
+            RUN_DATA_PROCESSING = True
+        else:
+            with open(file_path, 'rb') as f:
+                data_dict[file] = pickle.load(f)
+
+    return RUN_DATA_PROCESSING, data_dict
+    
+def model_man_vs_zone(games_df, plays_df, players_df, location_data_df): 
+
+    # Check if we should run the data processing pipeline
+    RUN_DATA_PROCESSING, data_dict = load_data()
+    
+    # Run data processing if neccesary
+    if RUN_DATA_PROCESSING:
+        process_data(games_df, plays_df, players_df, location_data_df)
+        _, data_dict = load_data()
+
+    # Create models
+    create_models(data_dict['x_train'], data_dict['y_train'], data_dict['x_test'], data_dict['y_test'])
 
     # Return
     return 0
