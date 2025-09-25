@@ -1,0 +1,74 @@
+[build-system]
+# The build backend and what it needs to build your package
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nfl"            
+version = "0.1.0"              
+description = "Machine learnin models for NFL"
+readme = "README.md"          
+license = { file = "LICENSE" }   
+authors = [
+  { name = "Syam Evani", email = "syamevani@gmail.com" }
+]
+# (optional) Who maintains it (if different from author)
+maintainers = [
+  { name = "Syam Evani", email = "syamevani@gmail.com" }
+]
+requires-python = ">=3.12"          # the minimum Python version you support
+keywords = ["machine-learning", "simulation", "utils"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+
+dependencies = [
+  "numpy",
+  "pandas",
+  "matplotlib",
+  "catboost",
+  "scikit-learn",
+  "xgboost",
+  "seaborn",
+  "lightgbm",
+  "tqdm",
+  "pip-tools"
+  # add your runtime dependencies here
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "black>=24.0",
+  "flake8>=6.0",
+  "mypy>=1.0"
+]
+# you can define other "extras", e.g.:
+# docs = ["sphinx", "sphinx-rtd-theme"]
+
+[project.scripts]
+# command = "module:function"
+myproject-cli = "myproject.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Tool-specific configuration examples:
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311"]
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203"]
+
+[tool.mypy]
+strict = true
+python_version = 3.9

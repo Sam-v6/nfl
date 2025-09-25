@@ -227,9 +227,9 @@ def create_models(x_train, y_train, x_test, y_test):
     print("STATUS: Bulding models...")
 
     models = {}
-    #models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
-    #models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
-    #models['xgb'] = xgb.XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42)
+    models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
+    models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
+    models['xgb'] = xgb.XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42)
     #models['knn'] = KNeighborsClassifier(n_neighbors=5)
     #models['svm'] = SVC(kernel='rbf', class_weight='balanced', probability=True, random_state=42)
     models['lgb'] = lgb.LGBMClassifier(n_estimators=100, class_weight='balanced', random_state=42)

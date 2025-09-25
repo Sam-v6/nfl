@@ -27,7 +27,7 @@ import pandas as pd
 - Make a driver so I can start loading all these plays (later)
 """
 
-def animate_play(game_info_df, play_data_single_play_df, players_df, location_data_single_play_df):
+def animate_play(game_info_df: pd.DataFrame, play_data_single_play_df: pd.DataFrame, players_df: pd.DataFrame, location_data_single_play_df: pd.DataFrame):
 
     # Unpack contents
     game_id = game_info_df['gameId']
@@ -52,7 +52,7 @@ def animate_play(game_info_df, play_data_single_play_df, players_df, location_da
     else:
         if len(frame_ids) == 0:
             raise ValueError(f"No frames found for game {game_id}, play {play_id}.")
-        snap_frame_id = frame_ids[0]
+        snap_frame_id = frame_ids[0]pd.DataFrame
         print(f"No 'ball_snap' event found for game {game_id}, play {play_id}. Using first frame ({snap_frame_id}) as snap.")
 
     # Setup plot

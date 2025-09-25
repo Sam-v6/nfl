@@ -25,10 +25,10 @@ if __name__ == "__main__":
     random.seed(42)
 
     # Load data
-    games_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','games.csv'))
-    plays_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','plays.csv'))
-    players_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','players.csv'))
-    week1_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','tracking_week_1.csv'))
+    games_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data', 'raw', 'games.csv'))
+    plays_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data', 'raw', 'plays.csv'))
+    players_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','raw', 'players.csv'))
+    week1_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','raw', 'tracking_week_1.csv'))
 
     # Draw play frame
     for i in range(0,len(games_df)):
