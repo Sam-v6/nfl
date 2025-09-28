@@ -22,7 +22,7 @@ def create_coverage_data(games_df, plays_df, players_df, location_data_df):
     # Filter out data we don't want
     #################################
     logging.info("Filtering data...")
-    print(f'Total plays: {len(plays_df)}')
+    logging.info(f'Total plays: {len(plays_df)}')
     plays_df = plays_df[
         (~plays_df['playDescription'].str.contains("PENALTY", na=False)) &  # Filter out penalty plays
         (plays_df['playNullifiedByPenalty'] == 'N') &                       # Robustely filter out penalty plays

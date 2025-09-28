@@ -12,6 +12,8 @@ import random
 import time
 import pickle
 import logging
+import json
+import joblib
 
 # General imports
 import numpy as np
@@ -26,94 +28,26 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_
 from sklearn.metrics import roc_auc_score, log_loss, precision_score, recall_score, f1_score, classification_report, roc_curve, RocCurveDisplay
 from sklearn.preprocessing import StandardScaler
 
-# Model imports
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-import xgboost as xgb
-import lightgbm as lgb
+# MLflow
+import mlflow
+from common.mlflow import setup_mlflow
+
+# Models
+from xgboost import XGBClassifier
 
 # Local imports
 from common.data_loader import DataLoader
 from coverage.process_coverage import create_coverage_data
 
-def create_models(x_train, y_train, x_test, y_test):
+# Local model imports
+from common.models.log import LogisticModel
+from common.models.lgb import LGBModel
+#from common.models.xgb import XGBModel
+#from common.models.svc import SVC
+from common.models.rfr import RFRModel
+from common.models.mlp import MLPModel
 
-    #--------------------------------------------------
-    # Build models
-    #--------------------------------------------------
-    # NOTES
-    # - Consider oversampling/undersampling techniues like SMOTE, RandomOverSampler
-    # - Organize the data into positions and then analyze feature importance
-    # - Grid search on parameters
-    # - Try additional tree based models XGBoost and LightGBM
-    # - Save data out that I can load it later
-
-    model_data_start = time.time()
-    print("----------------------------------------------------------")
-    print("STATUS: Bulding models...")
-
-    models = {}
-    models['log'] = LogisticRegression(max_iter=1000, class_weight='balanced')
-    models['rfr'] = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
-    models['xgb'] = xgb.XGBClassifier(objective='binary:logistic', n_estimators=100, random_state=42)
-    #models['knn'] = KNeighborsClassifier(n_neighbors=5)
-    #models['svm'] = SVC(kernel='rbf', class_weight='balanced', probability=True, random_state=42)
-    models['lgb'] = lgb.LGBMClassifier(n_estimators=100, class_weight='balanced', random_state=42)
-
-    # Define 10-fold stratified cross-validation
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-
-    for model_name, model in models.items():
-        print("----------------------------------------------------------")
-        print(f"Model: {model_name}")
-
-        if model_name == 'lgb':
-            x_test = pd.DataFrame(x_test)
-            x_train = pd.DataFrame(x_train)
-            y_train = pd.Series(y_train).ravel()
-            y_test = pd.Series(y_test).ravel()
-
-        # K Fold validation
-        print("K-Fold Cross-Validation on Training Data:")
-        cv_scores = cross_val_score(model, x_train, y_train, cv=skf, scoring='roc_auc')
-        print(f"10-Fold Cross-Validation ROC AUC Scores: {cv_scores}")
-        print(f"Mean ROC AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
-
-        # Fit on training data
-        model.fit(x_train, y_train)
-
-        # Predict on test data
-        y_pred = model.predict(x_test)
-        y_proba = model.predict_proba(x_test)
-
-        # Metrics on Test Data
-        print(f"Precision (Man): {precision_score(y_test, y_pred, pos_label=1):.4f}")
-        print(f"Recall (Man): {recall_score(y_test, y_pred, pos_label=1):.4f}")
-        print(f"F1 Score (Man): {f1_score(y_test, y_pred, pos_label=1):.4f}")
-        print(f"Log Loss: {log_loss(y_test, y_proba):.4f}")
-        print(f"Overall ROC AUC: {roc_auc_score(y_test, y_proba[:, 1]):.4f}")
-        print(classification_report(y_test, y_pred, target_names=['Zone', 'Man']))
-
-        # Plot ROC AUC Curve
-        fpr, tpr, thresholds = roc_curve(y_test, y_proba[:, 1], pos_label=1)
-        plt.figure()
-        plt.plot(fpr, tpr, label=f'ROC Curve (AUC = {roc_auc_score(y_test, y_proba[:, 1]):.4f})')
-        plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title(f'ROC Curve - {model_name.upper()}')
-        plt.legend(loc='lower right')
-        plt.grid(True)
-        image_name = f'man_zone_{model_name}_roc_auc.png'
-        plt.savefig(os.path.join(os.getenv('NFL_HOME'), 'output', 'coverage', image_name))
-
-    model_data_end = time.time()
-    print(f"Model generation time: {model_data_end - model_data_start:.2f} seconds")
-
-    # Return 
-    return 0
-
-def load_data():
+def load_data() -> dict[str]:
     base_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'coverage')
     data_file_list = ['x', 'y']
     data_dict = {}
@@ -127,12 +61,30 @@ def load_data():
                 data_dict[file] = pickle.load(f)
 
     return data_dict
-    
-def model_man_vs_zone():
+
+def plot_roc(y_test, y_proba) -> None:
+    fpr, tpr, thresholds = roc_curve(y_test, y_proba[:, 1], pos_label=1)
+    plt.figure()
+    plt.plot(fpr, tpr, label=f'ROC Curve (AUC = {roc_auc_score(y_test, y_proba[:, 1]):.4f})')
+    plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title(f'ROC Curve')
+    plt.legend(loc='lower right')
+    plt.grid(True)
+    image_name = f'man_zone_roc_auc.png'
+    image_path = os.path.join(os.getenv('NFL_HOME'), 'output', 'coverage', image_name)
+    plt.savefig(image_path, dpi=200)
+    mlflow.log_artifact(image_path, artifact_path="plots")
+
+def model_man_vs_zone() -> None:
 
     # Inputs
-    RUN_DATA_PROCESSING = True
+    RUN_DATA_PROCESSING = False
 
+    ###########################################
+    # Get data
+    ###########################################
     # Run data processing if neccesary
     if RUN_DATA_PROCESSING:
 
@@ -145,31 +97,173 @@ def model_man_vs_zone():
 
     # Get saved data locally
     data_dict = load_data()
+    x_data = data_dict['x']
+    y_data = data_dict['y']
 
+    ###########################################
+    # Split and standarize data
+    ###########################################
+    # Get x and y da
     logging.info("Scaling and saving training and test data...")
 
     # Splittys
-    x_train, x_test, y_train, y_test = train_test_split(data_dict['x'], data_dict['y'], test_size=0.2, stratify=y_array, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(x_data, y_data, test_size=0.2, stratify=y_data, random_state=42)
 
     # Standarize/scale data
     scaler = StandardScaler()
     x_train_scaled = scaler.fit_transform(x_train)
     x_test_scaled = scaler.transform(x_test)
 
-    # Create model
+    ###########################################
+    # Run training for models
+    ###########################################
+    # NOTES
+    # - Consider oversampling/undersampling techniues like SMOTE, RandomOverSampler
+    # - Organize the data into positions and then analyze feature importance
+    # - Grid search on parameters
+    # - Try additional tree based models XGBoost and LightGBM
 
-    # Create models
-    create_models(x_train_scaled, y_train, x_test_scaled, y_test)
+    # Setup MLflow
+    setup_mlflow(experiment_name="coverage-man-vs-zone")
 
-    # Return
-    return 0
+    # Define 10-fold stratified cross-validation
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    
+    # Xgb training
+    xgbModel = XGBClassifier(
+        objective="binary:logistic",
+        n_estimators=1000,       # use more trees + early stopping when I add it later
+        learning_rate=0.05,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        tree_method="hist",      # fast histogram algo
+        device="cuda",           # GPU
+        random_state=42
+    )
+    
+    # MLFlow wrapped training
+    with mlflow.start_run(run_name="xgb-10fold"):
+        # Log some dataset meta (sizes, class balance)
+        mlflow.log_params({
+            "cv_folds": 10,
+            "test_size": 0.2,
+            "shuffle": True,
+            "random_state": 42
+        })
+
+        # Log class distribution
+        _, counts = np.unique(y_train, return_counts=True)
+        mlflow.log_metrics({
+            "train_class0": int(counts[0]),
+            "train_class1": int(counts[1]),
+            "train_size":   int(x_train.shape[0]),
+            "test_size":    int(x_test.shape[0]),
+        })
+
+        # Save scaler
+        artifact_path = os.path.join(os.getenv("NFL_HOME"), "output", "coverage")
+        os.makedirs(artifact_path, exist_ok=True)
+        joblib.dump(scaler, os.path.join(artifact_path, "standard_scaler.pkl"))
+        mlflow.log_artifact(os.path.join(artifact_path, "standard_scaler.pkl"), artifact_path="preprocessing")
+
+        # Enable autologging so the fitted model is captured
+        mlflow.xgboost.autolog(log_model_signatures=True, log_input_examples=True)
+
+        # Train
+        train_xgb(
+            model=xgbModel,
+            skf=skf,
+            x_train=x_train_scaled, y_train=y_train,
+            x_test=x_test_scaled,   y_test=y_test
+        )
+
+def train_xgb(model, skf, x_train, y_train, x_test, y_test) -> None:
+    start_time = time.time()
+
+    logging.info("Starting K-Fold Cross-Validation...:")
+    cv_scores = cross_val_score(model, x_train, y_train, cv=skf, scoring='roc_auc')
+
+    # Log per-fold and summary CV AUC
+    for i, s in enumerate(cv_scores, 1):
+        mlflow.log_metric("cv_auc", float(s), step=i)
+    mlflow.log_metric("cv_auc_mean", float(cv_scores.mean()))
+    mlflow.log_metric("cv_auc_std",  float(cv_scores.std()))
+
+    print(f"10-Fold Cross-Validation ROC AUC Scores: {cv_scores}")
+    print(f"Mean ROC AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
+
+    # Fit on full training split (autolog will capture this model)
+    model.fit(x_train, y_train)
+
+    # Predict on test data
+    y_pred   = model.predict(x_test)
+    y_proba  = model.predict_proba(x_test)
+
+    # Metrics on Test Data
+    prec = precision_score(y_test, y_pred, pos_label=1)
+    rec  = recall_score(y_test, y_pred, pos_label=1)
+    f1   = f1_score(y_test, y_pred, pos_label=1)
+    ll   = log_loss(y_test, y_proba)
+    auc_ = roc_auc_score(y_test, y_proba[:, 1])
+
+    print(f"Precision (Man): {prec:.4f}")
+    print(f"Recall (Man): {rec:.4f}")
+    print(f"F1 Score (Man): {f1:.4f}")
+    print(f"Log Loss: {ll:.4f}")
+    print(f"Overall ROC AUC: {auc_:.4f}")
+    print(classification_report(y_test, y_pred, target_names=['Zone', 'Man']))
+
+    # Log test metrics
+    mlflow.log_metrics({
+        "test_precision_pos1": float(prec),
+        "test_recall_pos1":    float(rec),
+        "test_f1_pos1":        float(f1),
+        "test_log_loss":       float(ll),
+        "test_auc":            float(auc_),
+    })
+
+    # Log the chosen hyperparameters as params (autolog also captures).
+    try:
+        mlflow.log_params(model.get_params())
+    except Exception:
+        pass
+
+    # Save classification report as an artifact
+    report_txt = classification_report(y_test, y_pred, target_names=['Zone', 'Man'])
+    artifact_path = os.path.join(os.getenv("NFL_HOME"), "output", "coverage")
+    with open(os.path.join(artifact_path, "classification_report.txt"), "w") as f:
+        f.write(report_txt)
+    mlflow.log_artifact(os.path.join(artifact_path, "classification_report.txt"), artifact_path="reports")
+
+    # Plot & log ROC curve
+    plot_roc(y_test, y_proba)
+
+    # (Optional) log a small signature/input example for the model you just trained:
+    try:
+        # Use a tiny slice to avoid huge artifacts
+        X_example = x_train[:5]
+        y_example = y_train[:5]
+        sig = mlflow.models.infer_signature(X_example, model.predict_proba(X_example))
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model_relogged",  # separate from autologged model
+            signature=sig,
+            input_example=X_example
+        )
+    except Exception as e:
+        logging.warning(f"Signature logging skipped: {e}")
+
+    # Record training duration time
+    end_time = time.time()
+    training_duration = end_time - start_time
+    logging.info(f"Model generation time: {training_duration:.2f} seconds")
+    mlflow.log_metric("training_duration_sec", float(training_duration))
 
 if __name__ == "__main__":
     
     # Configure basic logging (optional, but useful for quick setup)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    # Get a logger instance
     logger = logging.getLogger(__name__)
 
     # Run model

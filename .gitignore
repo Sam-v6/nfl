@@ -183,3 +183,7 @@ data/source/
 
 # Output
 output/**/*.png
+output/**/*.txt
+
+# MLflow
+mlruns/
