@@ -26,17 +26,18 @@ classifiers = [
 ]
 
 dependencies = [
-  "numpy",
-  "pandas",
-  "matplotlib",
-  "catboost",
-  "scikit-learn",
-  "xgboost",
-  "seaborn",
-  "lightgbm",
-  "tqdm",
-  "pip-tools"
-  # add your runtime dependencies here
+  "catboost>=1.2.8",
+  "lightgbm>=4.6.0",
+  "matplotlib>=3.10.6",
+  "mlflow>=3.4.0",
+  "numpy>=2.3.3",
+  "pandas>=2.3.2",
+  "pip-tools>=7.5.0",
+  "scikit-learn>=1.7.2",
+  "seaborn>=0.13.2",
+  "torch>=2.8.0",
+  "tqdm>=4.67.1",
+  "xgboost>=3.0.5",
 ]
 
 [project.optional-dependencies]
@@ -71,4 +72,6 @@ extend-ignore = ["E203"]
 
 [tool.mypy]
 strict = true
-python_version = 3.9
+
+[tool.uv.workspace]
+members = ["something"]

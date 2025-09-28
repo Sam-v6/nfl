@@ -1,4 +1,7 @@
 # nfl
 Machine learning sandbox for nfl data
 
-`pip-compile --rebuild pyproject.toml -o requirements.txt`
+`uv compile pyproject.toml -o requirements.txt`
+
+
+`mlflow ui --backend-store-uri ./mlruns`
