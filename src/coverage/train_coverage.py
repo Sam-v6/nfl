@@ -239,15 +239,15 @@ def train_xgb(model, skf, x_train, y_train, x_test, y_test) -> None:
     # Plot & log ROC curve
     plot_roc(y_test, y_proba)
 
-    # (Optional) log a small signature/input example for the model you just trained:
+    # Log model signature
     try:
-        # Use a tiny slice to avoid huge artifacts
+        # Just grab a few vals which is sufficient for artifacts
         X_example = x_train[:5]
         y_example = y_train[:5]
         sig = mlflow.models.infer_signature(X_example, model.predict_proba(X_example))
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="model_relogged",  # separate from autologged model
+            artifact_path="model_relogged",
             signature=sig,
             input_example=X_example
         )
@@ -262,7 +262,7 @@ def train_xgb(model, skf, x_train, y_train, x_test, y_test) -> None:
 
 if __name__ == "__main__":
     
-    # Configure basic logging (optional, but useful for quick setup)
+    # Configure basic logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
