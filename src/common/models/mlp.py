@@ -1,7 +1,5 @@
 import torch
 
-
-
 class MLPModel(torch.nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
