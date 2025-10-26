@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Tuple
 
 
-class DataLoader:
+class RawDataLoader:
     def __init__(self, nfl_home=None):
         self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'raw')
         self.games_df = None
@@ -61,5 +61,5 @@ class DataLoader:
 if __name__ == "__main__":
 
     # Example usage so that I can selectively load in a few weeks to keep mem down
-    loader = DataLoader()
+    loader = RawDataLoader()
     games_df, plays_df, players_df, location_data_df = loader.get_data(weeks=[1, 2])
