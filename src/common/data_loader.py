@@ -7,32 +7,32 @@ from typing import Tuple
 
 class RawDataLoader:
     def __init__(self, nfl_home=None):
-        self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'raw')
+        self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'parquet')
         self.games_df = None
         self.plays_df = None
         self.players_df = None
         self.location_data_df = None
 
     def _load_data(self, filepath):
-        """Load CSV data with basic error handling"""
+        """Load parquet data with basic error handling"""
         try:
-            return pd.read_csv(filepath)
+            return pd.read_parquet(filepath)
         except Exception as e:
             print(f"Error loading {filepath}: {e}")
             return None
 
     def _load_base_data(self):
         """Load games, plays, and players data"""
-        self.games_df = self._load_data(os.path.join(self.data_path, 'games.csv'))
-        self.plays_df = self._load_data(os.path.join(self.data_path, 'plays.csv'))
-        self.players_df = self._load_data(os.path.join(self.data_path, 'players.csv'))
+        self.games_df = self._load_data(os.path.join(self.data_path, 'games.parquet'))
+        self.plays_df = self._load_data(os.path.join(self.data_path, 'plays.parquet'))
+        self.players_df = self._load_data(os.path.join(self.data_path, 'players.parquet'))
 
     def _load_tracking_data(self, weeks=range(1, 10)):
         """Load tracking data for specified weeks"""
         weekly_dfs = []
         
         for week in weeks:
-            filepath = os.path.join(self.data_path, f'tracking_week_{week}.csv')
+            filepath = os.path.join(self.data_path, f'tracking_week_{week}.parquet')
             df = self._load_data(filepath)
             if df is not None:
                 weekly_dfs.append(df)
