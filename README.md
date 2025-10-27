@@ -13,3 +13,16 @@ Machine learning sandbox for nfl data
 4) Temporal Transformer
 5) Spatio-temporal GNN
 
+# TODO
+## Update Gitlab CI to use LFS
+- uses: actions/checkout@v4
+  with:
+    lfs: true
+
+
+variables:
+  GIT_LFS_SKIP_SMUDGE: "0"   # ensure LFS files are fetched
+before_script:
+  - git lfs install
+  - git lfs fetch
+  - git lfs checkout
