@@ -25,6 +25,7 @@ import torch.nn as nn
 
 # Local
 from common.decorators import timeit
+from common.models.lstm import LSTMClassifier
 
 @timeit
 def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
@@ -319,41 +320,17 @@ def create_dataloaders(X_np: np.ndarray, y_np: np.ndarray) -> tuple[DataLoader, 
 
     return train_loader, val_loader, idx_train
 
-class LSTMClassifier(nn.Module):
-
-    def __init__(self, input_size=44, hidden_size=64, num_layers=1, dropout=0.0, bidir=False, num_classes=2):
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0.0,
-            bidirectional=bidir,
-        )
-        out_dim = hidden_size * (2 if bidir else 1)
-        self.head = nn.Sequential(
-            nn.LayerNorm(out_dim),
-            nn.Linear(out_dim, num_classes)
-        )
-
-    def forward(self, x):  # x: (B, T, F)
-        out, (h_n, c_n) = self.lstm(x)        # out: (B, T, H)
-        last = out[:, -1, :]                  # use last timestep representation
-        logits = self.head(last)              # (B, C)
-        return logits
-
 @timeit
 def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarray, idx_train: np.ndarray) -> LSTMClassifier:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = LSTMClassifier(input_size=88, hidden_size=64, num_layers=3, dropout=0.0, bidir=False).to(device)
+    model = LSTMClassifier(input_size=88, hidden_size=64, num_layers=3, dropout=0.0, bidir=False, num_classes=2).to(device)
 
     # Create criterion with CE losss weighted with class weights to account for higher proportion of man coverage
     # Zone dominates class weighting, calc distribution then assign man a higher waiting on the CE loss
     y_train = y_np[idx_train]                                                      # Slice to the training fold
     classes = np.array([0, 1], dtype=int)                                           # 0=Zone, 1=Man
     w = compute_class_weight(class_weight='balanced', classes=classes, y=y_train)
-    logging.info("Class weights (Zone, Man):", w)
+    logger.info("Class weights (Zone, Man): %s", w)
     class_weights = torch.tensor(w, dtype=torch.float32, device=device)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
@@ -383,7 +360,7 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
                 total += y.numel()
         logging.info(f"Epoch {epoch+1}: val acc = {correct/total:.3f}")
 
-        return model
+    return model
 
 @timeit
 def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
