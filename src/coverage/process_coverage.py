@@ -8,14 +8,13 @@ import logging
 # Common
 import pandas as pd
 import numpy as np
-
-# Type hinting
+import matplotlib.pyplot as plt
 
 # Sklearn utils
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc, precision_recall_fscore_support
 import joblib
 
 # PyTorch
@@ -53,9 +52,9 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
     filtered_plays_df = filtered_plays_df[filtered_plays_df['passResult'].notna()]
     logging.info(f'Total plays after filtering to only pass plays: {len(filtered_plays_df)}')
 
-    # Filter for only plays where the win probablity isn't lopsided (between 0.2 and 0.8)
-    filtered_plays_df = filtered_plays_df[(filtered_plays_df['preSnapHomeTeamWinProbability'] > 0.1) & (filtered_plays_df['preSnapHomeTeamWinProbability'] < 0.9)]
-    logging.info(f'Total plays after filtering out garbage time: {len(filtered_plays_df)}')
+    # Filter for only plays where the win probablity isn't lopsided (between 0.1 and 0.9), likelyhood that there's more movement
+    # filtered_plays_df = filtered_plays_df[(filtered_plays_df['preSnapHomeTeamWinProbability'] > 0.1) & (filtered_plays_df['preSnapHomeTeamWinProbability'] < 0.9)]
+    # logging.info(f'Total plays after filtering out garbage time: {len(filtered_plays_df)}')
 
     # Filter for only third down or fourth down plays
     # filtered_plays_df = filtered_plays_df[filtered_plays_df['down'].isin([3, 4])]
@@ -320,10 +319,62 @@ def create_dataloaders(X_np: np.ndarray, y_np: np.ndarray) -> tuple[DataLoader, 
 
     return train_loader, val_loader, idx_train
 
+def collect_probs(model, loader: DataLoader, device) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Collect the raw probabilities so downstream we can try many thresholds without re-running the model.
+    """
+
+    model.eval()                                            # inference mode, disables dropout and batch norm updates
+    y_true, y_prob = [], []                                 # lists to collect true labels and predicted probabilities
+    with torch.no_grad():                                   # no need to calcualte gradients for validation
+        for x, y in loader:
+            x = x.to(device)                                # move to GPU
+            logits = model(x)                               # forward pass to get raw class scores of shape [B, 2]
+            prob1 = torch.softmax(logits, dim=1)[:, 1]      # turn logits into probabilties, get the man column
+            y_prob.append(prob1.cpu().numpy())              # move to CPU and convert to numpy
+            y_true.append(y.numpy())                        # true labels on CPU as numpy
+    return np.concatenate(y_true), np.concatenate(y_prob)   # flatten all batches into single arrays
+
+def report_at_threshold(y_true, y_prob, thr, beta=1.0):
+    # Turns probabilities into binary predictions at threshold
+    y_pred = (y_prob >= thr).astype(int)
+
+    # Get structured metrics
+    (prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(y_true, y_pred, average=None, labels=[0,1], beta=beta, zero_division=0)
+
+    # Return threshold, man precision, man recall, and man f1 score
+    return {"thr":thr, "man_prec":prec1, "man_rec":rec1, "man_f":f11}
+
+def tune_threshold_for_precision(y_true, y_prob, min_recall=None, beta=0.5):
+    
+    # Star off with unique probs and a coarse grid of thresholds
+    unique_probs = np.unique(np.clip(y_prob, 1e-6, 1-1e-6))
+    grid = np.linspace(0.05, 0.95, 37)
+
+    # Merge and de-duplicate
+    thresholds = np.unique(np.concatenate([unique_probs, grid]))
+
+    # Find best threshold
+    best = {"thr":0.5, "man_prec":0.0, "man_rec":0.0, "man_f":0.0}
+    for t in thresholds:
+        y_pred = (y_prob >= t).astype(int)
+        (prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(y_true, y_pred, average=None, labels=[0,1], beta=beta, zero_division=0)
+        if min_recall is not None and rec1 < min_recall:
+            continue
+        if prec1 > best["man_prec"]:
+            best = {"thr": float(t), "man_prec": float(prec1), "man_rec": float(rec1), "man_f": float(f11)}
+
+    # Return the best threshold (and associated metrics)
+    return best
+
 @timeit
 def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarray, idx_train: np.ndarray) -> LSTMClassifier:
+
+    # Set device to GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = LSTMClassifier(input_size=88, hidden_size=64, num_layers=3, dropout=0.0, bidir=False, num_classes=2).to(device)
+
+    # Init LSTM model
+    model = LSTMClassifier(input_size=88, hidden_size=64, num_layers=2, dropout=0.4, bidir=False, num_classes=2).to(device)
 
     # Create criterion with CE losss weighted with class weights to account for higher proportion of man coverage
     # Zone dominates class weighting, calc distribution then assign man a higher waiting on the CE loss
@@ -335,11 +386,22 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # Using Adam
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    # Init values for finding best theshold
+    set_min_recall = 0.25   # minimum recall floor when tuning thresholds
+    best_state = None
+    best_man_prec = -1.0    # init so first epoch can win
+    best_thr = 0.5          # default threshold
+    patience = 10           # how many epochs to wait until early stop
+    bad = 0
 
     # Train
-    for epoch in range(200):
+    for epoch in range(500):
+
+        #####################################
         # Train
+        #####################################
         model.train()
         for X, y in train_loader:
             X, y = X.to(device), y.to(device)
@@ -349,42 +411,87 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
             loss.backward()
             optimizer.step()
 
-        # Val
-        model.eval()
-        correct = total = 0
-        with torch.no_grad():
-            for X, y in val_loader:
-                X, y = X.to(device), y.to(device)
-                pred = model(X).argmax(dim=1)
-                correct += (pred == y).sum().item()
-                total += y.numel()
-        logging.info(f"Epoch {epoch+1}: val acc = {correct/total:.3f}")
+        #####################################
+        # Validation
+        #####################################
+        # Collect raw probabilities on validation set
+        y_true_val, y_prob_val = collect_probs(model, val_loader, device)
+
+        # Tune threshold for max Man precision with a recall floor
+        tuned = tune_threshold_for_precision(y_true_val, y_prob_val, min_recall=set_min_recall, beta=0.5)
+
+        # Report at tuned threshold
+        stats_tuned = report_at_threshold(y_true_val, y_prob_val, thr=tuned["thr"], beta=0.5)
+        logging.info(f"[epoch {epoch+1}] Tuned thr={tuned['thr']:.3f} | "f"Man P={tuned['man_prec']:.2f} R={tuned['man_rec']:.2f}")
+
+        # Early-stop on best Man precision-at-tuned-threshold
+        if tuned["man_prec"] > best_man_prec:
+            best_man_prec = tuned["man_prec"]
+            best_thr = tuned["thr"]
+            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
+            bad = 0
+        else:
+            bad += 1
+            if bad >= patience:
+                logging.info(f"Early stopping at epoch {epoch+1}")
+                break
+
+    # Restore best weights and attach tuned threshold
+    if best_state is not None:
+        model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
+    logging.info(f"Final chosen Man threshold = {best_thr:.3f} (best Man precision={best_man_prec:.2f})")
+    model.best_man_threshold = best_thr   # <-- sets the attribute used by viz
 
     return model
 
 @timeit
 def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
+
+    # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model.eval()
-    all_preds, all_true = [], []
+    # Use tuned threshold if available
+    thr = getattr(model, "best_man_threshold", 0.5) 
 
+    # Evaluate
+    model.eval()
+    all_true, all_prob = [], []
     with torch.no_grad():
         for X, y in val_loader:
-            X, y = X.to(device), y.to(device)
-            pred = model(X).argmax(dim=1)
-            all_preds.extend(pred.cpu().numpy())
-            all_true.extend(y.cpu().numpy())
+            X = X.to(device)
+            logits = model(X)                         # [B, 2]
+            prob_man = torch.softmax(logits, dim=1)[:, 1].cpu().numpy()
+            all_prob.extend(prob_man)
+            all_true.extend(y.numpy())
+    all_true = np.array(all_true)
+    all_prob = np.array(all_prob)
+    all_pred = (all_prob >= thr).astype(int)
 
-    logging.info(classification_report(all_true, all_preds, target_names=["Zone", "Man"]))
+    # Classification report
+    logging.info(f"Using threshold = {thr:.3f}")
+    logging.info(classification_report(all_true, all_pred, target_names=["Zone", "Man"]))
 
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    import matplotlib.pyplot as plt
-    cm = confusion_matrix(all_true, all_preds, labels=[0, 1])
+    # Plot confusion matrix
+    cm = confusion_matrix(all_true, all_pred, labels=[0, 1])
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Zone", "Man"])
     disp.plot(cmap='Blues', values_format='d')
-    plt.title("Confusion Matrix")
+    plt.title(f"Confusion Matrix (thr={thr:.3f})")
     plt.show()
+
+    # Plot ROC curve
+    fpr, tpr, thresholds = roc_curve(all_true, all_prob)  # uses probabilities (not thresholded)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure(figsize=(6, 6))
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label=f"ROC curve (AUC = {roc_auc:.3f})")
+    plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--', label='Chance line')
+    plt.xlabel("False Positive Rate (1 - Specificity)")
+    plt.ylabel("True Positive Rate (Recall)")
+    plt.title("Receiver Operating Characteristic (ROC)")
+    plt.legend(loc="lower right")
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.show()
+    logging.info(f"ROC AUC = {roc_auc:.3f}")
 
 if __name__ == "__main__":
     
