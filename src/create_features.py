@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 """
 Module: .py
@@ -22,8 +23,7 @@ from clean_data import *
 def process_week_data(week_number, plays):
 
   # -- defining function to read in all data & apply cleaning functions
-
-  file_path = f"/home/sam/repos/hobby-repos/ExposingCoverageTells-BDB25/data/raw/tracking_week_{week_number}.csv"
+  file_path = os.path.join(os.getenv("NFL_HOME"), "data", "raw", f"tracking_week_{week_number}.csv")
   week = pd.read_csv(file_path)
   print(f"Finished reading Week {week_number} data")
 

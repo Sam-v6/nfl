@@ -1,9 +1,11 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 
 """
-Purpose: Process nfl data for machine learning model creation
+Module: data_loader.py
+Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
+
 Author: Syam Evani
-Date: April 2025
+Created: 2025-11-02
 """
 
 # Standard imports

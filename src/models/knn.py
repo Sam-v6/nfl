@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+
+"""
+Module: data.py
+Description: Class for loading raw tracking data
+
+Author: Syam Evani
+Created: 2025-10-15
+"""
+
 from sklearn.neighbors import KNeighborsClassifier
 
 class KNNModel():

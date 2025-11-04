@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Module: data_loader.py
 Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.

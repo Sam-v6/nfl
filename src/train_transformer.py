@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Module: data.py
 Description: Class for loading raw tracking data

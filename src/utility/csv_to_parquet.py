@@ -1,16 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
 """
-csv2parquet.py — Convert a tree of CSV files to Parquet (one-to-one).
+Module: data.py
+Description: Class for loading raw tracking data
 
-Usage:
-  python csv2parquet.py /path/to/csv_root /path/to/parquet_out
-
-Notes:
-  - Uses chunked reads to handle large CSVs.
-  - Preserves directory structure under the output root.
-  - Compression: ZSTD (smaller than snappy). Change to 'snappy' if preferred.
-  - Requires: pandas, pyarrow
-    pip install pandas pyarrow
+Author: Syam Evani
+Created: 2025-10-15
 """
 
 import sys
