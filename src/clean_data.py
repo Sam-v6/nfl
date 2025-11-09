@@ -283,3 +283,11 @@ def data_augmentation(df, augmented_frames):
   df_sample['frameUniqueId'] = df_sample['frameUniqueId'].astype(str) + '_aug'
 
   return df_sample
+
+
+def add_frames_from_snap(df):
+  snap_frames = df[df['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
+  df = df.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
+  df['frames_from_snap'] = df['frameId'] - df['snap_frame']
+
+  return df

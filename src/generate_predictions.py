@@ -8,30 +8,30 @@ Author: Syam Evani
 Created: 2025-10-15
 """
 
-
-from torch.utils.data import TensorDataset, DataLoader
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import math
-from torch.optim import AdamW
-pd.options.mode.chained_assignment = None
 import warnings
 import random
+import os
+import logging
+
+import pandas as pd
+pd.options.mode.chained_assignment = None
+import numpy as np
+import matplotlib.pyplot as plt
+import polars as pl
 import torch
 import torch.nn as nn
-import polars as pl
-import os
+from torch.utils.data import TensorDataset, DataLoader
+from torch.optim import AdamW
 
 from models.transformer import ManZoneTransformer
 from load_data import RawDataLoader
 from clean_data import *
 
-
 def process_week_data_preds(week_number, plays):
   file_path = os.path.join(os.getenv("NFL_HOME"), "data", "raw", f"tracking_week_{week_number}.csv")
   week = pd.read_csv(file_path)
-  print(f"Finished reading Week {week_number} data")
+  logging.info(f"Finished reading Week {week_number} data")
 
   # applying cleaning functions
   week = rotate_direction_and_orientation(week)
@@ -68,8 +68,7 @@ def process_week_data_preds(week_number, plays):
 
   # week = pd.concat([week, week_aug])
 
-  print(f"Finished processing Week {week_number} data")
-  print()
+  logging.info(f"Finished processing Week {week_number} data")
 
   return week
 
@@ -92,106 +91,105 @@ def prepare_tensor(play, num_players=22, num_features=5):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-  save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
-  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-  model = ManZoneTransformer(
-      feature_len=5,    # num of input features (x, y, v_x, v_y, defense)
-      model_dim=64,     # experimented with 96 & 128... seems best
-      num_heads=2,      # 2 seems best (but may have overfit when tried 4... may be worth iterating)
-      num_layers=4,
-      dim_feedforward=64 * 4,
-      dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
-      output_dim=2      # man or zone classification
-  ).to(device)
+    model = ManZoneTransformer(
+        feature_len=5,    # num of input features (x, y, v_x, v_y, defense)
+        model_dim=64,     # experimented with 96 & 128... seems best
+        num_heads=2,      # 2 seems best (but may have overfit when tried 4... may be worth iterating)
+        num_layers=4,
+        dim_feedforward=64 * 4,
+        dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
+        output_dim=2      # man or zone classification
+    ).to(device)
+    model.load_state_dict(torch.load(os.path.join(save_path, 'best_model.pth'), weights_only=True, map_location=device))
+    model.eval()
 
-  # Load data
-  rawLoader = RawDataLoader()
-  games_df, plays_df, players_df, location_data_df = rawLoader.get_data(weeks=[i for i in range(1, 10)])
+    # Load data
+    rawLoader = RawDataLoader()
+    games_df, plays_df, players_df, location_data_df = rawLoader.get_data(weeks=[i for i in range(1, 10)])
 
-  # Process + predict one week at a time (keeps RAM low)
-  for week_eval in range(1, 10):
-      week_df = process_week_data_preds(week_eval, plays_df)
+    # Process + predict one week at a time (keeps RAM low)
+    for week_eval in range(1, 10):
+        week_df = process_week_data_preds(week_eval, plays_df)
 
-      # filter early to shrink memory
-      week_df = week_df[(week_df['club'] != 'football') & (week_df['passAttempt'] == 1)].copy()
+        # filter early to shrink memory
+        week_df = week_df[(week_df['club'] != 'football') & (week_df['passAttempt'] == 1)].copy()
 
-      # Polars convert optional; if you like the speed, keep it—otherwise skip to use pandas only
-      tracking_df_polars = pl.DataFrame(week_df)  # or comment this out and use pandas below
+        # Polars convert optional; if you like the speed, keep it—otherwise skip to use pandas only
+        tracking_df_polars = pl.DataFrame(week_df)  # or comment this out and use pandas below
 
-      best_model_path = os.path.join(save_path, f"best_model_week{week_eval}.pth")
-      model.load_state_dict(torch.load(best_model_path, weights_only=True, map_location=device))
-      model.eval()
+        # Stream predictions to CSV in batches
+        out_pred_csv = os.path.join(save_path, f"week{week_eval}_preds.csv")
+        wrote_header = False
+        batch = []
+        BATCH_SIZE = 5000  # tune (smaller => lower peak RAM)
 
-      # Stream predictions to CSV in batches
-      out_pred_csv = os.path.join(save_path, f"week{week_eval}_preds.csv")
-      wrote_header = False
-      batch = []
-      BATCH_SIZE = 5000  # tune (smaller => lower peak RAM)
+        # Iterate unique frames without building a giant Python set
+        list_ids = pd.unique(week_df['frameUniqueId'].values)
 
-      # Iterate unique frames without building a giant Python set
-      list_ids = pd.unique(week_df['frameUniqueId'].values)
+        logging.info(f"Starting loop for week {week_eval}...")
+        for idx, frame_id in enumerate(list_ids, start=1):
+            if idx % 20000 == 0:
+                logging.info(f"Processed {idx}/{len(list_ids)} frames ({100*idx/len(list_ids):.1f}%)")
 
-      print(f"Starting loop for week {week_eval}...")
-      for idx, frame_id in enumerate(list_ids, start=1):
-          if idx % 20000 == 0:
-              print(f"Processed {idx}/{len(list_ids)} frames ({100*idx/len(list_ids):.1f}%)")
+            # Grab frame rows (polars or pandas)
+            if tracking_df_polars is not None:
+                frame = tracking_df_polars.filter(pl.col("frameUniqueId") == frame_id).to_pandas()
+            else:
+                frame = week_df.loc[week_df["frameUniqueId"] == frame_id]
 
-          # Grab frame rows (polars or pandas)
-          if tracking_df_polars is not None:
-              frame = tracking_df_polars.filter(pl.col("frameUniqueId") == frame_id).to_pandas()
-          else:
-              frame = week_df.loc[week_df["frameUniqueId"] == frame_id]
+            # Lightweight tensor build
+            frame_tensor = prepare_tensor(frame)
+            if frame_tensor is None:
+                continue
 
-          # Lightweight tensor build
-          frame_tensor = prepare_tensor(frame)
-          if frame_tensor is None:
-              continue
+            frame_tensor = frame_tensor.to(device, non_blocking=True)
 
-          frame_tensor = frame_tensor.to(device, non_blocking=True)
+            with torch.no_grad():
+                outputs = model(frame_tensor)                 # [1, 2]
+                probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
+                zone_prob, man_prob = float(probabilities[0]), float(probabilities[1])
+                pred = 0 if zone_prob > man_prob else 1
+                actual = int(frame['pff_manZone'].iloc[0]) if 'pff_manZone' in frame.columns and not pd.isna(frame['pff_manZone'].iloc[0]) else -1
 
-          with torch.no_grad():
-              outputs = model(frame_tensor)                 # [1, 2]
-              probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
-              zone_prob, man_prob = float(probabilities[0]), float(probabilities[1])
-              pred = 0 if zone_prob > man_prob else 1
-              actual = int(frame['pff_manZone'].iloc[0]) if 'pff_manZone' in frame.columns and not pd.isna(frame['pff_manZone'].iloc[0]) else -1
+            play_id = "_".join(frame_id.split("_")[:2])
+            frame_num = int(frame_id.split("_")[-1])
 
-          play_id = "_".join(frame_id.split("_")[:2])
-          frame_num = int(frame_id.split("_")[-1])
+            batch.append({
+                'frameUniqueId': frame_id,
+                'uniqueId': play_id,
+                'frameId': frame_num,
+                'zone_prob': zone_prob,
+                'man_prob': man_prob,
+                'pred': pred,
+                'actual': actual
+            })
 
-          batch.append({
-              'frameUniqueId': frame_id,
-              'uniqueId': play_id,
-              'frameId': frame_num,
-              'zone_prob': zone_prob,
-              'man_prob': man_prob,
-              'pred': pred,
-              'actual': actual
-          })
+            # Flush batch to CSV to keep RAM low
+            if len(batch) >= BATCH_SIZE:
+                pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+                wrote_header = True
+                batch.clear()
 
-          # Flush batch to CSV to keep RAM low
-          if len(batch) >= BATCH_SIZE:
-              pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
-              wrote_header = True
-              batch.clear()
+        # Flush tail
+        if batch:
+            pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+            batch.clear()
 
-      # Flush tail
-      if batch:
-          pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
-          batch.clear()
+        logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
 
-      print(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
+        # Merge week_df with preds (per-week, small)
+        preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred'])
+        tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
+        tracking_preds.to_csv(os.path.join(save_path, f"tracking_week_{week_eval}_preds.csv"), index=False)
 
-      # Merge week_df with preds (per-week, small)
-      preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred'])
-      tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
-      tracking_preds.to_csv(os.path.join(save_path, f"tracking_week_{week_eval}_preds.csv"), index=False)
-
-      # Free RAM before next week
-      del week_df, tracking_df_polars, preds_week, tracking_preds
-      import gc; gc.collect()
+        # Free RAM before next week
+        del week_df, tracking_df_polars, preds_week, tracking_preds
+        import gc; gc.collect()
 
 if __name__ == "__main__":
   main()
