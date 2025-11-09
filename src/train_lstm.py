@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Module: data_loader.py
+Module: train_lstm.py
 Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
 
 Author: Syam Evani
@@ -502,8 +502,8 @@ def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
     plt.show()
     logging.info(f"ROC AUC = {roc_auc:.3f}")
 
-if __name__ == "__main__":
-    
+@timeit
+def main():
     # Configure basic logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
@@ -533,3 +533,6 @@ if __name__ == "__main__":
 
     # Create classification report and viz confusion matrix
     viz_results(val_loader, model)
+
+if __name__ == "__main__":
+    main()
