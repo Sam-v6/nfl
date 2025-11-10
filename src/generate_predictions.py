@@ -113,7 +113,7 @@ def main():
     games_df, plays_df, players_df, location_data_df = rawLoader.get_data(weeks=[i for i in range(1, 10)])
 
     # Process + predict one week at a time (keeps RAM low)
-    for week_eval in range(1, 10):
+    for week_eval in [9]:
         week_df = process_week_data_preds(week_eval, plays_df)
 
         # filter early to shrink memory
@@ -183,7 +183,7 @@ def main():
         logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
 
         # Merge week_df with preds (per-week, small)
-        preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred'])
+        preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
         tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
         tracking_preds.to_csv(os.path.join(save_path, f"tracking_week_{week_eval}_preds.csv"), index=False)
 
