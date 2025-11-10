@@ -1,4 +1,8 @@
 
+# Overview
+
+In 2022, the NFL ran 
+
 
 # Getting started
 
@@ -60,7 +64,7 @@ mlflow ui --backend-store-uri ./mlruns
 The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000
 
 
-# General developement approach
+# Development Roadmap
 1) Naive tree-based mdoels and simple MLP on last frame data before play (not time series)
 2) LSTM/GRU with time series
 3) Temporal CNNs
