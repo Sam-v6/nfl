@@ -27,12 +27,16 @@ classifiers = [
 
 dependencies = [
   "catboost>=1.2.8",
+  "ipykernel>=6.30.1",
+  "ipympl>=0.9.8",
+  "kaggle>=1.7.4.5",
   "lightgbm>=4.6.0",
   "matplotlib>=3.10.6",
   "mlflow>=3.4.0",
   "numpy>=2.3.3",
   "pandas>=2.3.2",
   "pip-tools>=7.5.0",
+  "polars>=1.35.1",
   "scikit-learn>=1.7.2",
   "seaborn>=0.13.2",
   "torch>=2.8.0",
@@ -61,7 +65,7 @@ where = ["src"]
 
 [tool.black]
 line-length = 88
-target-version = ["py39", "py310", "py311"]
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.isort]
 profile = "black"
@@ -72,6 +76,3 @@ extend-ignore = ["E203"]
 
 [tool.mypy]
 strict = true
-
-[tool.uv.workspace]
-members = ["something"]

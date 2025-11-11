@@ -1,0 +1,73 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "subProcess": true,
+      "env": {
+        "NFL_HOME": "${env:NFL_HOME}",
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "redirectOutput": true
+    },
+    {
+      "name": "Python: Run main script",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/main.py",
+      "args": [
+        "--data-root", "${env:NFL_HOME}"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "subProcess": true,
+      "env": {
+        "NFL_HOME": "${env:NFL_HOME}",
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "redirectOutput": true
+    },
+    {
+      "name": "Python: Module (pkg.cli)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "yourpkg.cli",
+      "args": [],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "subProcess": true,
+      "env": {
+        "NFL_HOME": "${env:NFL_HOME}",
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "redirectOutput": true
+    },
+    {
+      "name": "Pytest: Debug tests",
+      "type": "debugpy",
+      "request": "launch",
+      "purpose": ["debug-test"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "env": {
+        "NFL_HOME": "${env:NFL_HOME}",
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "redirectOutput": true
+    }
+  ]
+}

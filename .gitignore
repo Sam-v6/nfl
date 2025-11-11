@@ -187,3 +187,6 @@ output/**/*.txt
 
 # MLflow
 mlruns/
+
+# Artifacts
+*.pkl
