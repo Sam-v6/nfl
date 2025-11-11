@@ -1,8 +1,12 @@
 
 # Overview
+This repo trains on the 2022 NFL Season Weeks 1 - 9 to predict man or zone pass coverage with machine learning. 
 
-In 2022, the NFL ran 
+Two models are implemented:
+- LSTM "naive" model that treats location tracking data as true time series inputs
+- Transformer model that matches the SumerSports and SmitBajaj implementation
 
+Both models yield about 85% accuracy in prediciting man or pass coverage.
 
 # Getting started
 
@@ -72,7 +76,7 @@ The last command will start the MLflow GUI at your local host loopback on port 5
 5) Spatio-temporal GNN
 
 # TODO
-### Update Gitlab CI to use LFS
+### Update Github CI to use LFS
 - uses: actions/checkout@v4
   with:
     lfs: true
