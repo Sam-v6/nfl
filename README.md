@@ -10,7 +10,15 @@ Both models yield about 85% accuracy in prediciting man or pass coverage for all
 
 # Demo
 
-![Bengals Play Animation](./docs/videos/bengals_plot.gif)
+![play](./docs/videos/bengals_tv.gif)
+![plot](./docs/videos/bengals_plot.gif)
+
+![play](./docs/videos/commanders_tv.gif)
+![plot](./docs/videos/commanders_plot.gif)
+
+![play](./docs/videos/dolphins_tv.gif)
+![plot](./docs/videos/dolphins_plot.gif)
+
 
 # Getting started
 

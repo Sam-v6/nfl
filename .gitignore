@@ -190,3 +190,6 @@ mlruns/
 
 # Artifacts
 *.pkl
+
+# Any mp4s that sneak in
+*.mp4
