@@ -4,9 +4,13 @@ This repo trains on the 2022 NFL Season Weeks 1 - 9 to predict man or zone pass 
 
 Two models are implemented:
 - LSTM "naive" model that treats location tracking data as true time series inputs
-- Transformer model that matches the SumerSports and SmitBajaj implementation
+- Transformer model that follows the SumerSports and SmitBajaj implementation
 
-Both models yield about 85% accuracy in prediciting man or pass coverage.
+Both models yield about 85% accuracy in prediciting man or pass coverage for all games in Week 9 of the 2022 NFL season.
+
+# Demo
+
+![Bengals Play Animation](./docs/videos/bengals_plot.gif)
 
 # Getting started
 
