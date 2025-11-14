@@ -229,10 +229,16 @@ def split_data_by_uniqueId(df, train_ratio=0.7, test_ratio=0.15, val_ratio=0.15,
 
 def pass_attempt_merging(tracking, plays):
 
-  plays['passAttempt'] = np.where(plays['passResult'].isin([np.nan, 'S']), 0, 1)
+  # Possible values are of passResult are:
+  # C: completed pass
+  # I or IN: incompleted pass
+  # R: run play
+  # S: Sack
+  # None: Something else
+  # We want completed passes, incompleted passes, or sack (good coverage can lead to this)
+  plays['passAttempt'] = np.where(plays['passResult'].isin(['C', 'I', 'IN', 'S']), 1, 0)
 
   plays_for_merge = plays[['gameId', 'playId', 'passAttempt']]
-
   merged_df = tracking.merge(
       plays_for_merge,
       on=['gameId', 'playId'],

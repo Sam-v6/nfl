@@ -38,7 +38,7 @@ def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.Data
 
     # Add in the week number
     location_df = location_df.merge(
-      games_df[["gameId", "week"]],
+      game_df[["gameId", "week"]],
       on="gameId",
       how="left"
     )
@@ -60,7 +60,7 @@ def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.Data
 
 def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.DataFrame) -> pd.DataFrame:
   
-  location_df = clean_df(location_df, plays_df, game_df)
+  location_df = clean_df(location_df, plays_df, games_df)
 
   # Filtering only for even frames (reduce amount of data that looks the same)
   location_df = location_df[location_df['frameId'] % 2 == 0]
