@@ -1,0 +1,33 @@
+name: pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-python-script:
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      # Create / update the virtual env and install dependencies
+      # This expects you have a pyproject.toml (and maybe uv.lock) in the repo root.
+      - name: Sync dependencies
+        run: |
+          # --all-extras / --dev are optional; adjust to your setup
+          uv sync --locked
+          
+      # Run your pipeline script with uv
+      - name: Run pipeline script
+        run: |
+          source environment.sh
+          uv run src/create_features.py
