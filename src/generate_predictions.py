@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
+Trains LSTM model on location tracking data
 
-Author: Syam Evani
-Created: 2025-10-15
+Requires:
+- Raw location tracking data in NFL_HOME/data/parquet
+- Trained model in NFL_HOME/data/processed/model.pth
+
+Performs inference on each week and saves to NFL_HOME/data/processed/week{n}_predictions.csv
 """
 
 import math

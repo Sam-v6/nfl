@@ -1,5 +1,5 @@
 ## What does this PR do?
-Provide an overview in plain english, think about why this is needed
+Provide an overview in plain English, think about why this is needed
 
 ## What are some specific details on the changes?
 Document changes with some details. This helps reviewers

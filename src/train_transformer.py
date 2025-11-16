@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
 """
-Module: train_transformer.py
-Description: Trains transformer model on location tracking data
+Trains transformer model on location tracking data
 
-Author: Syam Evani
-Created: 2025-10-15
+Requires that create_features.py has already been ran and produced:
+- features_training.pt
+- features_val.pt
+- targets_training.pt
+- targets_val.pt
+
+Will train 30 epochs (unless it early stops) and produce model.pth
 """
 
 import os

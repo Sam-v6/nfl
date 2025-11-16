@@ -1,16 +1,11 @@
 #!/usr/bin/env python
 
 """
-Module: data_loader.py
-Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
-
-Author: Syam Evani
-Created: 2025-11-02
+Animates play based on location tracking data to visualize pre snap - through end of play
 """
-# Standard imports
+
 import os
 
-# Additional imports
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np

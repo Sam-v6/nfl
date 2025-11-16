@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
 """
-Contains driver capability to process raw data into features for model training
+Creates features for model training
 
-This module will process the location tracking data one week at a time by:
-  1) Rotating the heading of the player to a standard angle reference
-  2) Making all plays go consistently left to right
+Requires:
+- Raw location tracking data in NFL_HOME/data/parquet
+
+Cleans data and creates the following in NFL_HOME/data/processed:
+- features_training.pt
+- features_val.pt
+- targets_training.pt
+- targets_val.pt
 """
 
 import gc

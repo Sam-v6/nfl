@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
-
-Author: Syam Evani
-Created: 2025-10-15
+Loads raw parquet data for usage in training models
 """
 
 import os

@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
-
-Author: Syam Evani
-Created: 2025-10-15
+Contains class for default sklearn logisitc regression model for general usage
 """
 
 from sklearn.linear_model import LogisticRegression

@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
 """
-Module: data_loader.py
-Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
-
-Author: Syam Evani
-Created: 2025-11-02
+Trains xgboost model on location tracking data
 """
-
 # Standard imports
 import os
 import random

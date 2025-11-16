@@ -12,6 +12,15 @@ concurrency:
 
 jobs:
   test-model-training:
+    # Only run on:
+    # - push
+    # - PRs where the branch lives in this repo (not a fork)
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    
+    # Self hosted runner
     runs-on: [self-hosted]
 
     # The runner is self hosted on my machine, so this data path will be guarenteed to have this data path
