@@ -8,7 +8,7 @@ Author: Syam Evani
 Created: 2025-10-15
 """
 
-def timeit(func):
+def time(func):
     import time
     from functools import wraps
 

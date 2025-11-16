@@ -58,6 +58,7 @@ def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.Data
 
     return location_df
 
+
 def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.DataFrame) -> pd.DataFrame:
   
   location_df = clean_df(location_df, plays_df, games_df)
@@ -76,10 +77,12 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
 
   return combined_location_df
 
+
 def _load_weeks(weeks, prefix, save_dir):
     tensors = [torch.load(os.path.join(save_dir, f"{prefix}_w{w}.pt")) for w in weeks]
     return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
+@time
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

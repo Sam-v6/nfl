@@ -22,7 +22,10 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import AdamW
 
 from models.transformer import ManZoneTransformer
+from common.decorators import time
 
+
+@time
 def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimizer, loss_fn, device) -> tuple[float, float]:
         # Training
         model.train()
@@ -55,6 +58,8 @@ def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimiz
         # Return losses
         return avg_train_loss, avg_val_loss, val_accuracy
 
+
+@time
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

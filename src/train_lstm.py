@@ -32,10 +32,10 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 
 # Local
-from common.decorators import timeit
+from common.decorators import time
 from common.models.lstm import LSTMClassifier
 
-@timeit
+@time
 def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
     """Filter plays to include only relevant passing plays for coverage analysis."""
 
@@ -87,7 +87,7 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
     # Return
     return filtered_plays_df
 
-@timeit
+@time
 def create_merged_df(location_data_df: pd.DataFrame, filtered_plays_df: pd.DataFrame) -> pd.DataFrame:
     """Merge location data with filtered plays data to create a comprehensive dataset for coverage analysis."""
 
@@ -181,7 +181,7 @@ def _build_side_feature_cube(play_df: pd.DataFrame, side: str, frames: np.ndarra
     # stack features on the last axis to shape: (T, 11, F)
     return np.stack(mats, axis=-1)
 
-@timeit
+@time
 def build_frame_data(merged_df: pd.DataFrame) -> tuple[dict, dict]:
     """Build frame data cubes for offense and defense from the merged dataframe."""
 
@@ -258,7 +258,7 @@ def _impute_timewise(X_np: np.ndarray) -> np.ndarray:
     
     return df.values.astype(np.float32)
 
-@timeit
+@time
 def build_plays_data_numpy(off_series, def_series):
 
     # Build labels dict mapping of (gameId, playId) --> 0/1
@@ -274,7 +274,7 @@ def build_plays_data_numpy(off_series, def_series):
         y_np.append(labels_dict[key])
     return X_np, np.array(y_np, dtype=int)
 
-@timeit
+@time
 def create_dataloaders(X_np: np.ndarray, y_np: np.ndarray) -> tuple[DataLoader, DataLoader, np.ndarray]:
 
     # Splittys
@@ -376,7 +376,7 @@ def tune_threshold_for_precision(y_true, y_prob, min_recall=None, beta=0.5):
     # Return the best threshold (and associated metrics)
     return best
 
-@timeit
+@time
 def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarray, idx_train: np.ndarray) -> LSTMClassifier:
 
     # Set device to GPU
@@ -453,7 +453,7 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
 
     return model
 
-@timeit
+@time
 def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
 
     # Set device
@@ -502,7 +502,7 @@ def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
     plt.show()
     logging.info(f"ROC AUC = {roc_auc:.3f}")
 
-@timeit
+@time
 def main():
     # Configure basic logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

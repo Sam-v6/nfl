@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-model-training:
     runs-on: [self-hosted]
@@ -25,7 +29,6 @@ jobs:
 
       - name: Sync uv
         run: |
-          # --all-extras / --dev are optional; adjust to your setup
           uv sync --locked
           
       - name: Create features
