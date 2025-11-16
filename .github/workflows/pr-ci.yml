@@ -1,0 +1,52 @@
+name: pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-model-training:
+    # Only run on:
+    # - push
+    # - PRs where the branch lives in this repo (not a fork)
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    
+    # Self hosted runner
+    runs-on: [self-hosted]
+
+    # The runner is self hosted on my machine, so this data path will be guarenteed to have this data path
+    env:
+      CI_DATA_ROOT: /home/sam/repos/hobby-repos/nfl/data/parquet
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Sync uv
+        run: |
+          uv sync --locked
+          
+      - name: Create features
+        run: |
+          source environment.sh
+          uv run src/create_features.py
+
+      - name: Train transformer
+        run: |
+          source environment.sh
+          uv run src/train_transformer.py
+

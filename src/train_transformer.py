@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
 """
-Module: train_transformer.py
-Description: Trains transformer model on location tracking data
+Trains transformer model on location tracking data
 
-Author: Syam Evani
-Created: 2025-10-15
+Requires that create_features.py has already been ran and produced:
+- features_training.pt
+- features_val.pt
+- targets_training.pt
+- targets_val.pt
+
+Will train 30 epochs (unless it early stops) and produce model.pth
 """
 
 import os
@@ -22,7 +26,10 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import AdamW
 
 from models.transformer import ManZoneTransformer
+from common.decorators import time_fcn
 
+
+@time_fcn
 def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimizer, loss_fn, device) -> tuple[float, float]:
         # Training
         model.train()
@@ -55,6 +62,8 @@ def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimiz
         # Return losses
         return avg_train_loss, avg_val_loss, val_accuracy
 
+
+@time_fcn
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

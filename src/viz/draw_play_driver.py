@@ -1,22 +1,12 @@
 #!/usr/bin/env python
 
 """
-Module: data_loader.py
-Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
-
-Author: Syam Evani
-Created: 2025-11-02
+Driver code to animate play for all given plays
 """
 
-
-# Standard imports
 import os
 import random
 
-# Additonal imports
-
-
-# Local imports
 from data_processing.process import load_data
 from data_processing.draw_play import animate_play
 

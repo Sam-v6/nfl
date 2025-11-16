@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
 """
-Contains driver capability to process raw data into features for model training
+Creates features for model training
 
-This module will process the location tracking data one week at a time by:
-  1) Rotating the heading of the player to a standard angle reference
-  2) Making all plays go consistently left to right
+Requires:
+- Raw location tracking data in NFL_HOME/data/parquet
+
+Cleans data and creates the following in NFL_HOME/data/processed:
+- features_training.pt
+- features_val.pt
+- targets_training.pt
+- targets_val.pt
 """
 
 import gc
@@ -22,6 +27,7 @@ from torch.utils.data import DataLoader
 
 from load_data import RawDataLoader
 from clean_data import *
+from common.decorators import time_fcn
 
 def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame):
     
@@ -58,6 +64,7 @@ def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.Data
 
     return location_df
 
+
 def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.DataFrame) -> pd.DataFrame:
   
   location_df = clean_df(location_df, plays_df, games_df)
@@ -76,10 +83,12 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
 
   return combined_location_df
 
+
 def _load_weeks(weeks, prefix, save_dir):
     tensors = [torch.load(os.path.join(save_dir, f"{prefix}_w{w}.pt")) for w in weeks]
     return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
+@time_fcn
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

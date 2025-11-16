@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
-
-Author: Syam Evani
-Created: 2025-10-15
+Contains class for default long short term memory model for general usage
 """
-
 from torch import nn
 
 class LSTMClassifier(nn.Module):

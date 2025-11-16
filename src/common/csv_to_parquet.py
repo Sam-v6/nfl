@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
+Transforms raw csv data to raw parquet data
 
-Author: Syam Evani
-Created: 2025-10-15
+Requires:
+- Raw location tracking data in NFL_HOME/data/parquet
+
+Outputs parquet data in NFL_HOME/data/parquet that is stored in git LFS
 """
 
 import sys

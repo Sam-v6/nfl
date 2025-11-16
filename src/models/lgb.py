@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 """
-Module: data.py
-Description: Class for loading raw tracking data
-
-Author: Syam Evani
-Created: 2025-10-15
+Contains class for light gradient boosting model for general usage
 """
 
 import lightgbm as lgb

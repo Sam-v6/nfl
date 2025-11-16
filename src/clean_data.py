@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
 """
-Module: data_loader.py
-Description: Functions for loading and preprocessing test data for the thruster analysis pipeline.
-
-Author: Syam Evani
-Created: 2025-11-02
+Contains functions to clean and standarize data
 """
 
 import numpy as np
