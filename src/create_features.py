@@ -27,6 +27,7 @@ from torch.utils.data import DataLoader
 
 from load_data import RawDataLoader
 from clean_data import *
+from common.decorators import time_fcn
 
 def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame):
     
@@ -87,7 +88,7 @@ def _load_weeks(weeks, prefix, save_dir):
     tensors = [torch.load(os.path.join(save_dir, f"{prefix}_w{w}.pt")) for w in weeks]
     return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
-@time
+@time_fcn
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

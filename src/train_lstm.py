@@ -33,7 +33,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 
 # Local
-from common.decorators import time
+from common.decorators import time_fcn
 from common.models.lstm import LSTMClassifier
 
 @time_fcn
