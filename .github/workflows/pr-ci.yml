@@ -7,8 +7,12 @@ on:
     branches: [ main ]
 
 jobs:
-  run-python-script:
+  test-model-training:
     runs-on: [self-hosted]
+
+    # The runner is self hosted on my machine, so this data path will be guarenteed to have this data path
+    env:
+      CI_DATA_ROOT: /home/sam/repos/hobby-repos/nfl/data/parquet
 
     steps:
       - name: Checkout repository
@@ -19,15 +23,23 @@ jobs:
         with:
           version: "latest"
 
-      # Create / update the virtual env and install dependencies
-      # This expects you have a pyproject.toml (and maybe uv.lock) in the repo root.
-      - name: Sync dependencies
+      - name: Sync uv
         run: |
           # --all-extras / --dev are optional; adjust to your setup
           uv sync --locked
           
-      # Run your pipeline script with uv
-      - name: Run pipeline script
+      - name: Create features
         run: |
           source environment.sh
           uv run src/create_features.py
+
+      - name: Create features
+        run: |
+          source environment.sh
+          uv run src/create_features.py
+
+      - name: Train transformer
+        run: |
+          source environment.sh
+          uv run src/train_transformer.py
+

@@ -14,7 +14,10 @@ from typing import Tuple
 
 class RawDataLoader:
     def __init__(self, nfl_home=None):
-        self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'parquet')
+        if os.getenv("CI_DATA_ROOT"):
+            self.data_path = os.getenv("CI_DATA_ROOT")
+        else:
+            self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'parquet')
         self.games_df = None
         self.plays_df = None
         self.players_df = None
