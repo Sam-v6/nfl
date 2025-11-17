@@ -65,28 +65,25 @@ def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimiz
 
 @time_fcn
 def main():
+
+    # Init logging and save path
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
     save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # defining ManZoneTransformer params, initializing optimizer and loss_fn
+    # Define model and device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ManZoneTransformer(
-        feature_len=5,    # num of input features (x, y, v_x, v_y, defense)
-        model_dim=64,     # experimented with 96 & 128... seems best
-        num_heads=2,      # 2 seems best (but may have overfit when tried 4... may be worth iterating & increasing dropout)
-        num_layers=4,
-        dim_feedforward=64 * 4,
-        dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
-        output_dim=2      # man or zone classification
+        feature_len=5,          # num of input features (x, y, v_x, v_y, defense)
+        model_dim=64,           # TBD with tune
+        num_heads=2,            # TBD with tune
+        num_layers=4,           # TBD with tune
+        dim_feedforward=64 * 4, # model_dim * number of layers
+        dropout=0.1,            # TBD with tune
+        output_dim=2            # man or zone classification
     ).to(device)
 
-    batch_size = 64
-    learning_rate = 1e-3
-
-    batch_size = 64
-    learning_rate = 1e-3
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    # Set optimizer and loss fcn
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     loss_fn = nn.CrossEntropyLoss()
 
     early_stopping_patience = 5
@@ -94,29 +91,36 @@ def main():
     epochs_no_improve = 0
     num_epochs = 30
 
-    # loading in data & placing into DataLoader object
+    # Init random
+    g = torch.Generator()    # Creates a generator that fixes the shuffle in torch Dataloader
+    g.manual_seed(42)
+
+    # Create data loaders
     train_features = torch.load(os.path.join(save_path, f"features_training.pt"))
     train_targets = torch.load(os.path.join(save_path, f"targets_training.pt"))
+    train_loader = DataLoader(
+        TensorDataset(train_features, train_targets),
+        batch_size=64,
+        shuffle=True,                       # We want random mini batches so GD doesn't overfit to specific ordering patterns, lets shuffle
+        generator=g,                        # Fixes the shuffle
+        num_workers=0,                      # Eliminate worker non-determinism
+        pin_memory=True,                    # Batches are allocated on page-locked ("pinned") memory on the host, allows GPU driver to perform faster async DMA
+    )  
+    
     val_features = torch.load(os.path.join(save_path, f"features_val.pt"))
     val_targets = torch.load(os.path.join(save_path, f"targets_val.pt"))
+    val_loader = DataLoader(
+        TensorDataset(val_features, val_targets),
+        batch_size=64,
+        shuffle=False,                      # In eval we aren't updating the weights, so it doesn't really matter if we imply ordering or not
+        num_workers=0,                      # Eliminate worker non-determinism
+        pin_memory=True,                    # Batches are allocated on page-locked ("pinned") memory on the host, allows GPU driver to perform faster async DMA
+    )       
 
-    # move data to device (think it needs to be consistent)
-    train_features = train_features.to(device)
-    train_targets = train_targets.to(device)
-    val_features = val_features.to(device)
-    val_targets = val_targets.to(device)
-
-    # Create data laoders
-    train_dataset = TensorDataset(train_features, train_targets)
-    val_dataset = TensorDataset(val_features, val_targets)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-
-    # manually placing an early stopping method... will iterate on the exact value (currently 5) but want to prevent overfitting
+    # Train with early stoppping
     train_losses = []
     val_losses = []
     val_accuracies = []
-
     for epoch in range(num_epochs):
 
         avg_train_loss, avg_val_loss, val_accuracy = train_epoch(train_loader, val_loader, model, optimizer, loss_fn, device)
@@ -126,13 +130,12 @@ def main():
         logging.info(f"Epoch [{epoch+1}/{num_epochs}]")
         logging.info(f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
 
-        # adding early stopping check (effort to prevent overfitting)
+        # Early stopping
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             # saving the best model
             torch.save(model.state_dict(), os.path.join(save_path, f"model.pth"))
-
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= early_stopping_patience:
