@@ -31,8 +31,8 @@ from load_data import RawDataLoader
 from clean_data import *
 
 def process_week_data_preds(week_number, plays):
-  file_path = os.path.join(os.getenv("NFL_HOME"), "data", "raw", f"tracking_week_{week_number}.csv")
-  week = pd.read_csv(file_path)
+  file_path = os.path.join(os.getenv("NFL_HOME"), "data", "parquet", f"tracking_week_{week_number}.parquet")
+  week = pd.read_parquet(file_path)
   logging.info(f"Finished reading Week {week_number} data")
 
   # applying cleaning functions
@@ -107,7 +107,7 @@ def main():
         dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
         output_dim=2      # man or zone classification
     ).to(device)
-    model.load_state_dict(torch.load(os.path.join(save_path, 'best_model.pth'), weights_only=True, map_location=device))
+    model.load_state_dict(torch.load(os.path.join(save_path, 'model.pth'), weights_only=True, map_location=device))
     model.eval()
 
     # Load data
