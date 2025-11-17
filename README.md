@@ -106,6 +106,23 @@ uv sync --locked
 source .venv/bin/activate
 ```
 
+## Run instructions
+```bash
+# Source the environmental variables
+source environment.sh
+
+# Digest the raw data and create features
+uv src/create_features.py
+
+# Train the model
+uv src/train_transformer.py
+
+# Run inference on week 9
+uv src/generate_predictions.py
+
+# From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
+```
+
 ## Activating MLflow
 This project uses MLflow to manage ML models and track experiments from hyper paremter optimization. To start MLflow simply:
 ```bash

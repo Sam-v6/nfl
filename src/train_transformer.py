@@ -15,6 +15,7 @@ Will train 30 epochs (unless it early stops) and produce model.pth
 import os
 import logging
 import math
+import random
 
 import pandas as pd
 pd.options.mode.chained_assignment = None
@@ -28,6 +29,24 @@ from torch.optim import AdamW
 from models.transformer import ManZoneTransformer
 from common.decorators import time_fcn
 
+def set_seed(seed: int = 42):
+    # Python & NumPy
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    # PyTorch CPU & CUDA
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+    # Keep cudnn deterministic, but allow normal algorithms
+    # torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+
+    # DO NOT enforce deterministic algorithms globally
+    # torch.use_deterministic_algorithms(False)
 
 @time_fcn
 def train_epoch(train_loader: DataLoader, val_loader: DataLoader, model, optimizer, loss_fn, device) -> tuple[float, float]:
@@ -71,6 +90,7 @@ def main():
     save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
 
     # Define model and device
+    set_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = ManZoneTransformer(
         feature_len=5,          # num of input features (x, y, v_x, v_y, defense)
@@ -89,7 +109,7 @@ def main():
     early_stopping_patience = 5
     best_val_loss = float('inf')
     epochs_no_improve = 0
-    num_epochs = 30
+    num_epochs = 50
 
     # Init random
     g = torch.Generator()    # Creates a generator that fixes the shuffle in torch Dataloader
