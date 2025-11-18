@@ -6,7 +6,7 @@ Two models are implemented:
 - LSTM "naive" model that treats location tracking data as true time series inputs
 - Transformer model that follows the SumerSports and SmitBajaj implementation
 
-Both models yield about 85% accuracy in prediciting man or pass coverage for all games in Week 9 of the 2022 NFL season.
+Both models yield about 88% accuracy in predicting man or pass coverage BEFORE the snap for all plays in Week 9 of the 2022 NFL season.
 
 # Demo
 
@@ -53,6 +53,11 @@ Unfortunately, the model is not able to pick up on this disguise. The tight, mir
 
 ![plot](./docs/videos/dolphins_plot.gif)
 
+### Week 9 Overall
+If we look across all plays in Week 9, our model on average is ~88% accurate in identifying man or zone pass coverage moments before the snap. The plot below illustrates the increasing confidence based on pre-snap movements and locations of players vs time
+
+![plot](./docs/images/accuracy_across_frames.png)
+
 
 # Getting started
 
@@ -98,13 +103,27 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 To create and activate the virtual environment, run the following:
 ```bash
 uv sync --locked
-source .venv/bin/activate
+```
+
+## Run instructions
+```bash
+
+# Digest the raw data and create features
+uv run src/create_features.py
+
+# Train the model
+uv run src/train_transformer.py
+
+# Run inference on week 9
+uv run src/generate_predictions.py
+
+# From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
 ```
 
 ## Activating MLflow
 This project uses MLflow to manage ML models and track experiments from hyper paremter optimization. To start MLflow simply:
 ```bash
-# Make sure your virtual environment is started if you opened a new terminal
+# Make sure your virtual environment is sourced so the terminal recognizes mlflow
 source .venv/bin/activate
 
 # Start the tracking server
@@ -112,32 +131,3 @@ mlflow ui --backend-store-uri ./mlruns
 ```
 
 The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000
-
-
-# Development Roadmap
-1) Naive tree-based mdoels and simple MLP on last frame data before play (not time series)
-2) LSTM/GRU with time series
-3) Temporal CNNs
-4) Temporal Transformer
-5) Spatio-temporal GNN
-
-# TODO
-### Update Github CI to use LFS
-- uses: actions/checkout@v4
-  with:
-    lfs: true
-
-variables:
-  GIT_LFS_SKIP_SMUDGE: "0"   # ensure LFS files are fetched
-before_script:
-  - git lfs install
-  - git lfs fetch
-  - git lfs checkout
-
-#### Plots
-
-# Do these generally but also per team 
-coverage vs yards gained --> horizontal box plot
-coverage vs down and distance --> heat map?, 
-
-coverage ran vs team --> heat map

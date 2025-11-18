@@ -4,10 +4,10 @@
 Trains LSTM model on location tracking data
 
 Requires:
-- Raw location tracking data in NFL_HOME/data/parquet
-- Trained model in NFL_HOME/data/processed/model.pth
+- Raw location tracking data in nfl/data/parquet
+- Trained model in nfl/data/processed/model.pth
 
-Performs inference on each week and saves to NFL_HOME/data/processed/week{n}_predictions.csv
+Performs inference on each week and saves to nfl/data/processed/week{n}_predictions.csv
 """
 
 import math
@@ -29,10 +29,11 @@ from torch.optim import AdamW
 from models.transformer import ManZoneTransformer
 from load_data import RawDataLoader
 from clean_data import *
+from common.paths import PROJECT_ROOT, SAVE_DIR
 
 def process_week_data_preds(week_number, plays):
-  file_path = os.path.join(os.getenv("NFL_HOME"), "data", "raw", f"tracking_week_{week_number}.csv")
-  week = pd.read_csv(file_path)
+  WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
+  week = pd.read_parquet(WEEK_PARQUET_PATH)
   logging.info(f"Finished reading Week {week_number} data")
 
   # applying cleaning functions
@@ -94,8 +95,6 @@ def prepare_tensor(play, num_players=22, num_features=5):
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-    save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = ManZoneTransformer(
@@ -107,7 +106,7 @@ def main():
         dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
         output_dim=2      # man or zone classification
     ).to(device)
-    model.load_state_dict(torch.load(os.path.join(save_path, 'best_model.pth'), weights_only=True, map_location=device))
+    model.load_state_dict(torch.load(SAVE_DIR / "model.pth", map_location=device))
     model.eval()
 
     # Load data
@@ -125,7 +124,7 @@ def main():
         tracking_df_polars = pl.DataFrame(week_df)  # or comment this out and use pandas below
 
         # Stream predictions to CSV in batches
-        out_pred_csv = os.path.join(save_path, f"week{week_eval}_preds.csv")
+        weekly_predictions_path_csv = SAVE_DIR / f"week{week_eval}_preds.csv"
         wrote_header = False
         batch = []
         BATCH_SIZE = 5000  # tune (smaller => lower peak RAM)
@@ -173,21 +172,21 @@ def main():
 
             # Flush batch to CSV to keep RAM low
             if len(batch) >= BATCH_SIZE:
-                pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+                pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
                 wrote_header = True
                 batch.clear()
 
         # Flush tail
         if batch:
-            pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+            pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
             batch.clear()
 
         logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
 
         # Merge week_df with preds (per-week, small)
-        preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
+        preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
         tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
-        tracking_preds.to_csv(os.path.join(save_path, f"tracking_week_{week_eval}_preds.csv"), index=False)
+        tracking_preds.to_csv(SAVE_DIR / f"tracking_week_{week_eval}_preds.csv", index=False)
 
         # Free RAM before next week
         del week_df, tracking_df_polars, preds_week, tracking_preds

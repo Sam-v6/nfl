@@ -30,8 +30,5 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Copy the rest of your repo
 COPY . .
 
-# Default envs helpful for your project
-ENV NFL_HOME=/app
-
 # Set a sensible default; override in docker-compose.yml
 CMD ["bash"]

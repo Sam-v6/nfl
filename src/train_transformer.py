@@ -9,7 +9,7 @@ Requires that create_features.py has already been ran and produced:
 - targets_training.pt
 - targets_val.pt
 
-Will train 30 epochs (unless it early stops) and produce model.pth
+Will train 50 epochs (unless it early stops) and produce model.pth
 """
 
 import os
@@ -17,9 +17,9 @@ import logging
 import math
 from pathlib import Path
 import random
+import random
 
 import pandas as pd
-pd.options.mode.chained_assignment = None
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -44,7 +44,32 @@ from ray.tune.schedulers import ASHAScheduler
 
 from models.transformer import ManZoneTransformer
 from common.decorators import time_fcn
+from common.paths import PROJECT_ROOT, SAVE_DIR
 
+def set_seed(seed: int = 42) -> torch.Generator:
+    # Python & NumPy
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(base_seed)
+    g = torch.Generator()    # Creates a generator that fixes the shuffle in torch Dataloader
+    g.manual_seed(base_seed)
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    # PyTorch CPU & CUDA
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+    # Keep cudnn deterministic, but allow normal algorithms
+    # torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+
+    # DO NOT enforce deterministic algorithms globally
+    # torch.use_deterministic_algorithms(False)
+
+    return g
 
 @time_fcn
 def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device) -> float:
@@ -90,15 +115,7 @@ def validate_epoch(val_loader: DataLoader, model, optimizer, loss_fn, device) ->
 def train_trial(config):
 
     # Set seeds
-    base_seed = 42
-    random.seed(base_seed)
-    np.random.seed(base_seed)
-    torch.manual_seed(base_seed)
-    g = torch.Generator()    # Creates a generator that fixes the shuffle in torch Dataloader
-    g.manual_seed(base_seed)
-
-    # Set save path
-    save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
+    g = set_seed(42)
 
     ######################################################################
     # Create model, loss, optimizer
@@ -118,17 +135,19 @@ def train_trial(config):
 
     # Set optimizer and loss fcn
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    # Set optimizer and loss fcn
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     loss_fn = nn.CrossEntropyLoss()
 
     ######################################################################
     # Create dataloaders
     ######################################################################
     # Load in data and create tensor datasets
-    train_features = torch.load(os.path.join(save_path, f"features_training.pt"))
-    train_targets = torch.load(os.path.join(save_path, f"targets_training.pt"))
+    train_features = torch.load(SAVE_DIR / f"features_training.pt")
+    train_targets = torch.load(SAVE_DIR / f"targets_training.pt")
 
-    val_features = torch.load(os.path.join(save_path, f"features_val.pt"))
-    val_targets = torch.load(os.path.join(save_path, f"targets_val.pt"))
+    val_features = torch.load(SAVE_DIR / f"features_val.pt")
+    val_targets = torch.load(SAVE_DIR / f"targets_val.pt")
 
     # Create data loaders for batching
     train_loader = DataLoader(
@@ -179,7 +198,7 @@ def train_trial(config):
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             # saving the best model
-            torch.save(model.state_dict(), os.path.join(save_path, f"model.pth"))
+            torch.save(model.state_dict(), SAVE_DIR / f"model.pth")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= early_stopping_patience:
@@ -225,6 +244,9 @@ def train_trial(config):
 @time_fcn
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Define model and device
+    set_seed(42)
 
     # Directory containing train_transformer.py (i.e., src/)
     script_dir = Path(__file__).resolve().parent
