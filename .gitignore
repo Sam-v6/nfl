@@ -187,6 +187,7 @@ output/**/*.txt
 
 # MLflow
 mlruns/
+mlflow.db
 
 # Ray
 log/

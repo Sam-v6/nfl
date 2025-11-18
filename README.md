@@ -127,7 +127,10 @@ This project uses MLflow to manage ML models and track experiments from hyper pa
 source .venv/bin/activate
 
 # Start the tracking server
-mlflow ui --backend-store-uri ./mlruns
+mlflow ui \
+  --backend-store-uri sqlite:///mlflow.db \
+  --host 0.0.0.0 \
+  --port 5000
 ```
 
 The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000

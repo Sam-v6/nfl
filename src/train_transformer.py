@@ -38,7 +38,7 @@ import joblib # Save pkl
 import ray
 from ray import train, tune, air
 from ray.air.integrations.mlflow import MLflowLoggerCallback, setup_mlflow
-from ray.train import Checkpoint
+from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig, Checkpoint
 from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
 from ray.tune.schedulers import ASHAScheduler
 
@@ -50,9 +50,9 @@ def set_seed(seed: int = 42) -> torch.Generator:
     # Python & NumPy
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(base_seed)
+    torch.manual_seed(seed)
     g = torch.Generator()    # Creates a generator that fixes the shuffle in torch Dataloader
-    g.manual_seed(base_seed)
+    g.manual_seed(seed)
 
     os.environ["PYTHONHASHSEED"] = str(seed)
 
@@ -91,7 +91,7 @@ def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device) -> 
 
 
 @time_fcn
-def validate_epoch(val_loader: DataLoader, model, optimizer, loss_fn, device) -> tuple[float, float]:
+def validate_epoch(val_loader: DataLoader, model, loss_fn, device) -> tuple[float, float]:
         # Validation
         model.eval()
         val_running_loss = 0.0
@@ -133,8 +133,6 @@ def train_trial(config):
         output_dim=2                                                            # man or zone classification
     ).to(device)
 
-    # Set optimizer and loss fcn
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     # Set optimizer and loss fcn
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     loss_fn = nn.CrossEntropyLoss()
@@ -185,25 +183,35 @@ def train_trial(config):
         train_losses.append(avg_train_loss)
 
         # Validate
-        avg_val_loss, val_accuracy = validate_epoch(val_loader, model, optimizer, loss_fn, device)
+        avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device)
         val_losses.append(avg_val_loss)
         val_accuracies.append(val_accuracy)
 
         # Info
-        logging.info(f"Epoch [{epoch+1}/{int(config["epochs"])}]")
+        logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
         logging.info(f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
 
-        # Adding early stopping check (effort to prevent overfitting)
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
-            epochs_no_improve = 0
-            # saving the best model
-            torch.save(model.state_dict(), SAVE_DIR / f"model.pth")
-        else:
-            epochs_no_improve += 1
-            if epochs_no_improve >= early_stopping_patience:
-                logging.info(f"Early stopping triggered")
-                break
+        session   = tune.get_context()
+        trial_dir = Path(session.get_trial_dir())
+        best_model_path = trial_dir / "best_model.pth"
+
+        # # Adding early stopping check (effort to prevent overfitting)
+        # if avg_val_loss < best_val_loss:
+        #     best_val_loss = avg_val_loss
+        #     epochs_no_improve = 0
+        #     torch.save(model.state_dict(), best_model_path)
+        # else:
+        #     epochs_no_improve += 1
+        #     if epochs_no_improve >= early_stopping_patience:
+        #         logging.info(f"Early stopping triggered")
+        #         break
+
+        # We want to report metrics every epoch regardless if we are checkpointing
+        metrics = {
+            "val_accuracy": float(val_accuracies[-1]),
+            # "val_loss": float(avg_val_loss),
+            # "train_loss": float(avg_train_loss),
+        }
 
         ######################################################################
         # Tune logging (with MLflow callback this is all mirrored there as well)
@@ -213,33 +221,14 @@ def train_trial(config):
         checkpoint = None
         should_checkpoint = epoch % config.get("checkpoint_freq", 1) == 0
 
-        # NOTE: In standard DDP training, where the model is the same across all ranks, only the global rank 0 worker needs to save and report the checkpoint
-        if should_checkpoint: # add in tune.get_context().get_world_rank() == 0 when workers implemented
-
-            # Create the checkpoint dir
-            session   = tune.get_context()
-            trial_dir = Path(session.get_trial_dir())
-            ckpt_dir = trial_dir / f"ckpt_e{epoch:04d}"
+        if should_checkpoint:
+            ckpt_dir  = trial_dir / f"ckpt_e{epoch:04d}"
             ckpt_dir.mkdir(parents=True, exist_ok=True)
-
-            # Save the model
-            session = tune.get_context()
-            trial_dir = Path(session.get_trial_dir())
-            best_model_path = trial_dir / "best_model.pth"
-            torch.save(model.state_dict(), best_model_path)
-
-            # Save scaler
-            #joblib.dump(scaler, ckpt_dir / "standard_scaler.pkl")
-
-            # Create checkpoint
-            ckpt = Checkpoint.from_directory(str(ckpt_dir))
-
-        # We want to report metrics every epoch regardless if we are checkpointing
-        metrics = {
-            "val_accuracy": float(val_accuracies[-1]),
-        }
-        tune.report(metrics, checkpoint=ckpt)
-
+            torch.save(model.state_dict(), ckpt_dir / "model.pth")
+            checkpoint = Checkpoint.from_directory(str(ckpt_dir))
+            tune.report(metrics, checkpoint=checkpoint)
+        else:
+            tune.report(metrics)
 
 @time_fcn
 def main():
@@ -251,6 +240,8 @@ def main():
     # Directory containing train_transformer.py (i.e., src/)
     script_dir = Path(__file__).resolve().parent
 
+    # Disable some warnings about GPUs if we don't use them (we are always using GPUs for training here)
+    os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
     ray.init(
         runtime_env={
             # Only ship src/, not the whole repo
@@ -267,7 +258,7 @@ def run_HPO():
     ######################################################################
     # Start parent HPO, MLflow session
     ######################################################################
-    mlflow_tracking_uri = f"file:{os.path.abspath('./log/mlruns')}"  # absolute path
+    mlflow_tracking_uri = "sqlite:///mlflow.db"
     experiment   = "transformer"
 
     ######################################################################
@@ -309,7 +300,7 @@ def run_HPO():
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=10,             # total trials
+            num_samples=1,             # total trials
         ),
         run_config=RunConfig(
             name="transformer_hpo",
