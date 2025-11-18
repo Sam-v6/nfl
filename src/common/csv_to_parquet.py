@@ -4,9 +4,9 @@
 Transforms raw csv data to raw parquet data
 
 Requires:
-- Raw location tracking data in NFL_HOME/data/parquet
+- Raw location tracking data in nfl/data/parquet
 
-Outputs parquet data in NFL_HOME/data/parquet that is stored in git LFS
+Outputs parquet data in nfl/data/parquet that is stored in git LFS
 """
 
 import sys

@@ -12,7 +12,6 @@
       "justMyCode": false,
       "subProcess": true,
       "env": {
-        "NFL_HOME": "${env:NFL_HOME}",
         "PYTHONPATH": "${workspaceFolder}"
       },
       "envFile": "${workspaceFolder}/.env",
@@ -24,14 +23,12 @@
       "request": "launch",
       "program": "${workspaceFolder}/src/main.py",
       "args": [
-        "--data-root", "${env:NFL_HOME}"
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "subProcess": true,
       "env": {
-        "NFL_HOME": "${env:NFL_HOME}",
         "PYTHONPATH": "${workspaceFolder}"
       },
       "envFile": "${workspaceFolder}/.env",
@@ -48,7 +45,6 @@
       "justMyCode": false,
       "subProcess": true,
       "env": {
-        "NFL_HOME": "${env:NFL_HOME}",
         "PYTHONPATH": "${workspaceFolder}"
       },
       "envFile": "${workspaceFolder}/.env",
@@ -63,7 +59,6 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false,
       "env": {
-        "NFL_HOME": "${env:NFL_HOME}",
         "PYTHONPATH": "${workspaceFolder}"
       },
       "envFile": "${workspaceFolder}/.env",

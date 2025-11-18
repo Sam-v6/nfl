@@ -43,14 +43,15 @@ from common.models.lgb import LGBModel
 #from common.models.svc import SVC
 from common.models.rfr import RFRModel
 from common.models.mlp import MLPModel
+from common.paths import PROJECT_ROOT
 
 def load_data() -> dict[str]:
-    base_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'coverage')
+    base_path = PROJECT_ROOT / "data" / "coverage"
     data_file_list = ['x', 'y']
     data_dict = {}
     for file in data_file_list:
         file_name = file + '.pkl'
-        file_path = os.path.join(base_path, file_name)
+        file_path = base_path / file_name
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Required data file {file_name} not found in {base_path}")
         else:
@@ -70,7 +71,7 @@ def plot_roc(y_test, y_proba) -> None:
     plt.legend(loc='lower right')
     plt.grid(True)
     image_name = f'man_zone_roc_auc.png'
-    image_path = os.path.join(os.getenv('NFL_HOME'), 'output', 'coverage', image_name)
+    image_path = PROJECT_ROOT / "output" / "coverage" / image_name
     plt.savefig(image_path, dpi=200)
     mlflow.log_artifact(image_path, artifact_path="plots")
 
@@ -159,10 +160,10 @@ def model_man_vs_zone() -> None:
         })
 
         # Save scaler
-        artifact_path = os.path.join(os.getenv("NFL_HOME"), "output", "coverage")
-        os.makedirs(artifact_path, exist_ok=True)
-        joblib.dump(scaler, os.path.join(artifact_path, "standard_scaler.pkl"))
-        mlflow.log_artifact(os.path.join(artifact_path, "standard_scaler.pkl"), artifact_path="preprocessing")
+        artifact_path = PROJECT_ROOT / "output" / "coverage"
+        artifact_path.mkdir(parents=True, exist_ok=True)
+        joblib.dump(scaler, artifact_path / "standard_scaler.pkl")
+        mlflow.log_artifact(artifact_path / "standard_scaler.pkl", artifact_path="preprocessing")
 
         # Enable autologging so the fitted model is captured
         mlflow.xgboost.autolog(log_model_signatures=True, log_input_examples=True)
@@ -228,10 +229,10 @@ def train_xgb(model, skf, x_train, y_train, x_test, y_test) -> None:
 
     # Save classification report as an artifact
     report_txt = classification_report(y_test, y_pred, target_names=['Zone', 'Man'])
-    artifact_path = os.path.join(os.getenv("NFL_HOME"), "output", "coverage")
-    with open(os.path.join(artifact_path, "classification_report.txt"), "w") as f:
+    artifact_path = PROJECT_ROOT / "output" / "coverage"
+    with open(artifact_path / "classification_report.txt", "w") as f:
         f.write(report_txt)
-    mlflow.log_artifact(os.path.join(artifact_path, "classification_report.txt"), artifact_path="reports")
+    mlflow.log_artifact(artifact_path / "classification_report.txt", artifact_path="reports")
 
     # Plot & log ROC curve
     plot_roc(y_test, y_proba)

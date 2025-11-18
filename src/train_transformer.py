@@ -9,7 +9,7 @@ Requires that create_features.py has already been ran and produced:
 - targets_training.pt
 - targets_val.pt
 
-Will train 30 epochs (unless it early stops) and produce model.pth
+Will train 50 epochs (unless it early stops) and produce model.pth
 """
 
 import os
@@ -28,6 +28,7 @@ from torch.optim import AdamW
 
 from models.transformer import ManZoneTransformer
 from common.decorators import time_fcn
+from common.paths import PROJECT_ROOT, SAVE_DIR
 
 def set_seed(seed: int = 42):
     # Python & NumPy
@@ -87,7 +88,6 @@ def main():
 
     # Init logging and save path
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
 
     # Define model and device
     set_seed(42)
@@ -116,8 +116,8 @@ def main():
     g.manual_seed(42)
 
     # Create data loaders
-    train_features = torch.load(os.path.join(save_path, f"features_training.pt"))
-    train_targets = torch.load(os.path.join(save_path, f"targets_training.pt"))
+    train_features = torch.load(SAVE_DIR / f"features_training.pt")
+    train_targets = torch.load(SAVE_DIR / f"targets_training.pt")
     train_loader = DataLoader(
         TensorDataset(train_features, train_targets),
         batch_size=64,
@@ -127,8 +127,8 @@ def main():
         pin_memory=True,                    # Batches are allocated on page-locked ("pinned") memory on the host, allows GPU driver to perform faster async DMA
     )  
     
-    val_features = torch.load(os.path.join(save_path, f"features_val.pt"))
-    val_targets = torch.load(os.path.join(save_path, f"targets_val.pt"))
+    val_features = torch.load(SAVE_DIR /  f"features_val.pt")
+    val_targets = torch.load(SAVE_DIR /  f"targets_val.pt")
     val_loader = DataLoader(
         TensorDataset(val_features, val_targets),
         batch_size=64,
@@ -155,7 +155,7 @@ def main():
             best_val_loss = avg_val_loss
             epochs_no_improve = 0
             # saving the best model
-            torch.save(model.state_dict(), os.path.join(save_path, f"model.pth"))
+            torch.save(model.state_dict(), SAVE_DIR / f"model.pth")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= early_stopping_patience:

@@ -103,22 +103,19 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 To create and activate the virtual environment, run the following:
 ```bash
 uv sync --locked
-source .venv/bin/activate
 ```
 
 ## Run instructions
 ```bash
-# Source the environmental variables
-source environment.sh
 
 # Digest the raw data and create features
-uv src/create_features.py
+uv run src/create_features.py
 
 # Train the model
-uv src/train_transformer.py
+uv run src/train_transformer.py
 
 # Run inference on week 9
-uv src/generate_predictions.py
+uv run src/generate_predictions.py
 
 # From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
 ```
@@ -126,7 +123,7 @@ uv src/generate_predictions.py
 ## Activating MLflow
 This project uses MLflow to manage ML models and track experiments from hyper paremter optimization. To start MLflow simply:
 ```bash
-# Make sure your virtual environment is started if you opened a new terminal
+# Make sure your virtual environment is sourced so the terminal recognizes mlflow
 source .venv/bin/activate
 
 # Start the tracking server
