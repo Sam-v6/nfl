@@ -38,7 +38,7 @@ from common.args import parse_args
 
 def process_week_data_preds(week_number, plays):
     if os.getenv("CI_DATA_ROOT"):
-        WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / "parquet" / f"tracking_week_{week_number}.parquet"
+        WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
     else:
         WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
     week = pd.read_parquet(WEEK_PARQUET_PATH)
