@@ -13,10 +13,7 @@ from common.paths import PROJECT_ROOT
 
 class RawDataLoader:
     def __init__(self):
-        if os.getenv("CI_DATA_ROOT"):
-            self.DATA_PATH = os.getenv("CI_DATA_ROOT")
-        else:
-            self.DATA_PATH = PROJECT_ROOT / "data" / "parquet"
+        self.DATA_PATH = PROJECT_ROOT / "data" / "parquet"
         self.games_df = None
         self.plays_df = None
         self.players_df = None
