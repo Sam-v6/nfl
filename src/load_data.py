@@ -7,13 +7,17 @@ Loads raw parquet data for usage in training models
 import os
 import pandas as pd
 from typing import Tuple
+from pathlib import Path
 
 from common.paths import PROJECT_ROOT
 
 
 class RawDataLoader:
     def __init__(self):
-        self.DATA_PATH = PROJECT_ROOT / "data" / "parquet"
+        if os.getenv("CI_DATA_ROOT"):
+            self.DATA_PATH = Path(os.getenv("CI_DATA_ROOT"))
+        else:
+            self.DATA_PATH = PROJECT_ROOT / "data" / "parquet"
         self.games_df = None
         self.plays_df = None
         self.players_df = None

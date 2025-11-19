@@ -18,7 +18,6 @@ import math
 from pathlib import Path
 import random
 import random
-import argparse
 import json
 
 import pandas as pd
@@ -47,22 +46,7 @@ from ray.tune.schedulers import ASHAScheduler
 from models.transformer import ManZoneTransformer
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT, SAVE_DIR
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--tune",
-        action="store_true",
-        help="Use Ray Tune to search hyperparameters instead of a single training run",
-    )
-    parser.add_argument(
-        "--profile",
-        action="store_true",
-        help="Enable @time_fcn timing decorators for profiling",
-    )
-    return parser.parse_args()
-
+from common.args import parse_args
 
 def set_seed(seed: int = 42) -> torch.Generator:
     # Python & NumPy
@@ -345,7 +329,6 @@ def main():
 
     # We are doing HPO with Ray
     if args.tune:
-
         # Disable some warnings about GPUs if we don't use them (we are always using GPUs for training here)
         os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
 

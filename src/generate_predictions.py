@@ -31,6 +31,7 @@ from models.transformer import ManZoneTransformer
 from load_data import RawDataLoader
 from clean_data import *
 from common.paths import PROJECT_ROOT, SAVE_DIR
+from common.decorators import *
 
 def process_week_data_preds(week_number, plays):
   WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
@@ -94,8 +95,23 @@ def prepare_tensor(play, num_players=22, num_features=5):
   return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
 
 
+@time_fcn
 def main():
+    # Set logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Get input args
+    args = parse_args()
+
+    # Enable/disable timing decorators
+    if args.profile:
+        set_time_decorators_enabled(True)
+        logging.info("Timing decorators enabled")
+    else:
+        set_time_decorators_enabled(False)
+        logging.info("Timing decorators disabled")
+
+    # Get model params and set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
         model_params_map = json.load(file)

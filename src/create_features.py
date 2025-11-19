@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader
 
 from load_data import RawDataLoader
 from clean_data import *
-from common.decorators import time_fcn
+from common.decorators import *
 from common.paths import SAVE_DIR
 
 def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame):
@@ -92,7 +92,19 @@ def _load_weeks(weeks, prefix, SAVE_DIR):
 
 @time_fcn
 def main() -> None:
+    # Logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Get input args
+    args = parse_args()
+
+    # Enable/disable timing decorators
+    if args.profile:
+        set_time_decorators_enabled(True)
+        logging.info("Timing decorators enabled")
+    else:
+        set_time_decorators_enabled(False)
+        logging.info("Timing decorators disabled")
 
     # Specify constants
     all_weeks = list(range(1, 10))
