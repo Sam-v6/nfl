@@ -42,11 +42,9 @@ jobs:
           
       - name: Create features
         run: |
-          source environment.sh
           uv run src/create_features.py
 
       - name: Train transformer
         run: |
-          source environment.sh
           uv run src/train_transformer.py
 
