@@ -18,6 +18,8 @@ import math
 from pathlib import Path
 import random
 import random
+import argparse
+import json
 
 import pandas as pd
 import numpy as np
@@ -32,7 +34,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-import joblib # Save pkl
+import joblib
 
 # Ray Tune
 import ray
@@ -43,8 +45,24 @@ from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
 from ray.tune.schedulers import ASHAScheduler
 
 from models.transformer import ManZoneTransformer
-from common.decorators import time_fcn
+from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT, SAVE_DIR
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Use Ray Tune to search hyperparameters instead of a single training run",
+    )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable @time_fcn timing decorators for profiling",
+    )
+    return parser.parse_args()
+
 
 def set_seed(seed: int = 42) -> torch.Generator:
     # Python & NumPy
@@ -70,6 +88,7 @@ def set_seed(seed: int = 42) -> torch.Generator:
     # torch.use_deterministic_algorithms(False)
 
     return g
+
 
 @time_fcn
 def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device) -> float:
@@ -112,7 +131,7 @@ def validate_epoch(val_loader: DataLoader, model, loss_fn, device) -> tuple[floa
 
 
 @time_fcn
-def train_trial(config):
+def train_trial(config, args):
 
     # Set seeds
     g = set_seed(42)
@@ -184,76 +203,59 @@ def train_trial(config):
 
         # Validate
         avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device)
-        val_losses.append(avg_val_loss)
-        val_accuracies.append(val_accuracy)
 
         # Info
         logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
         logging.info(f"Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Val Accuracy: {val_accuracy:.4f}")
 
-        session   = tune.get_context()
-        trial_dir = Path(session.get_trial_dir())
-        best_model_path = trial_dir / "best_model.pth"
+        if args.tune:
+            ######################################################################
+            # Tune logging (with MLflow callback this is all mirrored there as well)
+            # NOTE: By calling tune.report here effectively once per epoch, that becomes our time scale!
+            ######################################################################
+            session   = tune.get_context()
+            trial_dir = Path(session.get_trial_dir())
+            best_model_path = trial_dir / "best_model.pth"
 
-        # # Adding early stopping check (effort to prevent overfitting)
-        # if avg_val_loss < best_val_loss:
-        #     best_val_loss = avg_val_loss
-        #     epochs_no_improve = 0
-        #     torch.save(model.state_dict(), best_model_path)
-        # else:
-        #     epochs_no_improve += 1
-        #     if epochs_no_improve >= early_stopping_patience:
-        #         logging.info(f"Early stopping triggered")
-        #         break
+            # Record metrics
+            metrics = {
+                "val_accuracy": val_accuracy,
+                # "val_loss": float(avg_val_loss),
+                # "train_loss": float(avg_train_loss),
+            }
 
-        # We want to report metrics every epoch regardless if we are checkpointing
-        metrics = {
-            "val_accuracy": float(val_accuracies[-1]),
-            # "val_loss": float(avg_val_loss),
-            # "train_loss": float(avg_train_loss),
-        }
-
-        ######################################################################
-        # Tune logging (with MLflow callback this is all mirrored there as well)
-        # NOTE: By calling tune.report here effectively once per epoch, that becomes our time scale!
-        ######################################################################
-        # Report metrics and save checkpoint if applicable (checkpoint every n epochs and don't have redudant checkpoints if using workers via train)
-        checkpoint = None
-        should_checkpoint = epoch % config.get("checkpoint_freq", 1) == 0
-
-        if should_checkpoint:
-            ckpt_dir  = trial_dir / f"ckpt_e{epoch:04d}"
-            ckpt_dir.mkdir(parents=True, exist_ok=True)
-            torch.save(model.state_dict(), ckpt_dir / "model.pth")
-            checkpoint = Checkpoint.from_directory(str(ckpt_dir))
-            tune.report(metrics, checkpoint=checkpoint)
+            # Report metrics and save checkpoint if applicable (checkpoint every n epochs and don't have redudant checkpoints if using workers via train)
+            checkpoint = None
+            should_checkpoint = epoch % config.get("checkpoint_freq", 1) == 0
+            if should_checkpoint:
+                ckpt_dir  = trial_dir / f"ckpt_e{epoch:04d}"
+                ckpt_dir.mkdir(parents=True, exist_ok=True)
+                torch.save(model.state_dict(), ckpt_dir / "model.pth")
+                checkpoint = Checkpoint.from_directory(str(ckpt_dir))
+                tune.report(metrics, checkpoint=checkpoint)
+            else:
+                tune.report(metrics)
+        
         else:
-            tune.report(metrics)
+            # Record metrics
+            val_losses.append(avg_val_loss)
+            val_accuracies.append(val_accuracy)
 
-@time_fcn
-def main():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+            # Adding early stopping check (effort to prevent overfitting)
+            best_model_path = PROJECT_ROOT / "data" / "training" / "best_model.pth"
+            if avg_val_loss < best_val_loss:
+                best_val_loss = avg_val_loss
+                epochs_no_improve = 0
+                torch.save(model.state_dict(), best_model_path)
+            else:
+                epochs_no_improve += 1
+                if epochs_no_improve >= early_stopping_patience:
+                    logging.info(f"Early stopping triggered")
+                    break
 
-    # Define model and device
-    set_seed(42)
-
-    # Directory containing train_transformer.py (i.e., src/)
-    script_dir = Path(__file__).resolve().parent
-
-    # Disable some warnings about GPUs if we don't use them (we are always using GPUs for training here)
-    os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
-    ray.init(
-        runtime_env={
-            # Only ship src/, not the whole repo
-            "working_dir": str(script_dir),
-        }
-    )
-
-    # Run hyperparameter optimization
-    run_HPO()
 
 @time_fcn       
-def run_HPO():
+def run_HPO(args):
 
     ######################################################################
     # Start parent HPO, MLflow session
@@ -276,7 +278,7 @@ def run_HPO():
 
         # Epochs / checkpointing
         "epochs": 50,
-        "checkpoint_freq": 5,
+        "checkpoint_freq": 10,
     }
 
     params=transformer_params
@@ -292,15 +294,15 @@ def run_HPO():
     ######################################################################
     # Build tuner; pass MLflow context and PARENT RUN ID to workers via env vars
     ######################################################################
-    trainable = tune.with_parameters(train_trial)  # Allows each training run to have any specific params
+    trainable = tune.with_parameters(train_trial, args=args)  # Allows each training run to have any specific params
     tuner = Tuner(
-        tune.with_resources(trainable, resources={"cpu": 4, "gpu": 1}),                  # Gives 4 CPU and one GPU per trial
+        tune.with_resources(trainable, resources={"cpu": 4, "gpu": 1}), # Gives 4 CPU and one GPU per trial
         param_space=params,
         tune_config=TuneConfig( 
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=1,             # total trials
+            num_samples=10,             # total trials
         ),
         run_config=RunConfig(
             name="transformer_hpo",
@@ -322,6 +324,46 @@ def run_HPO():
     results = tuner.fit()
     best = results.get_best_result(metric="val_accuracy", mode="max")
     print("Best config:", best.config)
+
+
+@time_fcn
+def main():
+
+    # Set logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Get input args
+    args = parse_args()
+
+    # Enable/disable timing decorators
+    if args.profile:
+        set_time_decorators_enabled(True)
+        logging.info("Timing decorators enabled")
+    else:
+        set_time_decorators_enabled(False)
+        logging.info("Timing decorators disabled")
+
+    # We are doing HPO with Ray
+    if args.tune:
+
+        # Disable some warnings about GPUs if we don't use them (we are always using GPUs for training here)
+        os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
+
+        # Set the runtime env to only ship src/, the whole repo that has a bunch of data
+        script_dir = Path(__file__).resolve().parent         # Directory containing train_transformer.py (i.e., src/)
+        ray.init(
+            runtime_env={
+                "working_dir": str(script_dir),
+            }
+        )
+        run_HPO(args)
+
+    # We are doing a single run with fixed model parameters located at nfl/data/training/model_params.json
+    else:
+        with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
+            model_params_map = json.load(file)
+        train_trial(model_params_map, args)
+
 
 if __name__ == "__main__":
     main()

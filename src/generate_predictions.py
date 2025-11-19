@@ -15,6 +15,7 @@ import warnings
 import random
 import os
 import logging
+import json
 
 import pandas as pd
 pd.options.mode.chained_assignment = None
@@ -96,17 +97,18 @@ def prepare_tensor(play, num_players=22, num_features=5):
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
+        model_params_map = json.load(file)
     model = ManZoneTransformer(
-        feature_len=5,    # num of input features (x, y, v_x, v_y, defense)
-        model_dim=64,     # experimented with 96 & 128... seems best
-        num_heads=2,      # 2 seems best (but may have overfit when tried 4... may be worth iterating)
-        num_layers=4,
-        dim_feedforward=64 * 4,
-        dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
+        feature_len=5,                  # num of input features (x, y, v_x, v_y, defense)
+        model_dim=model_params_map["model_dim"],
+        num_heads=model_params_map["num_heads"],
+        num_layers=model_params_map["num_layers"],
+        dim_feedforward=int(model_params_map["model_dim"]) * int(model_params_map["num_layers"]),
+        dropout=model_params_map["dropout"],
         output_dim=2      # man or zone classification
     ).to(device)
-    model.load_state_dict(torch.load(SAVE_DIR / "model.pth", map_location=device))
+    model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "best_model.pth", map_location=device))
     model.eval()
 
     # Load data
