@@ -37,14 +37,14 @@ jobs:
           version: "latest"
 
       - name: Sync uv
-        run: |
-          uv sync --locked
+        run: uv sync --locked
           
       - name: Create features
-        run: |
-          uv run src/create_features.py
+        run: uv run src/create_features.py
 
       - name: Train transformer
-        run: |
-          uv run src/train_transformer.py
+        run: uv run src/train_transformer.py
+
+      - name: Make week 9 predictions
+        run: uv run src/generate_predictions.py
 

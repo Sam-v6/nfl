@@ -16,6 +16,7 @@ import random
 import os
 import logging
 import json
+from pathlib import Path
 
 import pandas as pd
 pd.options.mode.chained_assignment = None
@@ -36,48 +37,51 @@ from common.args import parse_args
 
 
 def process_week_data_preds(week_number, plays):
-  WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
-  week = pd.read_parquet(WEEK_PARQUET_PATH)
-  logging.info(f"Finished reading Week {week_number} data")
+    if os.getenv("CI_DATA_ROOT"):
+        WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / "parquet" / f"tracking_week_{week_number}.parquet"
+    else:
+        WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
+    week = pd.read_parquet(WEEK_PARQUET_PATH)
+    logging.info(f"Finished reading Week {week_number} data")
 
-  # applying cleaning functions
-  week = rotate_direction_and_orientation(week)
-  week = make_plays_left_to_right(week)
-  week = calculate_velocity_components(week)
-  week = pass_attempt_merging(week, plays)
-  # week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
-  week = label_offense_defense_manzone(week, plays)
+    # applying cleaning functions
+    week = rotate_direction_and_orientation(week)
+    week = make_plays_left_to_right(week)
+    week = calculate_velocity_components(week)
+    week = pass_attempt_merging(week, plays)
+    # week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
+    week = label_offense_defense_manzone(week, plays)
 
-  week['week'] = week_number
-  week['uniqueId'] = week['gameId'].astype(str) + "_" + week['playId'].astype(str)
-  week['frameUniqueId'] = (
-      week['gameId'].astype(str) + "_" +
-      week['playId'].astype(str) + "_" +
-      week['frameId'].astype(str))
+    week['week'] = week_number
+    week['uniqueId'] = week['gameId'].astype(str) + "_" + week['playId'].astype(str)
+    week['frameUniqueId'] = (
+        week['gameId'].astype(str) + "_" +
+        week['playId'].astype(str) + "_" +
+        week['frameId'].astype(str))
 
-  # adding frames_from_snap (to do: make this a function but fine for now)
-  snap_frames = week[week['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
-  week = week.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
-  week['frames_from_snap'] = week['frameId'] - week['snap_frame']
+    # adding frames_from_snap (to do: make this a function but fine for now)
+    snap_frames = week[week['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
+    week = week.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
+    week['frames_from_snap'] = week['frameId'] - week['snap_frame']
 
-  # filtering only for even frames
-  # week = week[week['frameId'] % 2 == 0]
+    # filtering only for even frames
+    # week = week[week['frameId'] % 2 == 0]
 
-  # ridding of any potential outliers (25 seconds after the snap)
-  week = week[(week['frames_from_snap'] >= -150) & (week['frames_from_snap'] <= 30)]
+    # ridding of any potential outliers (25 seconds after the snap)
+    week = week[(week['frames_from_snap'] >= -150) & (week['frames_from_snap'] <= 30)]
 
-  # applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
-  # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
+    # applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
+    # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
 
-  # num_unique_frames = len(set(week['frameUniqueId']))
-  # selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
-  # week_aug = data_augmentation(week, selected_frames)
+    # num_unique_frames = len(set(week['frameUniqueId']))
+    # selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
+    # week_aug = data_augmentation(week, selected_frames)
 
-  # week = pd.concat([week, week_aug])
+    # week = pd.concat([week, week_aug])
 
-  logging.info(f"Finished processing Week {week_number} data")
+    logging.info(f"Finished processing Week {week_number} data")
 
-  return week
+    return week
 
 
 def prepare_tensor(play, num_players=22, num_features=5):
