@@ -1,0 +1,9 @@
+{
+    "epochs": 50,
+    "model_dim": 64,
+    "num_heads": 2,
+    "num_layers": 4,
+    "dropout": 0.1,
+    "batch_size": 64,
+    "checkpoint_freq": 10
+}

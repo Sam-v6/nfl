@@ -4,10 +4,10 @@
 Trains LSTM model on location tracking data
 
 Requires:
-- Raw location tracking data in NFL_HOME/data/parquet
-- Trained model in NFL_HOME/data/processed/model.pth
+- Raw location tracking data in nfl/data/parquet
+- Trained model in nfl/data/processed/model.pth
 
-Performs inference on each week and saves to NFL_HOME/data/processed/week{n}_predictions.csv
+Performs inference on each week and saves to nfl/data/processed/week{n}_predictions.csv
 """
 
 import math
@@ -15,6 +15,8 @@ import warnings
 import random
 import os
 import logging
+import json
+from pathlib import Path
 
 import pandas as pd
 pd.options.mode.chained_assignment = None
@@ -29,50 +31,57 @@ from torch.optim import AdamW
 from models.transformer import ManZoneTransformer
 from load_data import RawDataLoader
 from clean_data import *
+from common.paths import PROJECT_ROOT, SAVE_DIR
+from common.decorators import *
+from common.args import parse_args
+
 
 def process_week_data_preds(week_number, plays):
-  file_path = os.path.join(os.getenv("NFL_HOME"), "data", "parquet", f"tracking_week_{week_number}.parquet")
-  week = pd.read_parquet(file_path)
-  logging.info(f"Finished reading Week {week_number} data")
+    if os.getenv("CI_DATA_ROOT"):
+        WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
+    else:
+        WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
+    week = pd.read_parquet(WEEK_PARQUET_PATH)
+    logging.info(f"Finished reading Week {week_number} data")
 
-  # applying cleaning functions
-  week = rotate_direction_and_orientation(week)
-  week = make_plays_left_to_right(week)
-  week = calculate_velocity_components(week)
-  week = pass_attempt_merging(week, plays)
-  # week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
-  week = label_offense_defense_manzone(week, plays)
+    # applying cleaning functions
+    week = rotate_direction_and_orientation(week)
+    week = make_plays_left_to_right(week)
+    week = calculate_velocity_components(week)
+    week = pass_attempt_merging(week, plays)
+    # week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
+    week = label_offense_defense_manzone(week, plays)
 
-  week['week'] = week_number
-  week['uniqueId'] = week['gameId'].astype(str) + "_" + week['playId'].astype(str)
-  week['frameUniqueId'] = (
-      week['gameId'].astype(str) + "_" +
-      week['playId'].astype(str) + "_" +
-      week['frameId'].astype(str))
+    week['week'] = week_number
+    week['uniqueId'] = week['gameId'].astype(str) + "_" + week['playId'].astype(str)
+    week['frameUniqueId'] = (
+        week['gameId'].astype(str) + "_" +
+        week['playId'].astype(str) + "_" +
+        week['frameId'].astype(str))
 
-  # adding frames_from_snap (to do: make this a function but fine for now)
-  snap_frames = week[week['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
-  week = week.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
-  week['frames_from_snap'] = week['frameId'] - week['snap_frame']
+    # adding frames_from_snap (to do: make this a function but fine for now)
+    snap_frames = week[week['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
+    week = week.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
+    week['frames_from_snap'] = week['frameId'] - week['snap_frame']
 
-  # filtering only for even frames
-  # week = week[week['frameId'] % 2 == 0]
+    # filtering only for even frames
+    # week = week[week['frameId'] % 2 == 0]
 
-  # ridding of any potential outliers (25 seconds after the snap)
-  week = week[(week['frames_from_snap'] >= -150) & (week['frames_from_snap'] <= 30)]
+    # ridding of any potential outliers (25 seconds after the snap)
+    week = week[(week['frames_from_snap'] >= -150) & (week['frames_from_snap'] <= 30)]
 
-  # applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
-  # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
+    # applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
+    # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
 
-  # num_unique_frames = len(set(week['frameUniqueId']))
-  # selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
-  # week_aug = data_augmentation(week, selected_frames)
+    # num_unique_frames = len(set(week['frameUniqueId']))
+    # selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
+    # week_aug = data_augmentation(week, selected_frames)
 
-  # week = pd.concat([week, week_aug])
+    # week = pd.concat([week, week_aug])
 
-  logging.info(f"Finished processing Week {week_number} data")
+    logging.info(f"Finished processing Week {week_number} data")
 
-  return week
+    return week
 
 
 def prepare_tensor(play, num_players=22, num_features=5):
@@ -92,22 +101,36 @@ def prepare_tensor(play, num_players=22, num_features=5):
   return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
 
 
+@time_fcn
 def main():
+    # Set logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    save_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'processed')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Get input args
+    args = parse_args()
 
+    # Enable/disable timing decorators
+    if args.profile:
+        set_time_decorators_enabled(True)
+        logging.info("Timing decorators enabled")
+    else:
+        set_time_decorators_enabled(False)
+        logging.info("Timing decorators disabled")
+
+    # Get model params and set device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
+        model_params_map = json.load(file)
     model = ManZoneTransformer(
-        feature_len=5,    # num of input features (x, y, v_x, v_y, defense)
-        model_dim=64,     # experimented with 96 & 128... seems best
-        num_heads=2,      # 2 seems best (but may have overfit when tried 4... may be worth iterating)
-        num_layers=4,
-        dim_feedforward=64 * 4,
-        dropout=0.1,      # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
+        feature_len=5,                  # num of input features (x, y, v_x, v_y, defense)
+        model_dim=model_params_map["model_dim"],
+        num_heads=model_params_map["num_heads"],
+        num_layers=model_params_map["num_layers"],
+        dim_feedforward=int(model_params_map["model_dim"]) * int(model_params_map["num_layers"]),
+        dropout=model_params_map["dropout"],
         output_dim=2      # man or zone classification
     ).to(device)
-    model.load_state_dict(torch.load(os.path.join(save_path, 'model.pth'), weights_only=True, map_location=device))
+    model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "best_model.pth", map_location=device))
     model.eval()
 
     # Load data
@@ -125,7 +148,7 @@ def main():
         tracking_df_polars = pl.DataFrame(week_df)  # or comment this out and use pandas below
 
         # Stream predictions to CSV in batches
-        out_pred_csv = os.path.join(save_path, f"week{week_eval}_preds.csv")
+        weekly_predictions_path_csv = SAVE_DIR / f"week{week_eval}_preds.csv"
         wrote_header = False
         batch = []
         BATCH_SIZE = 5000  # tune (smaller => lower peak RAM)
@@ -173,21 +196,21 @@ def main():
 
             # Flush batch to CSV to keep RAM low
             if len(batch) >= BATCH_SIZE:
-                pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+                pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
                 wrote_header = True
                 batch.clear()
 
         # Flush tail
         if batch:
-            pd.DataFrame(batch).to_csv(out_pred_csv, mode='a', header=not wrote_header, index=False)
+            pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
             batch.clear()
 
         logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
 
         # Merge week_df with preds (per-week, small)
-        preds_week = pd.read_csv(out_pred_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
+        preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
         tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
-        tracking_preds.to_csv(os.path.join(save_path, f"tracking_week_{week_eval}_preds.csv"), index=False)
+        tracking_preds.to_csv(SAVE_DIR / f"tracking_week_{week_eval}_preds.csv", index=False)
 
         # Free RAM before next week
         del week_df, tracking_df_polars, preds_week, tracking_preds

@@ -4,9 +4,9 @@
 Creates features for model training
 
 Requires:
-- Raw location tracking data in NFL_HOME/data/parquet
+- Raw location tracking data in nfl/data/parquet
 
-Cleans data and creates the following in NFL_HOME/data/processed:
+Cleans data and creates the following in nfl/data/processed:
 - features_training.pt
 - features_val.pt
 - targets_training.pt
@@ -27,7 +27,9 @@ from torch.utils.data import DataLoader
 
 from load_data import RawDataLoader
 from clean_data import *
-from common.decorators import time_fcn
+from common.decorators import *
+from common.paths import SAVE_DIR
+from common.args import parse_args
 
 def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame):
     
@@ -84,13 +86,26 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
   return combined_location_df
 
 
-def _load_weeks(weeks, prefix, save_dir):
-    tensors = [torch.load(os.path.join(save_dir, f"{prefix}_w{w}.pt")) for w in weeks]
+def _load_weeks(weeks, prefix, SAVE_DIR):
+    tensors = [torch.load(SAVE_DIR / f"{prefix}_w{w}.pt") for w in weeks]
     return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
+
 
 @time_fcn
 def main() -> None:
+    # Logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Get input args
+    args = parse_args()
+
+    # Enable/disable timing decorators
+    if args.profile:
+        set_time_decorators_enabled(True)
+        logging.info("Timing decorators enabled")
+    else:
+        set_time_decorators_enabled(False)
+        logging.info("Timing decorators disabled")
 
     # Specify constants
     all_weeks = list(range(1, 10))
@@ -98,10 +113,6 @@ def main() -> None:
     val_weeks = [9]
     features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
     target_column = "pff_manZone"
-
-    # Create processing dirs
-    save_dir = os.path.join(os.getenv("NFL_HOME"), "data", "processed")
-    os.makedirs(save_dir, exist_ok=True)
 
     # Load data once
     raw = RawDataLoader()
@@ -133,8 +144,8 @@ def main() -> None:
         features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
 
         # Save per-week artifacts
-        torch.save(features_tensor_w,  os.path.join(save_dir, f"features_w{w}.pt"))
-        torch.save(targets_tensor_w,  os.path.join(save_dir, f"targets_w{w}.pt"))
+        torch.save(features_tensor_w,  SAVE_DIR / f"features_w{w}.pt")
+        torch.save(targets_tensor_w,  SAVE_DIR / f"targets_w{w}.pt")
 
         # Free memory for next loop
         del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
@@ -142,22 +153,22 @@ def main() -> None:
 
     # Aggregrate train/val from saved weekly tensors
     logging.info("Aggregrating training set (Week 1 through 8)")
-    train_features = _load_weeks(train_weeks, "features", save_dir)
-    train_targets  = _load_weeks(train_weeks, "targets", save_dir)
+    train_features = _load_weeks(train_weeks, "features", SAVE_DIR)
+    train_targets  = _load_weeks(train_weeks, "targets", SAVE_DIR)
 
     logging.info("Aggregrating validation set (Week 9)")
-    val_features = _load_weeks(val_weeks, "features", save_dir)
-    val_targets  = _load_weeks(val_weeks, "targets", save_dir)
+    val_features = _load_weeks(val_weeks, "features", SAVE_DIR)
+    val_targets  = _load_weeks(val_weeks, "targets", SAVE_DIR)
 
     # Optional: ensure float32
     train_features = train_features.to(torch.float32)
     val_features   = val_features.to(torch.float32)
 
     # Save pooled artifacts
-    torch.save(train_features, os.path.join(save_dir, "features_training.pt"))
-    torch.save(train_targets, os.path.join(save_dir, "targets_training.pt"))
-    torch.save(val_features, os.path.join(save_dir, "features_val.pt"))
-    torch.save(val_targets, os.path.join(save_dir, "targets_val.pt"))
+    torch.save(train_features, SAVE_DIR / "features_training.pt")
+    torch.save(train_targets, SAVE_DIR / "targets_training.pt")
+    torch.save(val_features, SAVE_DIR / "features_val.pt")
+    torch.save(val_targets, SAVE_DIR / "targets_val.pt")
 
     logging.info("Train features: %s", getattr(train_features, "shape", None))
     logging.info("Val features:   %s", getattr(val_features, "shape", None))

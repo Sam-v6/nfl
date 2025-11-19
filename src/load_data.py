@@ -7,13 +7,17 @@ Loads raw parquet data for usage in training models
 import os
 import pandas as pd
 from typing import Tuple
+from pathlib import Path
+
+from common.paths import PROJECT_ROOT
+
 
 class RawDataLoader:
-    def __init__(self, nfl_home=None):
+    def __init__(self):
         if os.getenv("CI_DATA_ROOT"):
-            self.data_path = os.getenv("CI_DATA_ROOT")
+            self.DATA_PATH = Path(os.getenv("CI_DATA_ROOT"))
         else:
-            self.data_path = os.path.join(os.getenv('NFL_HOME'), 'data', 'parquet')
+            self.DATA_PATH = PROJECT_ROOT / "data" / "parquet"
         self.games_df = None
         self.plays_df = None
         self.players_df = None
@@ -29,16 +33,16 @@ class RawDataLoader:
 
     def _load_base_data(self):
         """Load games, plays, and players data"""
-        self.games_df = self._load_parquet(os.path.join(self.data_path, 'games.parquet'))
-        self.plays_df = self._load_parquet(os.path.join(self.data_path, 'plays.parquet'))
-        self.players_df = self._load_parquet(os.path.join(self.data_path, 'players.parquet'))
+        self.games_df = self._load_parquet(self.DATA_PATH / 'games.parquet')
+        self.plays_df = self._load_parquet(self.DATA_PATH / 'plays.parquet')
+        self.players_df = self._load_parquet(self.DATA_PATH / 'players.parquet')
 
     def _load_tracking_data(self, weeks=list[int]):
         """Load tracking data for specified weeks"""
         weekly_dfs = []
         
         for week in weeks:
-            filepath = os.path.join(self.data_path, f'tracking_week_{week}.parquet')
+            filepath = self.DATA_PATH / f'tracking_week_{week}.parquet'
             df = self._load_parquet(filepath)
             if df is not None:
                 weekly_dfs.append(df)

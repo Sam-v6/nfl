@@ -37,6 +37,7 @@ dependencies = [
   "pandas>=2.3.2",
   "pip-tools>=7.5.0",
   "polars>=1.35.1",
+  "ray[train,tune]>=2.51.1",
   "scikit-learn>=1.7.2",
   "seaborn>=0.13.2",
   "torch>=2.8.0",
@@ -44,35 +45,9 @@ dependencies = [
   "xgboost>=3.0.5",
 ]
 
-[project.optional-dependencies]
-dev = [
-  "pytest>=7.0",
-  "black>=24.0",
-  "flake8>=6.0",
-  "mypy>=1.0"
-]
-# you can define other "extras", e.g.:
-# docs = ["sphinx", "sphinx-rtd-theme"]
-
 [project.scripts]
 # command = "module:function"
 myproject-cli = "myproject.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-# Tool-specific configuration examples:
-
-[tool.black]
-line-length = 88
-target-version = ["py39", "py310", "py311", "py312"]
-
-[tool.isort]
-profile = "black"
-
-[tool.flake8]
-max-line-length = 88
-extend-ignore = ["E203"]
-
-[tool.mypy]
-strict = true

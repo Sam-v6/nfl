@@ -3,7 +3,7 @@
 """
 Trains LSTM model on location tracking data
 
-Requires raw location tracking data in NFL_HOME/data/parquet
+Requires raw location tracking data in nfl/data/parquet
 
 Will produce classification report, confusion matrix, and ROC curve for best model
 """

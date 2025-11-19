@@ -10,6 +10,8 @@ import random
 from data_processing.process import load_data
 from data_processing.draw_play import animate_play
 
+from common.paths import PROJECT_ROOT
+
 
 if __name__ == "__main__":
 
@@ -17,10 +19,10 @@ if __name__ == "__main__":
     random.seed(42)
 
     # Load data
-    games_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data', 'raw', 'games.csv'))
-    plays_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data', 'raw', 'plays.csv'))
-    players_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','raw', 'players.csv'))
-    week1_df = load_data(os.path.join(os.getenv('NFL_HOME'),'data','raw', 'tracking_week_1.csv'))
+    games_df = load_data(PROJECT_ROOT / 'data' / 'raw' / 'games.csv')
+    plays_df = load_data(PROJECT_ROOT / 'data' / 'raw' /  'plays.csv')
+    players_df = load_data(PROJECT_ROOT / 'data' / 'raw' /  'players.csv')
+    week1_df = load_data(PROJECT_ROOT / 'data' / 'raw' /  'tracking_week_1.csv')
 
     # Draw play frame
     for i in range(0,len(games_df)):
