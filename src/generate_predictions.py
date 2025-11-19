@@ -32,6 +32,8 @@ from load_data import RawDataLoader
 from clean_data import *
 from common.paths import PROJECT_ROOT, SAVE_DIR
 from common.decorators import *
+from common.args import parse_args
+
 
 def process_week_data_preds(week_number, plays):
   WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
