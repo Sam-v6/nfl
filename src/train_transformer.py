@@ -131,13 +131,17 @@ def train_trial(config, args):
         model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
         num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
         num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
-        dim_feedforward=int(config["model_dim"]) * int(config["num_layers"]),   # from ray tune or loaded
+        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
         dropout=float(config["dropout"]),                                       # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
         output_dim=2                                                            # man or zone classification
     ).to(device)
 
     # Set optimizer and loss fcn
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(config["lr"]),
+        weight_decay=float(config["weight_decay"]),
+    )
     loss_fn = nn.CrossEntropyLoss()
 
     ######################################################################
@@ -252,12 +256,15 @@ def run_HPO(args):
     ######################################################################
     transformer_params = {
         # Varying model shape
-        "model_dim": tune.choice([32, 64, 128, 256]),
-        "num_heads": tune.choice([2, 4]),
-        "num_layers": tune.choice([1, 2, 3, 4]),
-        "dropout": tune.choice([0.0, 0.1, 0.2]) ,
+        "model_dim": tune.choice([32, 64, 96, 128]),
+        "num_heads": tune.choice([2, 4, 8]),
+        "num_layers": tune.choice([2, 3, 4, 6]),
+        "dropout": tune.choice([0.0, 0.1, 0.2, 0.3]),
+        "multiplier": tune.choice([2, 3, 4]),
 
         # Training
+        "lr": tune.loguniform(1e-5, 5e-3),
+        "weight_decay": tune.loguniform(1e-6, 1e-2),
         "batch_size": tune.choice([32, 64, 128]),
 
         # Epochs / checkpointing
