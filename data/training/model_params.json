@@ -4,6 +4,9 @@
     "num_heads": 2,
     "num_layers": 4,
     "dropout": 0.1,
-    "batch_size": 64,
-    "checkpoint_freq": 10
+    "checkpoint_freq": 10,
+    "multiplier": 2,
+    "lr": 0.001,
+    "weight_decay": 0.02,
+    "batch_size": 64
 }
