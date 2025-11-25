@@ -8,5 +8,5 @@
     "multiplier": 2,
     "lr": 0.001,
     "weight_decay": 0.02,
-    "batch_size": 64
+    "batch_size": 19200
 }

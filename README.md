@@ -114,10 +114,16 @@ uv run src/create_features.py
 # Train the model
 uv run src/train_transformer.py
 
+# Alternatively, you can run hyper-parameter optimization which will save the best model and parameters with
+uv run src/train_transformer.py --tune
+
 # Run inference on week 9
 uv run src/generate_predictions.py
 
 # From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
+
+# If you would like to time and of the runs you can append --profile, for example
+uv run src/train_transformer.py --profile
 ```
 
 ## Activating MLflow
@@ -134,3 +140,13 @@ mlflow ui \
 ```
 
 The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000
+
+## Future Work
+
+For model improvements I'm interested in switching to a flash attention layer which can accelerate training
+
+I also want to build up per team models, do ANOVA, then highlight specific players that are giving tells on coverages
+
+Want to try out the model on a non-binary problem and try distinguishing between distinct coverage types
+
+See if I can identify blitzer (is the blitzer player identified in the dataset?)
