@@ -50,6 +50,7 @@ from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT, SAVE_DIR
 from common.args import parse_args
 
+
 def set_seed(seed: int = 42) -> torch.Generator:
     # Python & NumPy
     random.seed(seed)
@@ -77,7 +78,7 @@ def set_seed(seed: int = 42) -> torch.Generator:
 
 
 @time_fcn
-def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, scaler, amp_dtype) -> float:
+def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, amp_dtype) -> float:
     # Training
     model.train()
     running_loss = 0.0
@@ -90,15 +91,16 @@ def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, sca
         # Zero gradients
         optimizer.zero_grad(set_to_none=True)
 
-        # Using AMP, predict outputs and loss
+        # For forward pass, allow mixed precision for speed in some operations
+        # NOTE: PyTorch keeps some sensitive ops in FP32 for stability
         with autocast(device_type="cuda", dtype=amp_dtype):
             outputs = model(features)
             loss = loss_fn(outputs, targets)
 
-        # Scale the loss, backpropagate, and step optimizer (using scaler if FP16)
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        # Backpropagate and optimize
+        # NOTE: We don't want the gradients in less than FP32, PyTorch would handle this for us but being explicit
+        loss.backward()
+        optimizer.step()
 
         # Record running loss
         running_loss += loss.detach().item() * features.size(0)
@@ -148,20 +150,17 @@ def run_trial(config, args):
     g = set_seed(42)
 
     ######################################################################
-    # Set things that allow for speed-up in training
+    # Set things that allow for speed-up in training (valid on Ampere+ GPUs)
     ######################################################################
-    # Enable TF32 (safe FP32 speedup, only avail on Ampere+ GPUs)
-    # NOTE: Even though we setting AMP type below, some 32b ops still performed
+    # NOTE: Importing torch here because Ray serializes the fcn, if we allow the global scope torch it fails in trying to serialize the global chain
+    import torch
+
+    # Use mixed precision with FP16 for speed for forward pass (see train_epoch)
+    amp_dtype = torch.float16 
+
+    # Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-
-    # FP16 or BF16 depending on GPU
-    # Prefer 16 bit precision (stable like FP32, fast like FP16)
-    amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-
-    # Mixed precision scaler (only needed when using FP16)
-    use_fp16 = (amp_dtype == torch.float16)
-    scaler = GradScaler(enabled=use_fp16)
 
     ######################################################################
     # Create model, loss, optimizer
@@ -239,7 +238,7 @@ def run_trial(config, args):
     for epoch in range(int(config["epochs"])):
 
         # Train
-        avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, scaler, amp_dtype)
+        avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype)
         train_losses.append(avg_train_loss)
 
         # Validate
@@ -280,7 +279,7 @@ def run_trial(config, args):
 
 
 @time_fcn       
-def run_HPO(args) -> None:
+def run_hpo(args) -> None:
 
     ######################################################################
     # Start parent HPO, MLflow session
@@ -302,20 +301,18 @@ def run_HPO(args) -> None:
         # Training
         "lr": tune.loguniform(1e-5, 5e-3),
         "weight_decay": tune.loguniform(1e-6, 1e-2),
-        "batch_size": tune.choice([32, 64, 128]),
+        "batch_size": 19200,
 
-        # Epochs / checkpointing
+        # Epochs
         "epochs": 100,
-        "checkpoint_freq": 10,
     }
-
     params=transformer_params
 
     # Async Successive Halfing Scheduler (ASHA)
     # Instead of running all trials for all epochs, it allocates more resources to promising ones and kills of bad ones early
     scheduler = ASHAScheduler(
         max_t=params["epochs"],                     # Max amount of "things" on our whatever our scale is (since we call tune.report once per epoch this max epochs per trial)
-        grace_period=params["checkpoint_freq"]+1,   # Allow for 6 epochs each trial until we kill it
+        grace_period=20,                            # Allow for 20 epochs before pruning (so each trial gets at least this many epochs)
         reduction_factor=2,                         # ASHA keeps about 50% of the top trials each time it prunes
     )
     
@@ -324,13 +321,13 @@ def run_HPO(args) -> None:
     ######################################################################
     trainable = tune.with_parameters(run_trial, args=args)  # Allows each training run to have any specific params
     tuner = Tuner(
-        tune.with_resources(trainable, resources={"cpu": 4, "gpu": 1}), # Gives 4 CPU and one GPU per trial
+        tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}), # Gives 16 CPU and one GPU per trial
         param_space=params,
-        tune_config=TuneConfig( 
+        tune_config=TuneConfig(
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=1,             # total trials
+            num_samples=80,             # total trials
         ),
         run_config=RunConfig(
             name="transformer_hpo",
@@ -358,8 +355,10 @@ def run_HPO(args) -> None:
     with open(output_file, 'w') as json_file:
         json.dump(best.config, json_file, indent=4) # indent for pretty-printing
 
+
 @time_fcn
 def main() -> None:
+    """Main function to run HPO or single trial."""
 
     # Set logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -380,11 +379,14 @@ def main() -> None:
         # Set the runtime env to only ship src/, the whole repo that has a bunch of data
         script_dir = Path(__file__).resolve().parent         # Directory containing train_transformer.py (i.e., src/)
         ray.init(
+            # Set the system config for the metrics exporter to pick a free port
+            _metrics_export_port=5001,
+            # Set the runtime to only bundle the src dir
             runtime_env={
                 "working_dir": str(script_dir),
-            }
+            },
         )
-        run_HPO(args)
+        run_hpo(args)
 
     # We are doing a single run with fixed model parameters located at nfl/data/training/model_params.json
     else:

@@ -1,12 +1,11 @@
 {
-    "epochs": 50,
-    "model_dim": 64,
-    "num_heads": 2,
-    "num_layers": 4,
-    "dropout": 0.1,
-    "checkpoint_freq": 10,
+    "model_dim": 32,
+    "num_heads": 8,
+    "num_layers": 2,
+    "dropout": 0.0,
     "multiplier": 2,
-    "lr": 0.001,
-    "weight_decay": 0.02,
-    "batch_size": 19200
+    "lr": 0.0005745323952193273,
+    "weight_decay": 3.1487490405816114e-06,
+    "batch_size": 19200,
+    "epochs": 100
 }
