@@ -139,7 +139,9 @@ mlflow ui \
   --port 5000
 ```
 
-The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000
+The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000. Viewing MLflow will look something like this (note our results are after a 500 trial hyper-parameter optimization run with Ray Tune)
+
+![mlflow_tune](./docs/images/mlflow_tune.png)
 
 ## Future Work
 

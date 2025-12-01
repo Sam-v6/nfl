@@ -174,7 +174,7 @@ def run_trial(config, args):
         num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
         num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
         dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
-        dropout=float(config["dropout"]),                                       # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
+        dropout=float(config["dropout"]),                                       # from ray tune or loaded
         output_dim=2                                                            # man or zone classification
     )
     # Move model to device (GPU)
@@ -327,7 +327,7 @@ def run_hpo(args) -> None:
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=80,             # total trials
+            num_samples=500,             # total trials
         ),
         run_config=RunConfig(
             name="transformer_hpo",
