@@ -42,11 +42,14 @@ jobs:
       - name: Test feature creation
         run: uv run src/create_features.py --profile
 
+        # This will output model_params.json
+      - name: Test ray hyperparameter tuning
+        run: uv run src/train_transformer.py --tune --ci
+
+        # This will use model_params.json to create best_model.pth
       - name: Test transformer training
         run: uv run src/train_transformer.py --profile --ci
 
-      - name: Test HPO transformer training
-        run: uv run src/train_transformer.py --tune --ci
-      
+        # This will use best_model.pth for inference
       - name: Test prediction generation
         run: uv run src/generate_predictions.py --profile
