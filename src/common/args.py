@@ -18,4 +18,10 @@ def parse_args():
         action="store_true",
         help="Enable @time_fcn timing decorators for profiling",
     )
+
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="Enable CI mode with reduced epochs for faster training during pipeline",
+    )
     return parser.parse_args()
