@@ -10,33 +10,32 @@ Requires:
 Performs inference on each week and saves to nfl/data/processed/week{n}_predictions.csv
 """
 
-import math
-import warnings
-import random
+# Base imports
 import os
 import logging
 import json
 from pathlib import Path
 
+# Additional imports
 import pandas as pd
-pd.options.mode.chained_assignment = None
 import numpy as np
-import matplotlib.pyplot as plt
 import polars as pl
-import torch
-import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
-from torch.optim import AdamW
 
-from models.transformer import ManZoneTransformer
+import torch
+import torchvision.models as models
+from torch.profiler import profile, ProfilerActivity, record_function
+
+# Local imports
+from models.transformer import create_transformer_model
 from load_data import RawDataLoader
-from clean_data import *
-from common.paths import PROJECT_ROOT, SAVE_DIR
-from common.decorators import *
+from clean_data import rotate_direction_and_orientation, make_plays_left_to_right, calculate_velocity_components, pass_attempt_merging, label_offense_defense_manzone
+from common.paths import PROJECT_ROOT
+from common.decorators import set_time_decorators_enabled, time_fcn
 from common.args import parse_args
 
 
 def process_week_data_preds(week_number, plays):
+    """Processes and cleans tracking data for a given week number, returning the cleaned DataFrame."""
     if os.getenv("CI_DATA_ROOT"):
         WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
     else:
@@ -84,7 +83,8 @@ def process_week_data_preds(week_number, plays):
     return week
 
 
-def prepare_tensor(play, num_players=22, num_features=5):
+def prepare_tensor(play: pd.DataFrame) -> torch.Tensor:
+    """Prepares a tensor for a single frame from the given DataFrame."""
     features = ['x_clean', 'y_clean', 'v_x', 'v_y', 'defense']
     play_data = play[features + ['frameId']]
     play_data = play_data.sort_values(by='frameId')
@@ -120,33 +120,28 @@ def main():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    # Get model params and set device
+    # Set device and profiler
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    activities = [ProfilerActivity.CPU]
+    activities += [ProfilerActivity.CUDA]
+
+    # Reload model which includes:
+    #    1. Load model weights that were generated as best trial from Ray HPO
+    #    2. Create the model with those hyperparameters
+    #    3. Load it on the GPU
+    #    4. Compile the model with torch.compile for faster inference
+    #    5. Load the last checkpoint of the model weights
+    #    6. Set to eval for inference
     with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
         config = json.load(file)
-    model = ManZoneTransformer(
-        feature_len=5,                                                          # num of input features (x, y, v_x, v_y, defense)
-        model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
-        num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
-        num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
-        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
-        dropout=float(config["dropout"]),                                       # from ray tune or loaded
-        output_dim=2                                                            # man or zone classification
-    )
-    # Move model to device (GPU)
+    model = create_transformer_model(config)
     model = model.to(device)
-
-    # Compile with fullgraph
     model = torch.compile(
         model,
         mode="default",        # default, reduces overhead, generally stable
         fullgraph=True         # enable full graph fusion, helps reduce kernel launch overhead
     )
-    
-    # Load model
-    model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "best_model.pth", map_location=device))
-
-    # Set to eval mode
+    model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "transformer.pt", map_location=device))
     model.eval()
 
     # Load data
@@ -164,10 +159,9 @@ def main():
         tracking_df_polars = pl.DataFrame(week_df)
 
         # Stream predictions to CSV in batches
-        weekly_predictions_path_csv = SAVE_DIR / f"week{week_eval}_preds.csv"
+        weekly_predictions_path_csv = PROJECT_ROOT/ "data" / "inference" / f"week{week_eval}_preds.csv"
         wrote_header = False
         batch = []
-        BATCH_SIZE = 5000  # tune (smaller => lower peak RAM)
 
         # Iterate unique frames without building a giant Python set
         list_ids = pd.unique(week_df['frameUniqueId'].values)
@@ -188,8 +182,12 @@ def main():
             if frame_tensor is None:
                 continue
 
-            frame_tensor = frame_tensor.to(device, non_blocking=True)
+            # Save the first tensor for profiling later
+            if idx == 1:
+                torch.save(frame_tensor, PROJECT_ROOT / "data" / "inference" / "example_frame_tensor.pt")
 
+            # Move to device and run inference
+            frame_tensor = frame_tensor.to(device, non_blocking=True)
             with torch.no_grad():
                 outputs = model(frame_tensor)                 # [1, 2]
                 probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
@@ -211,7 +209,7 @@ def main():
             })
 
             # Flush batch to CSV to keep RAM low
-            if len(batch) >= BATCH_SIZE:
+            if len(batch) >= config["batch_size"]:
                 pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
                 wrote_header = True
                 batch.clear()
@@ -226,7 +224,7 @@ def main():
         # Merge week_df with preds (per-week, small)
         preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
         tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
-        tracking_preds.to_csv(SAVE_DIR / f"tracking_week_{week_eval}_preds.csv", index=False)
+        tracking_preds.to_csv(PROJECT_ROOT / "data" / "inference" / f"tracking_week_{week_eval}_preds.csv", index=False)
 
         # Free RAM before next week
         del week_df, tracking_df_polars, preds_week, tracking_preds

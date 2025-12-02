@@ -12,6 +12,7 @@ Requires that create_features.py has already been ran and produced:
 Will train 50 epochs (unless it early stops) and produce model.pth
 """
 
+# Base imports
 import os
 import logging
 import math
@@ -31,6 +32,8 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import AdamW
 from torch.amp import autocast, GradScaler
+import torchvision.models as models
+from torch.profiler import profile, ProfilerActivity, record_function
 
 # ML imports
 from sklearn.model_selection import train_test_split
@@ -45,13 +48,14 @@ from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
 from ray.tune.schedulers import ASHAScheduler
 
 # Local imports
-from models.transformer import ManZoneTransformer
+from models.transformer import create_transformer_model
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT, SAVE_DIR
 from common.args import parse_args
 
 
 def set_seed(seed: int = 42) -> torch.Generator:
+    """Sets seeds for reproducibility. Returns a torch Generator for DataLoader shuffling."""
     # Python & NumPy
     random.seed(seed)
     np.random.seed(seed)
@@ -79,6 +83,7 @@ def set_seed(seed: int = 42) -> torch.Generator:
 
 @time_fcn
 def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, amp_dtype) -> float:
+    """Train a single epoch of model, returns average training loss."""
     # Training
     model.train()
     running_loss = 0.0
@@ -114,6 +119,7 @@ def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, amp
 
 @time_fcn
 def validate_epoch(val_loader: DataLoader, model, loss_fn, device, amp_dtype) -> tuple[float, float]:
+    """Validate model on validation set, returns average validation loss and accuracy."""
     # Validation
     model.eval()
     val_running_loss = 0.0
@@ -145,6 +151,7 @@ def validate_epoch(val_loader: DataLoader, model, loss_fn, device, amp_dtype) ->
 
 @time_fcn
 def run_trial(config, args):
+    """Runs a single training trial with the given configuration."""
 
     # Set seeds
     g = set_seed(42)
@@ -162,25 +169,15 @@ def run_trial(config, args):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
+    # Set device
+    device = torch.device("cuda")   # this is the Ray-assigned GPU (Ray sets CUDA_VISIBLE_DEVICES)
+
     ######################################################################
     # Create model, loss, optimizer
     ######################################################################
-    device = torch.device("cuda")   # this is the Ray-assigned GPU (Ray sets CUDA_VISIBLE_DEVICES)
-
-    # Defining ManZoneTransformer params, initializing optimizer and loss_fn
-    model = ManZoneTransformer(
-        feature_len=5,                                                          # num of input features (x, y, v_x, v_y, defense)
-        model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
-        num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
-        num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
-        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
-        dropout=float(config["dropout"]),                                       # from ray tune or loaded
-        output_dim=2                                                            # man or zone classification
-    )
-    # Move model to device (GPU)
+    # Create transformer with given config, move to GPU, and compile model for better inference (will save as compiled model)
+    model = create_transformer_model(config)
     model = model.to(device)
-
-    # Compile with fullgraph
     model = torch.compile(
         model,
         mode="default",        # default, reduces overhead, generally stable
@@ -270,7 +267,7 @@ def run_trial(config, args):
             val_accuracies.append(val_accuracy)
 
             # Adding early stopping check (effort to prevent overfitting)
-            best_model_path = PROJECT_ROOT / "data" / "training" / "best_model.pth"
+            best_model_path = PROJECT_ROOT / "data" / "training" / "transformer.pt"
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 epochs_no_improve = 0
@@ -284,6 +281,7 @@ def run_trial(config, args):
 
 @time_fcn       
 def run_hpo(args) -> None:
+    """Runs hyperparameter optimization (HPO) using Ray Tune."""
 
     ######################################################################
     # Start parent HPO, MLflow session
