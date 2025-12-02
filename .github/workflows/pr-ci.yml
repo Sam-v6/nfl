@@ -43,10 +43,10 @@ jobs:
         run: uv run src/create_features.py --profile
 
       - name: Test transformer training
-        run: uv run src/train_transformer.py --profile
+        run: uv run src/train_transformer.py --profile --ci
 
       - name: Test HPO transformer training
-        run: uv run src/train_transformer.py --tune
+        run: uv run src/train_transformer.py --tune --ci
       
       - name: Test prediction generation
         run: uv run src/generate_predictions.py --profile
