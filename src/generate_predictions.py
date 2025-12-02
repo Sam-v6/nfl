@@ -85,20 +85,19 @@ def process_week_data_preds(week_number, plays):
 
 
 def prepare_tensor(play, num_players=22, num_features=5):
+    features = ['x_clean', 'y_clean', 'v_x', 'v_y', 'defense']
+    play_data = play[features + ['frameId']]
+    play_data = play_data.sort_values(by='frameId')
 
-  features = ['x_clean', 'y_clean', 'v_x', 'v_y', 'defense']
-  play_data = play[features + ['frameId']]
-  play_data = play_data.sort_values(by='frameId')
-
-  frames = (
+    frames = (
     play_data
     .groupby('frameId')[features]
     .apply(lambda g: g.to_numpy())
-  )
-  all_frames_tensor = np.stack(frames.to_list())  # Shape: [num_frames, num_players, num_features]
-  all_frames_tensor = torch.tensor(all_frames_tensor, dtype=torch.float32)
+    )
+    all_frames_tensor = np.stack(frames.to_list())  # Shape: [num_frames, num_players, num_features]
+    all_frames_tensor = torch.tensor(all_frames_tensor, dtype=torch.float32)
 
-  return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
+    return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
 
 
 @time_fcn
@@ -117,35 +116,52 @@ def main():
         set_time_decorators_enabled(False)
         logging.info("Timing decorators disabled")
 
+    # Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
     # Get model params and set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
-        model_params_map = json.load(file)
+        config = json.load(file)
     model = ManZoneTransformer(
-        feature_len=5,                  # num of input features (x, y, v_x, v_y, defense)
-        model_dim=model_params_map["model_dim"],
-        num_heads=model_params_map["num_heads"],
-        num_layers=model_params_map["num_layers"],
-        dim_feedforward=int(model_params_map["model_dim"]) * int(model_params_map["num_layers"]),
-        dropout=model_params_map["dropout"],
-        output_dim=2      # man or zone classification
-    ).to(device)
+        feature_len=5,                                                          # num of input features (x, y, v_x, v_y, defense)
+        model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
+        num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
+        num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
+        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
+        dropout=float(config["dropout"]),                                       # from ray tune or loaded
+        output_dim=2                                                            # man or zone classification
+    )
+    # Move model to device (GPU)
+    model = model.to(device)
+
+    # Compile with fullgraph
+    model = torch.compile(
+        model,
+        mode="default",        # default, reduces overhead, generally stable
+        fullgraph=True         # enable full graph fusion, helps reduce kernel launch overhead
+    )
+    
+    # Load model
     model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "best_model.pth", map_location=device))
+
+    # Set to eval mode
     model.eval()
 
     # Load data
     rawLoader = RawDataLoader()
-    games_df, plays_df, players_df, location_data_df = rawLoader.get_data(weeks=[i for i in range(1, 10)])
+    _, plays_df, _, _ = rawLoader.get_data(weeks=list(range(1, 10)))
 
     # Process + predict one week at a time (keeps RAM low)
     for week_eval in [9]:
         week_df = process_week_data_preds(week_eval, plays_df)
 
-        # filter early to shrink memory
+        # Filtering early to shrink memory
         week_df = week_df[(week_df['club'] != 'football') & (week_df['passAttempt'] == 1)].copy()
 
-        # Polars convert optional; if you like the speed, keep it—otherwise skip to use pandas only
-        tracking_df_polars = pl.DataFrame(week_df)  # or comment this out and use pandas below
+        # Polars convert optional for speed
+        tracking_df_polars = pl.DataFrame(week_df)
 
         # Stream predictions to CSV in batches
         weekly_predictions_path_csv = SAVE_DIR / f"week{week_eval}_preds.csv"

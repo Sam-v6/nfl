@@ -190,7 +190,7 @@ mlruns/
 mlflow.db
 
 # Ray
-log/
+ray_results/
 
 # Artifacts
 *.pkl

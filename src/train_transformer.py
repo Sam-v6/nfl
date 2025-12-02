@@ -17,23 +17,24 @@ import logging
 import math
 from pathlib import Path
 import random
-import random
 import json
+import joblib
 
+# Util imports
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Torch imports
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.optim import AdamW
+from torch.amp import autocast, GradScaler
 
 # ML imports
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-import torch
-from torch.utils.data import TensorDataset, DataLoader
-import joblib
 
 # Ray Tune
 import ray
@@ -43,10 +44,12 @@ from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig, Checkpoint
 from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
 from ray.tune.schedulers import ASHAScheduler
 
+# Local imports
 from models.transformer import ManZoneTransformer
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT, SAVE_DIR
 from common.args import parse_args
+
 
 def set_seed(seed: int = 42) -> torch.Generator:
     # Python & NumPy
@@ -75,50 +78,89 @@ def set_seed(seed: int = 42) -> torch.Generator:
 
 
 @time_fcn
-def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device) -> float:
-        # Training
-        model.train()
-        running_loss = 0.0
-        for features, targets in train_loader:
-            features, targets = features.to(device), targets.to(device)
-            optimizer.zero_grad()
+def train_epoch(train_loader: DataLoader, model, optimizer, loss_fn, device, amp_dtype) -> float:
+    # Training
+    model.train()
+    running_loss = 0.0
+    for features, targets in train_loader:
+        
+        # Transfer from CPU to GPU, non_blocking for pinned memory
+        features = features.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
+
+        # Zero gradients
+        optimizer.zero_grad(set_to_none=True)
+
+        # For forward pass, allow mixed precision for speed in some operations
+        # NOTE: PyTorch keeps some sensitive ops in FP32 for stability
+        with autocast(device_type="cuda", dtype=amp_dtype):
             outputs = model(features)
             loss = loss_fn(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item() * features.size(0)
-        avg_train_loss = running_loss / len(train_loader.dataset)
 
-        # Return losses
-        return avg_train_loss
+        # Backpropagate and optimize
+        # NOTE: We don't want the gradients in less than FP32, PyTorch would handle this for us but being explicit
+        loss.backward()
+        optimizer.step()
+
+        # Record running loss
+        running_loss += loss.detach().item() * features.size(0)
+
+    # Record running metrics
+    avg_train_loss = running_loss / len(train_loader.dataset)
+
+    # Return losses
+    return avg_train_loss
 
 
 @time_fcn
-def validate_epoch(val_loader: DataLoader, model, loss_fn, device) -> tuple[float, float]:
-        # Validation
-        model.eval()
-        val_running_loss = 0.0
-        correct = 0
-        with torch.no_grad():
-            for val_features_batch, val_targets_batch in val_loader:
-                val_features_batch, val_targets_batch = val_features_batch.to(device), val_targets_batch.to(device)
+def validate_epoch(val_loader: DataLoader, model, loss_fn, device, amp_dtype) -> tuple[float, float]:
+    # Validation
+    model.eval()
+    val_running_loss = 0.0
+    correct = 0
+    with torch.no_grad():
+        for val_features_batch, val_targets_batch in val_loader:
+
+            # Transfer from CPU to GPU, non_blocking for pinned memory
+            val_features_batch = val_features_batch.to(device, non_blocking=True)
+            val_targets_batch = val_targets_batch.to(device, non_blocking=True)
+
+            # AMP
+            with autocast(device_type="cuda", dtype=amp_dtype):
                 val_outputs = model(val_features_batch)
                 val_loss = loss_fn(val_outputs, val_targets_batch)
-                val_running_loss += val_loss.item() * val_features_batch.size(0)
                 _, predicted = torch.max(val_outputs, 1)
-                correct += (predicted == val_targets_batch).sum().item()
-        avg_val_loss = val_running_loss / len(val_loader.dataset)
-        val_accuracy = correct / len(val_loader.dataset)
 
-        # Return losses
-        return avg_val_loss, val_accuracy
+            # Grab metrics
+            val_running_loss += val_loss.item() * val_features_batch.size(0)
+            correct += (predicted == val_targets_batch).sum().item()
+
+    # Record running metrics
+    avg_val_loss = val_running_loss / len(val_loader.dataset)
+    val_accuracy = correct / len(val_loader.dataset)
+
+    # Return losses
+    return avg_val_loss, val_accuracy
 
 
 @time_fcn
-def train_trial(config, args):
+def run_trial(config, args):
 
     # Set seeds
     g = set_seed(42)
+
+    ######################################################################
+    # Set things that allow for speed-up in training (valid on Ampere+ GPUs)
+    ######################################################################
+    # NOTE: Importing torch here because Ray serializes the fcn, if we allow the global scope torch it fails in trying to serialize the global chain
+    import torch
+
+    # Use mixed precision with FP16 for speed for forward pass (see train_epoch)
+    amp_dtype = torch.float16 
+
+    # Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
     ######################################################################
     # Create model, loss, optimizer
@@ -131,13 +173,27 @@ def train_trial(config, args):
         model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
         num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
         num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
-        dim_feedforward=int(config["model_dim"]) * int(config["num_layers"]),   # from ray tune or loaded
-        dropout=float(config["dropout"]),                                       # 10% dropout to prevent overfitting... iterate as model becomes more complex (industry std is higher, i believe)
+        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
+        dropout=float(config["dropout"]),                                       # from ray tune or loaded
         output_dim=2                                                            # man or zone classification
-    ).to(device)
+    )
+    # Move model to device (GPU)
+    model = model.to(device)
 
+    # Compile with fullgraph
+    model = torch.compile(
+        model,
+        mode="default",        # default, reduces overhead, generally stable
+        fullgraph=True         # enable full graph fusion, helps reduce kernel launch overhead
+    )
+    
     # Set optimizer and loss fcn
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(config["lr"]),
+        weight_decay=float(config["weight_decay"]),
+        fused=True,                                 # All operations on single CUDA kernel for speed
+    )
     loss_fn = nn.CrossEntropyLoss()
 
     ######################################################################
@@ -175,18 +231,22 @@ def train_trial(config, args):
     train_losses = []
     val_losses = []
     val_accuracies = []
-    early_stopping_patience = 5
+    early_stopping_patience = 20
     best_val_loss = float('inf')
     epochs_no_improve = 0
+
+    # If running in CI mode, reduce epochs for speed, we just want to ensure it can actually train, not train a whole model in testing here (for pipelines later)
+    if args.ci:
+        config["epochs"] = 5
 
     for epoch in range(int(config["epochs"])):
 
         # Train
-        avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device)
+        avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype)
         train_losses.append(avg_train_loss)
 
         # Validate
-        avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device)
+        avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device, amp_dtype)
 
         # Info
         logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
@@ -197,29 +257,13 @@ def train_trial(config, args):
             # Tune logging (with MLflow callback this is all mirrored there as well)
             # NOTE: By calling tune.report here effectively once per epoch, that becomes our time scale!
             ######################################################################
-            session   = tune.get_context()
-            trial_dir = Path(session.get_trial_dir())
-            best_model_path = trial_dir / "best_model.pth"
-
             # Record metrics
             metrics = {
                 "val_accuracy": val_accuracy,
-                # "val_loss": float(avg_val_loss),
-                # "train_loss": float(avg_train_loss),
+                "val_loss": float(avg_val_loss),
+                "train_loss": float(avg_train_loss),
             }
-
-            # Report metrics and save checkpoint if applicable (checkpoint every n epochs and don't have redudant checkpoints if using workers via train)
-            checkpoint = None
-            should_checkpoint = epoch % config.get("checkpoint_freq", 1) == 0
-            if should_checkpoint:
-                ckpt_dir  = trial_dir / f"ckpt_e{epoch:04d}"
-                ckpt_dir.mkdir(parents=True, exist_ok=True)
-                torch.save(model.state_dict(), ckpt_dir / "model.pth")
-                checkpoint = Checkpoint.from_directory(str(ckpt_dir))
-                tune.report(metrics, checkpoint=checkpoint)
-            else:
-                tune.report(metrics)
-        
+            tune.report(metrics)
         else:
             # Record metrics
             val_losses.append(avg_val_loss)
@@ -239,7 +283,7 @@ def train_trial(config, args):
 
 
 @time_fcn       
-def run_HPO(args):
+def run_hpo(args) -> None:
 
     ######################################################################
     # Start parent HPO, MLflow session
@@ -252,45 +296,46 @@ def run_HPO(args):
     ######################################################################
     transformer_params = {
         # Varying model shape
-        "model_dim": tune.choice([32, 64, 128, 256]),
-        "num_heads": tune.choice([2, 4]),
-        "num_layers": tune.choice([1, 2, 3, 4]),
-        "dropout": tune.choice([0.0, 0.1, 0.2]) ,
+        "model_dim": tune.choice([32, 64, 96, 128]),
+        "num_heads": tune.choice([2, 4, 8]),
+        "num_layers": tune.choice([2, 3, 4, 6]),
+        "dropout": tune.choice([0.0, 0.1, 0.2, 0.3]),
+        "multiplier": tune.choice([2, 3, 4]),
 
         # Training
-        "batch_size": tune.choice([32, 64, 128]),
+        "lr": tune.loguniform(1e-5, 5e-3),
+        "weight_decay": tune.loguniform(1e-6, 1e-2),
+        "batch_size": 19200,        # Configured for L4 GPU utilization
 
-        # Epochs / checkpointing
-        "epochs": 50,
-        "checkpoint_freq": 10,
+        # Epochs
+        "epochs": 100,
     }
-
     params=transformer_params
 
     # Async Successive Halfing Scheduler (ASHA)
     # Instead of running all trials for all epochs, it allocates more resources to promising ones and kills of bad ones early
     scheduler = ASHAScheduler(
         max_t=params["epochs"],                     # Max amount of "things" on our whatever our scale is (since we call tune.report once per epoch this max epochs per trial)
-        grace_period=params["checkpoint_freq"]+1,   # Allow for 6 epochs each trial until we kill it
+        grace_period=20,                            # Allow for 20 epochs before pruning (so each trial gets at least this many epochs)
         reduction_factor=2,                         # ASHA keeps about 50% of the top trials each time it prunes
     )
     
     ######################################################################
     # Build tuner; pass MLflow context and PARENT RUN ID to workers via env vars
     ######################################################################
-    trainable = tune.with_parameters(train_trial, args=args)  # Allows each training run to have any specific params
+    trainable = tune.with_parameters(run_trial, args=args)                  # Allows each training run to have any specific params
     tuner = Tuner(
-        tune.with_resources(trainable, resources={"cpu": 4, "gpu": 1}), # Gives 4 CPU and one GPU per trial
+        tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}),    # Gives 16 CPU and one GPU per trial
         param_space=params,
-        tune_config=TuneConfig( 
+        tune_config=TuneConfig(
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=10,             # total trials
+            num_samples=1,                                                  # total trials, set to 1 for CI, modify here for HPO runs
         ),
         run_config=RunConfig(
             name="transformer_hpo",
-            storage_path=os.path.abspath("./log/ray_results"),
+            storage_path=os.path.abspath("./ray_results"),
             failure_config=FailureConfig(fail_fast=True),
             callbacks=[
                 MLflowLoggerCallback(
@@ -308,10 +353,16 @@ def run_HPO(args):
     results = tuner.fit()
     best = results.get_best_result(metric="val_accuracy", mode="max")
     print("Best config:", best.config)
+    
+    # Save file to best config
+    output_file = PROJECT_ROOT / "data" / "training" / "model_params.json"
+    with open(output_file, 'w') as json_file:
+        json.dump(best.config, json_file, indent=4) # indent for pretty-printing
 
 
 @time_fcn
-def main():
+def main() -> None:
+    """Main function to run HPO or single trial."""
 
     # Set logging
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -329,23 +380,23 @@ def main():
 
     # We are doing HPO with Ray
     if args.tune:
-        # Disable some warnings about GPUs if we don't use them (we are always using GPUs for training here)
-        os.environ["RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO"] = "0"
-
         # Set the runtime env to only ship src/, the whole repo that has a bunch of data
         script_dir = Path(__file__).resolve().parent         # Directory containing train_transformer.py (i.e., src/)
         ray.init(
+            # Set the system config for the metrics exporter to pick a free port
+            _metrics_export_port=5001,
+            # Set the runtime to only bundle the src dir
             runtime_env={
                 "working_dir": str(script_dir),
-            }
+            },
         )
-        run_HPO(args)
+        run_hpo(args)
 
     # We are doing a single run with fixed model parameters located at nfl/data/training/model_params.json
     else:
         with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
             model_params_map = json.load(file)
-        train_trial(model_params_map, args)
+        run_trial(model_params_map, args)
 
 
 if __name__ == "__main__":
