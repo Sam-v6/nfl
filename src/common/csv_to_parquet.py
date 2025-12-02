@@ -10,7 +10,6 @@ Outputs parquet data in nfl/data/parquet that is stored in git LFS
 """
 
 import sys
-import os
 from pathlib import Path
 import pandas as pd
 import pyarrow as pa

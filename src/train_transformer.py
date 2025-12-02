@@ -15,35 +15,25 @@ Will train 50 epochs (unless it early stops) and produce model.pth
 # Base imports
 import os
 import logging
-import math
 from pathlib import Path
 import random
 import json
-import joblib
 
 # Util imports
-import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Torch imports
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
-from torch.optim import AdamW
-from torch.amp import autocast, GradScaler
-import torchvision.models as models
-from torch.profiler import profile, ProfilerActivity, record_function
+from torch.amp import autocast
 
 # ML imports
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
 # Ray Tune
 import ray
-from ray import train, tune, air
-from ray.air.integrations.mlflow import MLflowLoggerCallback, setup_mlflow
-from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig, Checkpoint
+from ray import tune
+from ray.air.integrations.mlflow import MLflowLoggerCallback
 from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
 from ray.tune.schedulers import ASHAScheduler
 
@@ -197,11 +187,11 @@ def run_trial(config, args):
     # Create dataloaders
     ######################################################################
     # Load in data and create tensor datasets
-    train_features = torch.load(SAVE_DIR / f"features_training.pt")
-    train_targets = torch.load(SAVE_DIR / f"targets_training.pt")
+    train_features = torch.load(SAVE_DIR / "features_training.pt")
+    train_targets = torch.load(SAVE_DIR / "targets_training.pt")
 
-    val_features = torch.load(SAVE_DIR / f"features_val.pt")
-    val_targets = torch.load(SAVE_DIR / f"targets_val.pt")
+    val_features = torch.load(SAVE_DIR / "features_val.pt")
+    val_targets = torch.load(SAVE_DIR / "targets_val.pt")
 
     # Create data loaders for batching
     train_loader = DataLoader(
@@ -275,7 +265,7 @@ def run_trial(config, args):
             else:
                 epochs_no_improve += 1
                 if epochs_no_improve >= early_stopping_patience:
-                    logging.info(f"Early stopping triggered")
+                    logging.info("Early stopping triggered")
                     break
 
 

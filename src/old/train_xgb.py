@@ -5,24 +5,20 @@ Trains xgboost model on location tracking data
 """
 # Standard imports
 import os
-import random
 import time
 import pickle
 import logging
-import json
 import joblib
 
 # General imports
 import numpy as np
-import pandas as pd
 
 # Plotting imports
-import seaborn as sns
 import matplotlib.pyplot as plt
 
 # ML utils
-from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_predict, train_test_split
-from sklearn.metrics import roc_auc_score, log_loss, precision_score, recall_score, f1_score, classification_report, roc_curve, RocCurveDisplay
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.metrics import roc_auc_score, log_loss, precision_score, recall_score, f1_score, classification_report, roc_curve
 from sklearn.preprocessing import StandardScaler
 
 # MLflow
@@ -37,12 +33,8 @@ from common.data_loader import DataLoader
 from coverage.process_coverage import create_coverage_data
 
 # Local model imports
-from common.models.log import LogisticModel
-from common.models.lgb import LGBModel
 #from common.models.xgb import XGBModel
 #from common.models.svc import SVC
-from common.models.rfr import RFRModel
-from common.models.mlp import MLPModel
 from common.paths import PROJECT_ROOT
 
 def load_data() -> dict[str]:
@@ -67,10 +59,10 @@ def plot_roc(y_test, y_proba) -> None:
     plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title(f'ROC Curve')
+    plt.title('ROC Curve')
     plt.legend(loc='lower right')
     plt.grid(True)
-    image_name = f'man_zone_roc_auc.png'
+    image_name = 'man_zone_roc_auc.png'
     image_path = PROJECT_ROOT / "output" / "coverage" / image_name
     plt.savefig(image_path, dpi=200)
     mlflow.log_artifact(image_path, artifact_path="plots")

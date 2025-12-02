@@ -14,16 +14,10 @@ Cleans data and creates the following in nfl/data/processed:
 """
 
 import gc
-import os
-import math
 import logging
 
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import torch
-from torch.utils.data import TensorDataset
-from torch.utils.data import DataLoader
 
 from load_data import RawDataLoader
 from clean_data import *

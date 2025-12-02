@@ -4,7 +4,6 @@
 Contains class for man zone transformer model
 """
 
-import torch
 import torch.nn as nn
 
 class ManZoneTransformer(nn.Module):

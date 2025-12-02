@@ -4,7 +4,6 @@
 Driver code to animate play for all given plays
 """
 
-import os
 import random
 
 from data_processing.process import load_data
