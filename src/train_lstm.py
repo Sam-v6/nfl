@@ -1,11 +1,6 @@
 #!/usr/bin/env python
-
 """
-Trains LSTM model on location tracking data
-
-Requires raw location tracking data in nfl/data/parquet
-
-Will produce classification report, confusion matrix, and ROC curve for best model
+Trains an LSTM model to classify man versus zone coverage from tracking data.
 """
 
 import logging
@@ -32,10 +27,21 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from common.decorators import time_fcn
 
+PlayKey = tuple[int, int]
+SeriesDict = dict[PlayKey, np.ndarray]
+
 
 @time_fcn
 def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
-	"""Filter plays to include only relevant passing plays for coverage analysis."""
+	"""
+	Filters plays down to valid pass attempts with man/zone labels.
+
+	Inputs:
+	- plays_df: Raw plays table with penalty and label info.
+
+	Outputs:
+	- filtered_plays_df: Plays limited to pass attempts with man/zone tags.
+	"""
 
 	# Create a copy
 	filtered_plays_df = plays_df.copy()
@@ -48,16 +54,12 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
 	# Filter out penalties
 	filtered_plays_df = filtered_plays_df[filtered_plays_df["playNullifiedByPenalty"] == "N"]
 	# Filter out rows with 'PENALTY' in the 'playDescription' column
-	filtered_plays_df = filtered_plays_df[
-		~filtered_plays_df["playDescription"].str.contains("PENALTY", na=False)
-	]
+	filtered_plays_df = filtered_plays_df[~filtered_plays_df["playDescription"].str.contains("PENALTY", na=False)]
 	logging.info(f"Total plays after filtering out penalties: {len(filtered_plays_df)}")
 
 	# Filter down to valid Man or Zone defensive play calls
 	filtered_plays_df = filtered_plays_df[filtered_plays_df["pff_manZone"].isin(["Man", "Zone"])]
-	logging.info(
-		f"Total plays after filtering to valid Man or Zone classifications: {len(filtered_plays_df)}"
-	)
+	logging.info(f"Total plays after filtering to valid Man or Zone classifications: {len(filtered_plays_df)}")
 
 	# Filter for only rows that indicate a pass play
 	filtered_plays_df = filtered_plays_df[filtered_plays_df["passResult"].notna()]
@@ -72,12 +74,8 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
 	# logging.info(f'Total plays after filtering for 3rd or 4th down: {len(filtered_plays_df)}')
 
 	# Filter for plays that are in our gameIds (in location data df)
-	filtered_plays_df = filtered_plays_df[
-		filtered_plays_df["gameId"].isin(location_data_df["gameId"].unique())
-	]
-	logging.info(
-		f"Total plays after making sure they are in our location data: {len(filtered_plays_df)}"
-	)
+	filtered_plays_df = filtered_plays_df[filtered_plays_df["gameId"].isin(location_data_df["gameId"].unique())]
+	logging.info(f"Total plays after making sure they are in our location data: {len(filtered_plays_df)}")
 
 	# Log final columns
 	logging.info(filtered_plays_df.columns)
@@ -88,19 +86,24 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
 
 	# Make sure we don't have any NAs in this cut down col df
 	filtered_plays_df.dropna()
-	logging.info(
-		f"Total plays after cutting down to our cols and dropping NAs: {len(filtered_plays_df)}"
-	)
+	logging.info(f"Total plays after cutting down to our cols and dropping NAs: {len(filtered_plays_df)}")
 
 	# Return
 	return filtered_plays_df
 
 
 @time_fcn
-def create_merged_df(
-	location_data_df: pd.DataFrame, filtered_plays_df: pd.DataFrame
-) -> pd.DataFrame:
-	"""Merge location data with filtered plays data to create a comprehensive dataset for coverage analysis."""
+def create_merged_df(location_data_df: pd.DataFrame, filtered_plays_df: pd.DataFrame) -> pd.DataFrame:
+	"""
+	Merges filtered plays with presnap location rows and tags offense/defense sides.
+
+	Inputs:
+	- location_data_df: Tracking data containing positions and frame info.
+	- filtered_plays_df: Plays already narrowed to labeled pass attempts.
+
+	Outputs:
+	- merged_df: Presnap tracking rows with side tags and minimal columns.
+	"""
 
 	logging.info("Merging location data with filtered plays data...")
 
@@ -110,9 +113,7 @@ def create_merged_df(
 	loc_trimmed_df = location_data_df.loc[:, keep_cols]
 
 	# Cut down location tracking data copy to only before the snap and where the team isn't valid
-	loc_trimmed_df = loc_trimmed_df[
-		(loc_trimmed_df["frameType"] == "BEFORE_SNAP") & (loc_trimmed_df["club"] != "football")
-	]
+	loc_trimmed_df = loc_trimmed_df[(loc_trimmed_df["frameType"] == "BEFORE_SNAP") & (loc_trimmed_df["club"] != "football")]
 
 	# See the merged df that has gameId, playId, frameID all before SNAP, with x, y, and offense/defense
 	logging.info(loc_trimmed_df.head())
@@ -136,7 +137,15 @@ def create_merged_df(
 
 
 def _determine_sequence_length(merged_df: pd.DataFrame) -> int:
-	"""Determine the maximum sequence length for the dataset based on frames per play."""
+	"""
+	Computes a common sequence length using the lower decile of frame counts.
+
+	Inputs:
+	- merged_df: Presnap tracking rows with frame identifiers.
+
+	Outputs:
+	- min_frames: Sequence length threshold to keep plays.
+	"""
 
 	frame_counts = merged_df.groupby(["gameId", "playId"])["frameId"].nunique()
 	min_frames = int(np.percentile(frame_counts.values, 10))
@@ -146,32 +155,46 @@ def _determine_sequence_length(merged_df: pd.DataFrame) -> int:
 
 
 def _exactly_eleven_per_side(play_df: pd.DataFrame) -> bool:
-	return (
-		play_df.loc[play_df.side == "off", "nflId"].nunique() == 11
-		and play_df.loc[play_df.side == "def", "nflId"].nunique() == 11
-	)
-
-
-def _slot_order_by_left_to_right(play_df: pd.DataFrame, side: str) -> list:
-	side_df = play_df.loc[play_df["side"] == side]
-	stats = (
-		side_df.groupby("nflId", as_index=True)[["x", "y"]]
-		.median()
-		.rename(columns={"x": "x_med", "y": "y_med"})
-		.sort_values(["x_med", "y_med"])
-	)
-	return (
-		stats.index.tolist()
-	)  # list of sorted NFL player ids for this play to determine median x --> y player locs
-
-
-def _build_side_feature_cube(
-	play_df: pd.DataFrame, side: str, frames: np.ndarray, feature_cols: tuple
-) -> np.ndarray:
 	"""
-	For one side ('off' or 'def'), build a 3D tensor:
-	  (T, 11, F) where F=len(feature_cols), with rows aligned to `frames`
-	  and slots 0..10 as columns. Missing -> NaN.
+	Checks whether a play has exactly eleven unique offensive and defensive players.
+
+	Inputs:
+	- play_df: Rows for a single play.
+
+	Outputs:
+	- has_eleven: True when both sides have eleven participants.
+	"""
+	return play_df.loc[play_df.side == "off", "nflId"].nunique() == 11 and play_df.loc[play_df.side == "def", "nflId"].nunique() == 11
+
+
+def _slot_order_by_left_to_right(play_df: pd.DataFrame, side: str) -> list[int]:
+	"""
+	Orders players on one side by median field position to assign slots.
+
+	Inputs:
+	- play_df: Rows for a single play.
+	- side: "off" or "def" to choose which group to order.
+
+	Outputs:
+	- slot_order: List of player ids sorted left to right, then low to high y.
+	"""
+	side_df = play_df.loc[play_df["side"] == side]
+	stats = side_df.groupby("nflId", as_index=True)[["x", "y"]].median().rename(columns={"x": "x_med", "y": "y_med"}).sort_values(["x_med", "y_med"])
+	return stats.index.tolist()  # list of sorted NFL player ids for this play to determine median x --> y player locs
+
+
+def _build_side_feature_cube(play_df: pd.DataFrame, side: str, frames: np.ndarray, feature_cols: tuple[str, ...]) -> np.ndarray:
+	"""
+	Builds a (frames x players x features) cube for one side of the ball.
+
+	Inputs:
+	- play_df: Rows for a single play with slot assignments.
+	- side: "off" or "def" slice to process.
+	- frames: Ordered frame ids to include.
+	- feature_cols: Tuple of feature column names to stack.
+
+	Outputs:
+	- side_cube: Numpy array shaped (T, 11, F) with NaNs for missing data.
 	"""
 
 	# pivot to (frames x slots) for x and y, fill missing with NaN, then stack → (min_frames, 11, F)
@@ -192,8 +215,17 @@ def _build_side_feature_cube(
 
 
 @time_fcn
-def build_frame_data(merged_df: pd.DataFrame) -> tuple[dict, dict]:
-	"""Build frame data cubes for offense and defense from the merged dataframe."""
+def build_frame_data(merged_df: pd.DataFrame) -> tuple[SeriesDict, SeriesDict]:
+	"""
+	Constructs offense and defense frame cubes for plays that meet criteria.
+
+	Inputs:
+	- merged_df: Presnap tracking rows with side assignments.
+
+	Outputs:
+	- off_series: Mapping of (gameId, playId) to offense cubes.
+	- def_series: Mapping of (gameId, playId) to defense cubes.
+	"""
 
 	min_frames = _determine_sequence_length(merged_df)
 
@@ -222,9 +254,7 @@ def build_frame_data(merged_df: pd.DataFrame) -> tuple[dict, dict]:
 
 		# Assign slots (if offense use offensive map, if defense, use defensive map)
 		tmp = play.copy()
-		tmp["slot"] = np.where(
-			tmp["side"] == "off", tmp["nflId"].map(off_id2slot), tmp["nflId"].map(def_id2slot)
-		)
+		tmp["slot"] = np.where(tmp["side"] == "off", tmp["nflId"].map(off_id2slot), tmp["nflId"].map(def_id2slot))
 
 		# Choose frame window (last min_frames frames)
 		frames_all = np.sort(tmp["frameId"].unique())
@@ -250,11 +280,13 @@ def build_frame_data(merged_df: pd.DataFrame) -> tuple[dict, dict]:
 
 def _impute_timewise(X_np: np.ndarray) -> np.ndarray:
 	"""
-	X_np: (T, F) with NaNs.
-	Impute per feature (column) along time:
-        1) forward-fill if we miss a frame, assume the player stayed where he was last seen.
-        2) back-fill
-        3) fill remaining NaNs with column mean (0 if all NaN)
+	Imputes missing frame values by carrying forward/backward and filling zeros.
+
+	Inputs:
+	- X_np: Two-dimensional array of frame features with NaNs.
+
+	Outputs:
+	- imputed: Array with timewise imputation applied.
 	"""
 	df = pd.DataFrame(X_np)  # (T, 11 players * 2 features = 44)
 
@@ -268,19 +300,26 @@ def _impute_timewise(X_np: np.ndarray) -> np.ndarray:
 
 
 @time_fcn
-def build_plays_data_numpy(off_series, def_series) -> tuple[list[np.ndarray], np.ndarray]:
+def build_plays_data_numpy(off_series: SeriesDict, def_series: SeriesDict) -> tuple[list[np.ndarray], np.ndarray]:
+	"""
+	Stacks offense/defense cubes into play-level tensors and builds labels.
+
+	Inputs:
+	- off_series: Mapping of offense cubes keyed by (gameId, playId).
+	- def_series: Mapping of defense cubes keyed by (gameId, playId).
+
+	Outputs:
+	- X_np: List of per-play tensors shaped (frames, features).
+	- y_np: Array of play-level man/zone labels.
+	"""
 	# Build labels dict mapping of (gameId, playId) --> 0/1
 	label_map = {"Man": 1, "Zone": 0}
-	labels_dict = {
-		(r.gameId, r.playId): label_map[r.pff_manZone] for r in filtered_plays_df.itertuples()
-	}
+	labels_dict = {(r.gameId, r.playId): label_map[r.pff_manZone] for r in filtered_plays_df.itertuples()}
 
 	X_np, y_np = [], []
 	for key, off_arr in off_series.items():
 		def_arr = def_series[key]
-		X_play = np.concatenate([off_arr, def_arr], axis=1).reshape(
-			off_arr.shape[0], -1
-		)  # (T, 22 * F)
+		X_play = np.concatenate([off_arr, def_arr], axis=1).reshape(off_arr.shape[0], -1)  # (T, 22 * F)
 		X_play = _impute_timewise(X_play)
 		X_np.append(X_play.astype(np.float32))
 		y_np.append(labels_dict[key])
@@ -288,9 +327,19 @@ def build_plays_data_numpy(off_series, def_series) -> tuple[list[np.ndarray], np
 
 
 @time_fcn
-def create_dataloaders(
-	X_np: np.ndarray, y_np: np.ndarray
-) -> tuple[DataLoader, DataLoader, np.ndarray]:
+def create_dataloaders(X_np: list[np.ndarray], y_np: np.ndarray) -> tuple[DataLoader, DataLoader, np.ndarray]:
+	"""
+	Splits play tensors into train/validation sets and builds loaders.
+
+	Inputs:
+	- X_np: List of play tensors.
+	- y_np: Array of labels aligned with X_np.
+
+	Outputs:
+	- train_loader: DataLoader for training plays.
+	- val_loader: DataLoader for validation plays.
+	- idx_train: Indices used for the training split.
+	"""
 	# Splittys
 	idx_train, idx_val = train_test_split(
 		np.arange(len(X_np)),  # Create an array from 0 to x number of plays
@@ -307,9 +356,7 @@ def create_dataloaders(
 	scaler.fit(train_stacked)  # computes mean_ and scale_ only on training data
 	joblib.dump(scaler, "plays_standard_scaler.pkl")
 
-	def apply_scaler_to_list(
-		X_list: list[np.ndarray], idxs: np.ndarray, scaler: StandardScaler
-	) -> None:
+	def apply_scaler_to_list(X_list: list[np.ndarray], idxs: np.ndarray, scaler: StandardScaler) -> None:
 		for i in idxs:
 			X_list[i] = scaler.transform(X_list[i])
 
@@ -320,9 +367,7 @@ def create_dataloaders(
 	# NOTE: X will be of shape (play_count, min_frames, 44)
 	# NOTE: Y will be of shape (play_count, )
 	train_ds = TensorDataset(
-		torch.stack(
-			[torch.from_numpy(X_np[i]).float() for i in idx_train]
-		),  # Each x is (min_frame, 22*F)
+		torch.stack([torch.from_numpy(X_np[i]).float() for i in idx_train]),  # Each x is (min_frame, 22*F)
 		torch.from_numpy(y_np[idx_train]).long(),
 	)
 	val_ds = TensorDataset(
@@ -347,9 +392,18 @@ def create_dataloaders(
 	return train_loader, val_loader, idx_train
 
 
-def collect_probs(model, loader: DataLoader, device) -> tuple[np.ndarray, np.ndarray]:
+def collect_probs(model: nn.Module, loader: DataLoader, device: torch.device) -> tuple[np.ndarray, np.ndarray]:
 	"""
-	Collect the raw probabilities so downstream we can try many thresholds without re-running the model.
+	Gathers true labels and predicted probabilities for a dataset.
+
+	Inputs:
+	- model: Trained classifier.
+	- loader: DataLoader providing batches.
+	- device: Target device for inference.
+
+	Outputs:
+	- y_true: Concatenated ground-truth labels.
+	- y_prob: Concatenated probabilities for the positive class.
 	"""
 
 	model.eval()  # inference mode, disables dropout and batch norm updates
@@ -358,28 +412,48 @@ def collect_probs(model, loader: DataLoader, device) -> tuple[np.ndarray, np.nda
 		for x, y in loader:
 			x = x.to(device)  # move to GPU
 			logits = model(x)  # forward pass to get raw class scores of shape [B, 2]
-			prob1 = torch.softmax(logits, dim=1)[
-				:, 1
-			]  # turn logits into probabilties, get the man column
+			prob1 = torch.softmax(logits, dim=1)[:, 1]  # turn logits into probabilties, get the man column
 			y_prob.append(prob1.cpu().numpy())  # move to CPU and convert to numpy
 			y_true.append(y.numpy())  # true labels on CPU as numpy
 	return np.concatenate(y_true), np.concatenate(y_prob)  # flatten all batches into single arrays
 
 
-def report_at_threshold(y_true, y_prob, thr, beta=1.0):
+def report_at_threshold(y_true: np.ndarray, y_prob: np.ndarray, thr: float, beta: float = 1.0) -> dict[str, float]:
+	"""
+	Calculates precision/recall metrics at a given probability threshold.
+
+	Inputs:
+	- y_true: Ground-truth labels.
+	- y_prob: Predicted probabilities.
+	- thr: Threshold for classifying positive.
+	- beta: Beta value for f-score if needed.
+
+	Outputs:
+	- metrics: Dictionary of threshold and class 1 precision/recall/f-score.
+	"""
 	# Turns probabilities into binary predictions at threshold
 	y_pred = (y_prob >= thr).astype(int)
 
 	# Get structured metrics
-	(prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(
-		y_true, y_pred, average=None, labels=[0, 1], beta=beta, zero_division=0
-	)
+	(prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(y_true, y_pred, average=None, labels=[0, 1], beta=beta, zero_division=0)
 
 	# Return threshold, man precision, man recall, and man f1 score
 	return {"thr": thr, "man_prec": prec1, "man_rec": rec1, "man_f": f11}
 
 
-def tune_threshold_for_precision(y_true, y_prob, min_recall=None, beta=0.5):
+def tune_threshold_for_precision(y_true: np.ndarray, y_prob: np.ndarray, min_recall: float | None = None, beta: float = 0.5) -> dict[str, float]:
+	"""
+	Searches thresholds to maximize precision on the positive class.
+
+	Inputs:
+	- y_true: Ground-truth labels.
+	- y_prob: Predicted probabilities.
+	- min_recall: Optional recall floor.
+	- beta: Beta value for f-score filtering.
+
+	Outputs:
+	- best: Dictionary containing best threshold and its metrics.
+	"""
 	# Star off with unique probs and a coarse grid of thresholds
 	unique_probs = np.unique(np.clip(y_prob, 1e-6, 1 - 1e-6))
 	grid = np.linspace(0.05, 0.95, 37)
@@ -391,9 +465,7 @@ def tune_threshold_for_precision(y_true, y_prob, min_recall=None, beta=0.5):
 	best = {"thr": 0.5, "man_prec": 0.0, "man_rec": 0.0, "man_f": 0.0}
 	for t in thresholds:
 		y_pred = (y_prob >= t).astype(int)
-		(prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(
-			y_true, y_pred, average=None, labels=[0, 1], beta=beta, zero_division=0
-		)
+		(prec0, prec1), (rec0, rec1), (f10, f11), _ = precision_recall_fscore_support(y_true, y_pred, average=None, labels=[0, 1], beta=beta, zero_division=0)
 		if min_recall is not None and rec1 < min_recall:
 			continue
 		if prec1 > best["man_prec"]:
@@ -409,16 +481,24 @@ def tune_threshold_for_precision(y_true, y_prob, min_recall=None, beta=0.5):
 
 
 @time_fcn
-def train_model(
-	train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarray, idx_train: np.ndarray
-) -> LSTMClassifier:
+def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarray, idx_train: np.ndarray) -> LSTMClassifier:
+	"""
+	Trains the LSTM classifier with early stopping based on precision.
+
+	Inputs:
+	- train_loader: Batches for training.
+	- val_loader: Batches for validation.
+	- y_np: All labels to compute class weights.
+	- idx_train: Indices corresponding to the training split.
+
+	Outputs:
+	- model: Trained LSTMClassifier with best threshold stored.
+	"""
 	# Set device to GPU
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 	# Init LSTM model
-	model = LSTMClassifier(
-		input_size=88, hidden_size=64, num_layers=2, dropout=0.4, bidir=False, num_classes=2
-	).to(device)
+	model = LSTMClassifier(input_size=88, hidden_size=64, num_layers=2, dropout=0.4, bidir=False, num_classes=2).to(device)
 
 	# Create criterion with CE losss weighted with class weights to account for higher proportion of man coverage
 	# Zone dominates class weighting, calc distribution then assign man a higher waiting on the CE loss
@@ -461,16 +541,11 @@ def train_model(
 		y_true_val, y_prob_val = collect_probs(model, val_loader, device)
 
 		# Tune threshold for max Man precision with a recall floor
-		tuned = tune_threshold_for_precision(
-			y_true_val, y_prob_val, min_recall=set_min_recall, beta=0.5
-		)
+		tuned = tune_threshold_for_precision(y_true_val, y_prob_val, min_recall=set_min_recall, beta=0.5)
 
 		# Report at tuned threshold
 		stats_tuned = report_at_threshold(y_true_val, y_prob_val, thr=tuned["thr"], beta=0.5)
-		logging.info(
-			f"[epoch {epoch + 1}] Tuned thr={tuned['thr']:.3f} | "
-			f"Man P={tuned['man_prec']:.2f} R={tuned['man_rec']:.2f}"
-		)
+		logging.info(f"[epoch {epoch + 1}] Tuned thr={tuned['thr']:.3f} | Man P={tuned['man_prec']:.2f} R={tuned['man_rec']:.2f}")
 
 		# Early-stop on best Man precision-at-tuned-threshold
 		if tuned["man_prec"] > best_man_prec:
@@ -487,9 +562,7 @@ def train_model(
 	# Restore best weights and attach tuned threshold
 	if best_state is not None:
 		model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
-	logging.info(
-		f"Final chosen Man threshold = {best_thr:.3f} (best Man precision={best_man_prec:.2f})"
-	)
+	logging.info(f"Final chosen Man threshold = {best_thr:.3f} (best Man precision={best_man_prec:.2f})")
 	model.best_man_threshold = best_thr  # <-- sets the attribute used by viz
 
 	return model
@@ -497,6 +570,16 @@ def train_model(
 
 @time_fcn
 def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
+	"""
+	Evaluates the trained model on validation data and plots diagnostics.
+
+	Inputs:
+	- val_loader: Validation DataLoader.
+	- model: Trained LSTM model containing tuned threshold.
+
+	Outputs:
+	- Logs metrics and renders confusion matrix and ROC plots.
+	"""
 	# Set device
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -545,7 +628,16 @@ def viz_results(val_loader: DataLoader, model: LSTMClassifier) -> None:
 
 
 @time_fcn
-def main():
+def main() -> None:
+	"""
+	Orchestrates data prep, training, and evaluation for the LSTM workflow.
+
+	Inputs:
+	- None (configuration is defined in code).
+
+	Outputs:
+	- Trains the model and produces validation diagnostics.
+	"""
 	# Configure basic logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 	logger = logging.getLogger(__name__)
@@ -554,9 +646,7 @@ def main():
 	from common.data_loader import RawDataLoader
 
 	loader = RawDataLoader()
-	games_df, plays_df, players_df, location_data_df = loader.get_data(
-		weeks=[week for week in range(1, 10)]
-	)
+	games_df, plays_df, players_df, location_data_df = loader.get_data(weeks=[week for week in range(1, 10)])
 
 	# Filter data
 	filtered_plays_df = filter_plays(plays_df)

@@ -1,37 +1,55 @@
 #!/usr/bin/env python
 
 """
-Contains common use decorators
+Provides timing-related decorators used across the project.
 """
 
 import functools
 import logging
 import time
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 _TIME_DECORATORS_ENABLED = False
+T = TypeVar("T")
+
 
 def set_time_decorators_enabled(enabled: bool) -> None:
-    """
-    Enable/disable time_fcn decorators globally, called at startup
-    """
-    global _TIME_DECORATORS_ENABLED
-    _TIME_DECORATORS_ENABLED = enabled
+	"""
+	Toggles whether timing decorators emit logs.
 
-def time_fcn(fn):
-    """
-    Decorator that measures wall-clock time of a function and logs it.
-    When _TIME_DECORATORS_ENABLED is False, it becomes a simple passthrough.
-    """
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        # Fast exit when disabled (minimal overhead)
-        if not _TIME_DECORATORS_ENABLED:
-            return fn(*args, **kwargs)
+	Inputs:
+	- enabled: True to enable timing, False to silence it.
 
-        start = time.perf_counter()
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            elapsed = time.perf_counter() - start
-            logging.info("Function %s took %.4f s", fn.__name__, elapsed)
-    return wrapper
+	Outputs:
+	- Updates global flag controlling decorator behavior.
+	"""
+	global _TIME_DECORATORS_ENABLED
+	_TIME_DECORATORS_ENABLED = enabled
+
+
+def time_fcn(fn: Callable[..., T]) -> Callable[..., T]:
+	"""
+	Wraps a function to log its wall-clock runtime when enabled.
+
+	Inputs:
+	- fn: Function to wrap.
+
+	Outputs:
+	- wrapper: Callable that optionally measures and logs runtime.
+	"""
+
+	@functools.wraps(fn)
+	def wrapper(*args: Any, **kwargs: Any) -> T:
+		# Fast exit when disabled (minimal overhead)
+		if not _TIME_DECORATORS_ENABLED:
+			return fn(*args, **kwargs)
+
+		start = time.perf_counter()
+		try:
+			return fn(*args, **kwargs)
+		finally:
+			elapsed = time.perf_counter() - start
+			logging.info("Function %s took %.4f s", fn.__name__, elapsed)
+
+	return wrapper

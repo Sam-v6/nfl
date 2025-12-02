@@ -1,15 +1,6 @@
 #!/usr/bin/env python
-
 """
-Trains transformer model on location tracking data
-
-Requires that create_features.py has already been ran and produced:
-- features_training.pt
-- features_val.pt
-- targets_training.pt
-- targets_val.pt
-
-Will train 50 epochs (unless it early stops) and produce model.pth
+Trains and tunes a transformer model for man/zone classification on tracking data.
 """
 
 import argparse
@@ -37,7 +28,15 @@ from models.transformer import create_transformer_model
 
 
 def set_seed(seed: int = 42) -> torch.Generator:
-	"""Sets seeds for reproducibility. Returns a torch Generator for DataLoader shuffling."""
+	"""
+	Sets Python, NumPy, and Torch seeds for reproducible runs.
+
+	Inputs:
+	- seed: Seed value to apply.
+
+	Outputs:
+	- generator: Torch generator for deterministic DataLoader shuffling.
+	"""
 	# Python & NumPy
 	random.seed(seed)
 	np.random.seed(seed)
@@ -65,7 +64,20 @@ def set_seed(seed: int = 42) -> torch.Generator:
 
 @time_fcn
 def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, device: torch.device, amp_dtype: torch.dtype) -> float:
-	"""Train a single epoch of model, returns average training loss."""
+	"""
+	Runs one training epoch over the provided dataloader.
+
+	Inputs:
+	- train_loader: Batches of training tensors.
+	- model: Transformer model to optimize.
+	- optimizer: Optimizer instance.
+	- loss_fn: Loss function.
+	- device: Target device for computation.
+	- amp_dtype: Mixed precision dtype for autocast.
+
+	Outputs:
+	- avg_train_loss: Mean loss across the epoch.
+	"""
 	# Training
 	model.train()
 	running_loss = 0.0
@@ -100,7 +112,20 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 
 @time_fcn
 def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module, device: torch.device, amp_dtype: torch.dtype) -> tuple[float, float]:
-	"""Validate model on validation set, returns average validation loss and accuracy."""
+	"""
+	Validates the model on a held-out split.
+
+	Inputs:
+	- val_loader: Batches of validation tensors.
+	- model: Transformer being evaluated.
+	- loss_fn: Loss function.
+	- device: Target device for computation.
+	- amp_dtype: Mixed precision dtype for autocast.
+
+	Outputs:
+	- avg_val_loss: Mean validation loss.
+	- val_accuracy: Classification accuracy.
+	"""
 	# Validation
 	model.eval()
 	val_running_loss = 0.0
@@ -130,8 +155,17 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 
 
 @time_fcn
-def run_trial(config: dict, args: argparse.Namespace) -> None:
-	"""Runs a single training trial with the given configuration."""
+def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
+	"""
+	Executes a single training run with the supplied hyperparameters.
+
+	Inputs:
+	- config: Hyperparameters for the transformer and training loop.
+	- args: Command-line arguments controlling CI/tuning behavior.
+
+	Outputs:
+	- Trains the model and optionally reports metrics to Ray Tune.
+	"""
 
 	# Set seeds
 	g = set_seed(42)
@@ -260,7 +294,15 @@ def run_trial(config: dict, args: argparse.Namespace) -> None:
 
 @time_fcn
 def run_hpo(args: argparse.Namespace) -> None:
-	"""Runs hyperparameter optimization (HPO) using Ray Tune."""
+	"""
+	Launches Ray Tune to search over transformer hyperparameters.
+
+	Inputs:
+	- args: Command-line options controlling CI/tuning behavior.
+
+	Outputs:
+	- Writes best config to disk and logs metrics to MLflow.
+	"""
 
 	######################################################################
 	# Start parent HPO, MLflow session
@@ -337,7 +379,15 @@ def run_hpo(args: argparse.Namespace) -> None:
 
 @time_fcn
 def main() -> None:
-	"""Main function to run HPO or single trial."""
+	"""
+	Entry point to run a single trial or hyperparameter search.
+
+	Inputs:
+	- CLI flags for tuning and profiling.
+
+	Outputs:
+	- Trains models and persists artifacts to disk.
+	"""
 
 	# Set logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

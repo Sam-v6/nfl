@@ -1,13 +1,6 @@
 #!/usr/bin/env python
-
 """
-Trains LSTM model on location tracking data
-
-Requires:
-- Raw location tracking data in nfl/data/parquet
-- Trained model in nfl/data/processed/model.pth
-
-Performs inference on each week and saves to nfl/data/processed/week{n}_predictions.csv
+Runs the trained transformer to generate man/zone predictions for tracking data.
 """
 
 # Base imports
@@ -25,11 +18,11 @@ import torch
 from torch.profiler import ProfilerActivity
 
 from clean_data import (
-    calculate_velocity_components,
-    label_offense_defense_manzone,
-    make_plays_left_to_right,
-    pass_attempt_merging,
-    rotate_direction_and_orientation,
+	calculate_velocity_components,
+	label_offense_defense_manzone,
+	make_plays_left_to_right,
+	pass_attempt_merging,
+	rotate_direction_and_orientation,
 )
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
@@ -40,201 +33,215 @@ from load_data import RawDataLoader
 from models.transformer import create_transformer_model
 
 
-def process_week_data_preds(week_number, plays):
-    """Processes and cleans tracking data for a given week number, returning the cleaned DataFrame."""
-    if os.getenv("CI_DATA_ROOT"):
-        WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
-    else:
-        WEEK_PARQUET_PATH = PROJECT_ROOT /  "data" / "parquet" / f"tracking_week_{week_number}.parquet"
-    week = pd.read_parquet(WEEK_PARQUET_PATH)
-    logging.info(f"Finished reading Week {week_number} data")
+def process_week_data_preds(week_number: int, plays: pd.DataFrame) -> pd.DataFrame:
+	"""
+	Loads, cleans, and labels a single week's tracking data.
 
-    # applying cleaning functions
-    week = rotate_direction_and_orientation(week)
-    week = make_plays_left_to_right(week)
-    week = calculate_velocity_components(week)
-    week = pass_attempt_merging(week, plays)
-    # week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
-    week = label_offense_defense_manzone(week, plays)
+	Inputs:
+	- week_number: Week to process.
+	- plays: Play metadata with labels.
 
-    week['week'] = week_number
-    week['uniqueId'] = week['gameId'].astype(str) + "_" + week['playId'].astype(str)
-    week['frameUniqueId'] = (
-        week['gameId'].astype(str) + "_" +
-        week['playId'].astype(str) + "_" +
-        week['frameId'].astype(str))
+	Outputs:
+	- week_df: Cleaned and labeled tracking rows for the requested week.
+	"""
+	if os.getenv("CI_DATA_ROOT"):
+		WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
+	else:
+		WEEK_PARQUET_PATH = PROJECT_ROOT / "data" / "parquet" / f"tracking_week_{week_number}.parquet"
+	week = pd.read_parquet(WEEK_PARQUET_PATH)
+	logging.info(f"Finished reading Week {week_number} data")
 
-    # adding frames_from_snap (to do: make this a function but fine for now)
-    snap_frames = week[week['frameType'] == 'SNAP'].groupby('uniqueId')['frameId'].first()
-    week = week.merge(snap_frames.rename('snap_frame'), on='uniqueId', how='left')
-    week['frames_from_snap'] = week['frameId'] - week['snap_frame']
+	# applying cleaning functions
+	week = rotate_direction_and_orientation(week)
+	week = make_plays_left_to_right(week)
+	week = calculate_velocity_components(week)
+	week = pass_attempt_merging(week, plays)
+	# week = label_offense_defense_coverage(week, plays)  # for specific coverage... currently set to man/zone only
+	week = label_offense_defense_manzone(week, plays)
 
-    # filtering only for even frames
-    # week = week[week['frameId'] % 2 == 0]
+	week["week"] = week_number
+	week["uniqueId"] = week["gameId"].astype(str) + "_" + week["playId"].astype(str)
+	week["frameUniqueId"] = week["gameId"].astype(str) + "_" + week["playId"].astype(str) + "_" + week["frameId"].astype(str)
 
-    # ridding of any potential outliers (25 seconds after the snap)
-    week = week[(week['frames_from_snap'] >= -150) & (week['frames_from_snap'] <= 30)]
+	# adding frames_from_snap (to do: make this a function but fine for now)
+	snap_frames = week[week["frameType"] == "SNAP"].groupby("uniqueId")["frameId"].first()
+	week = week.merge(snap_frames.rename("snap_frame"), on="uniqueId", how="left")
+	week["frames_from_snap"] = week["frameId"] - week["snap_frame"]
 
-    # applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
-    # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
+	# filtering only for even frames
+	# week = week[week['frameId'] % 2 == 0]
 
-    # num_unique_frames = len(set(week['frameUniqueId']))
-    # selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
-    # week_aug = data_augmentation(week, selected_frames)
+	# ridding of any potential outliers (25 seconds after the snap)
+	week = week[(week["frames_from_snap"] >= -150) & (week["frames_from_snap"] <= 30)]
 
-    # week = pd.concat([week, week_aug])
+	# applying data augmentation to increase training size (centered around 0-4 seconds presnap!)
+	# -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
 
-    logging.info(f"Finished processing Week {week_number} data")
+	# num_unique_frames = len(set(week['frameUniqueId']))
+	# selected_frames = select_augmented_frames(week, int(num_unique_frames / 3), sigma=5)
+	# week_aug = data_augmentation(week, selected_frames)
 
-    return week
+	# week = pd.concat([week, week_aug])
+
+	logging.info(f"Finished processing Week {week_number} data")
+
+	return week
 
 
 def prepare_tensor(play: pd.DataFrame) -> torch.Tensor:
-    """Prepares a tensor for a single frame from the given DataFrame."""
-    features = ['x_clean', 'y_clean', 'v_x', 'v_y', 'defense']
-    play_data = play[features + ['frameId']]
-    play_data = play_data.sort_values(by='frameId')
+	"""
+	Converts a single play slice into a model-ready tensor.
 
-    frames = (
-    play_data
-    .groupby('frameId')[features]
-    .apply(lambda g: g.to_numpy())
-    )
-    all_frames_tensor = np.stack(frames.to_list())  # Shape: [num_frames, num_players, num_features]
-    all_frames_tensor = torch.tensor(all_frames_tensor, dtype=torch.float32)
+	Inputs:
+	- play: Tracking rows for one frameUniqueId.
 
-    return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
+	Outputs:
+	- frame_tensor: Tensor shaped [frames, players, features] for inference.
+	"""
+	features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
+	play_data = play[features + ["frameId"]]
+	play_data = play_data.sort_values(by="frameId")
+
+	frames = play_data.groupby("frameId")[features].apply(lambda g: g.to_numpy())
+	all_frames_tensor = np.stack(frames.to_list())  # Shape: [num_frames, num_players, num_features]
+	all_frames_tensor = torch.tensor(all_frames_tensor, dtype=torch.float32)
+
+	return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
 
 
 @time_fcn
-def main():
-    # Set logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def main() -> None:
+	"""
+	Streams weekly tracking frames through the transformer and writes predictions.
 
-    # Get input args
-    args = parse_args()
+	Inputs:
+	- CLI flags from parse_args control profiling.
 
-    # Enable/disable timing decorators
-    if args.profile:
-        set_time_decorators_enabled(True)
-        logging.info("Timing decorators enabled")
-    else:
-        set_time_decorators_enabled(False)
-        logging.info("Timing decorators disabled")
+	Outputs:
+	- CSV files with frame-level predictions and merged tracking data.
+	"""
+	# Set logging
+	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    # Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+	# Get input args
+	args = parse_args()
 
-    # Set device and profiler
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    activities = [ProfilerActivity.CPU]
-    activities += [ProfilerActivity.CUDA]
+	# Enable/disable timing decorators
+	if args.profile:
+		set_time_decorators_enabled(True)
+		logging.info("Timing decorators enabled")
+	else:
+		set_time_decorators_enabled(False)
+		logging.info("Timing decorators disabled")
 
-    # Reload model which includes:
-    #    1. Load model weights that were generated as best trial from Ray HPO
-    #    2. Create the model with those hyperparameters
-    #    3. Load it on the GPU
-    #    4. Compile the model with torch.compile for faster inference
-    #    5. Load the last checkpoint of the model weights
-    #    6. Set to eval for inference
-    with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as file:
-        config = json.load(file)
-    model = create_transformer_model(config)
-    model = model.to(device)
-    model = torch.compile(
-        model,
-        mode="default",        # default, reduces overhead, generally stable
-        fullgraph=True         # enable full graph fusion, helps reduce kernel launch overhead
-    )
-    model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "transformer.pt", map_location=device))
-    model.eval()
+	# Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
+	torch.backends.cuda.matmul.allow_tf32 = True
+	torch.backends.cudnn.allow_tf32 = True
 
-    # Load data
-    rawLoader = RawDataLoader()
-    _, plays_df, _, _ = rawLoader.get_data(weeks=list(range(1, 10)))
+	# Set device and profiler
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	activities = [ProfilerActivity.CPU]
+	activities += [ProfilerActivity.CUDA]
 
-    # Process + predict one week at a time (keeps RAM low)
-    for week_eval in [9]:
-        week_df = process_week_data_preds(week_eval, plays_df)
+	# Reload model which includes:
+	#    1. Load model weights that were generated as best trial from Ray HPO
+	#    2. Create the model with those hyperparameters
+	#    3. Load it on the GPU
+	#    4. Compile the model with torch.compile for faster inference
+	#    5. Load the last checkpoint of the model weights
+	#    6. Set to eval for inference
+	with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as file:
+		config = json.load(file)
+	model = create_transformer_model(config)
+	model = model.to(device)
+	model = torch.compile(
+		model,
+		mode="default",  # default, reduces overhead, generally stable
+		fullgraph=True,  # enable full graph fusion, helps reduce kernel launch overhead
+	)
+	model.load_state_dict(torch.load(PROJECT_ROOT / "data" / "training" / "transformer.pt", map_location=device))
+	model.eval()
 
-        # Filtering early to shrink memory
-        week_df = week_df[(week_df['club'] != 'football') & (week_df['passAttempt'] == 1)].copy()
+	# Load data
+	rawLoader = RawDataLoader()
+	_, plays_df, _, _ = rawLoader.get_data(weeks=list(range(1, 10)))
 
-        # Polars convert optional for speed
-        tracking_df_polars = pl.DataFrame(week_df)
+	# Process + predict one week at a time (keeps RAM low)
+	for week_eval in [9]:
+		week_df = process_week_data_preds(week_eval, plays_df)
 
-        # Stream predictions to CSV in batches
-        weekly_predictions_path_csv = PROJECT_ROOT/ "data" / "inference" / f"week{week_eval}_preds.csv"
-        wrote_header = False
-        batch = []
+		# Filtering early to shrink memory
+		week_df = week_df[(week_df["club"] != "football") & (week_df["passAttempt"] == 1)].copy()
 
-        # Iterate unique frames without building a giant Python set
-        list_ids = pd.unique(week_df['frameUniqueId'].values)
+		# Polars convert optional for speed
+		tracking_df_polars = pl.DataFrame(week_df)
 
-        logging.info(f"Starting loop for week {week_eval}...")
-        for idx, frame_id in enumerate(list_ids, start=1):
-            if idx % 20000 == 0:
-                logging.info(f"Processed {idx}/{len(list_ids)} frames ({100*idx/len(list_ids):.1f}%)")
+		# Stream predictions to CSV in batches
+		weekly_predictions_path_csv = PROJECT_ROOT / "data" / "inference" / f"week{week_eval}_preds.csv"
+		wrote_header = False
+		batch = []
 
-            # Grab frame rows (polars or pandas)
-            if tracking_df_polars is not None:
-                frame = tracking_df_polars.filter(pl.col("frameUniqueId") == frame_id).to_pandas()
-            else:
-                frame = week_df.loc[week_df["frameUniqueId"] == frame_id]
+		# Iterate unique frames without building a giant Python set
+		list_ids = pd.unique(week_df["frameUniqueId"].values)
 
-            # Lightweight tensor build
-            frame_tensor = prepare_tensor(frame)
-            if frame_tensor is None:
-                continue
+		logging.info(f"Starting loop for week {week_eval}...")
+		for idx, frame_id in enumerate(list_ids, start=1):
+			if idx % 20000 == 0:
+				logging.info(f"Processed {idx}/{len(list_ids)} frames ({100 * idx / len(list_ids):.1f}%)")
 
-            # Save the first tensor for profiling later
-            if idx == 1:
-                torch.save(frame_tensor, PROJECT_ROOT / "data" / "inference" / "example_frame_tensor.pt")
+			# Grab frame rows (polars or pandas)
+			if tracking_df_polars is not None:
+				frame = tracking_df_polars.filter(pl.col("frameUniqueId") == frame_id).to_pandas()
+			else:
+				frame = week_df.loc[week_df["frameUniqueId"] == frame_id]
 
-            # Move to device and run inference
-            frame_tensor = frame_tensor.to(device, non_blocking=True)
-            with torch.no_grad():
-                outputs = model(frame_tensor)                 # [1, 2]
-                probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
-                zone_prob, man_prob = float(probabilities[0]), float(probabilities[1])
-                pred = 0 if zone_prob > man_prob else 1
-                actual = int(frame['pff_manZone'].iloc[0]) if 'pff_manZone' in frame.columns and not pd.isna(frame['pff_manZone'].iloc[0]) else -1
+			# Lightweight tensor build
+			frame_tensor = prepare_tensor(frame)
+			if frame_tensor is None:
+				continue
 
-            play_id = "_".join(frame_id.split("_")[:2])
-            frame_num = int(frame_id.split("_")[-1])
+			# Save the first tensor for profiling later
+			if idx == 1:
+				torch.save(frame_tensor, PROJECT_ROOT / "data" / "inference" / "example_frame_tensor.pt")
 
-            batch.append({
-                'frameUniqueId': frame_id,
-                'uniqueId': play_id,
-                'frameId': frame_num,
-                'zone_prob': zone_prob,
-                'man_prob': man_prob,
-                'pred': pred,
-                'actual': actual
-            })
+			# Move to device and run inference
+			frame_tensor = frame_tensor.to(device, non_blocking=True)
+			with torch.no_grad():
+				outputs = model(frame_tensor)  # [1, 2]
+				probabilities = torch.softmax(outputs, dim=1).cpu().numpy()[0]
+				zone_prob, man_prob = float(probabilities[0]), float(probabilities[1])
+				pred = 0 if zone_prob > man_prob else 1
+				actual = int(frame["pff_manZone"].iloc[0]) if "pff_manZone" in frame.columns and not pd.isna(frame["pff_manZone"].iloc[0]) else -1
 
-            # Flush batch to CSV to keep RAM low
-            if len(batch) >= config["batch_size"]:
-                pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
-                wrote_header = True
-                batch.clear()
+			play_id = "_".join(frame_id.split("_")[:2])
+			frame_num = int(frame_id.split("_")[-1])
 
-        # Flush tail
-        if batch:
-            pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode='a', header=not wrote_header, index=False)
-            batch.clear()
+			batch.append({"frameUniqueId": frame_id, "uniqueId": play_id, "frameId": frame_num, "zone_prob": zone_prob, "man_prob": man_prob, "pred": pred, "actual": actual})
 
-        logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
+			# Flush batch to CSV to keep RAM low
+			if len(batch) >= config["batch_size"]:
+				pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode="a", header=not wrote_header, index=False)
+				wrote_header = True
+				batch.clear()
 
-        # Merge week_df with preds (per-week, small)
-        preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=['frameUniqueId','zone_prob','man_prob','pred', 'actual'])
-        tracking_preds = week_df.merge(preds_week, on='frameUniqueId', how='left')
-        tracking_preds.to_csv(PROJECT_ROOT / "data" / "inference" / f"tracking_week_{week_eval}_preds.csv", index=False)
+		# Flush tail
+		if batch:
+			pd.DataFrame(batch).to_csv(weekly_predictions_path_csv, mode="a", header=not wrote_header, index=False)
+			batch.clear()
 
-        # Free RAM before next week
-        del week_df, tracking_df_polars, preds_week, tracking_preds
-        import gc; gc.collect()
+		logging.info(f"Finished week {week_eval}... saved to week{week_eval}_preds.csv\n")
+
+		# Merge week_df with preds (per-week, small)
+		preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=["frameUniqueId", "zone_prob", "man_prob", "pred", "actual"])
+		tracking_preds = week_df.merge(preds_week, on="frameUniqueId", how="left")
+		tracking_preds.to_csv(PROJECT_ROOT / "data" / "inference" / f"tracking_week_{week_eval}_preds.csv", index=False)
+
+		# Free RAM before next week
+		del week_df, tracking_df_polars, preds_week, tracking_preds
+		import gc
+
+		gc.collect()
+
 
 if __name__ == "__main__":
-  main()
+	main()
