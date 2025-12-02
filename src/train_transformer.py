@@ -301,7 +301,7 @@ def run_hpo(args) -> None:
         # Training
         "lr": tune.loguniform(1e-5, 5e-3),
         "weight_decay": tune.loguniform(1e-6, 1e-2),
-        "batch_size": 19200,
+        "batch_size": 19200,        # Configured for L4 GPU utilization
 
         # Epochs
         "epochs": 100,
@@ -319,15 +319,15 @@ def run_hpo(args) -> None:
     ######################################################################
     # Build tuner; pass MLflow context and PARENT RUN ID to workers via env vars
     ######################################################################
-    trainable = tune.with_parameters(run_trial, args=args)  # Allows each training run to have any specific params
+    trainable = tune.with_parameters(run_trial, args=args)                  # Allows each training run to have any specific params
     tuner = Tuner(
-        tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}), # Gives 16 CPU and one GPU per trial
+        tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}),    # Gives 16 CPU and one GPU per trial
         param_space=params,
         tune_config=TuneConfig(
             metric="val_accuracy",
             mode="max",
             scheduler=scheduler,
-            num_samples=500,             # total trials
+            num_samples=1,                                                  # total trials, set to 1 for CI, modify here for HPO runs
         ),
         run_config=RunConfig(
             name="transformer_hpo",

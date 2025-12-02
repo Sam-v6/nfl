@@ -39,12 +39,14 @@ jobs:
       - name: Sync uv
         run: uv sync --locked
           
-      - name: Create features
-        run: uv run src/create_features.py
+      - name: Test feature creation
+        run: uv run src/create_features.py --profile
 
-      - name: Train transformer
-        run: uv run src/train_transformer.py
+      - name: Test transformer training
+        run: uv run src/train_transformer.py --profile
 
-      - name: Make week 9 predictions
-        run: uv run src/generate_predictions.py
-
+      - name: Test HPO transformer training
+        run: uv run src/train_transformer.py --tune
+      
+      - name: Test prediction generation
+        run: uv run src/generate_predictions.py --profile
