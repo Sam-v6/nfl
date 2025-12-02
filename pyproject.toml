@@ -57,7 +57,7 @@ where = ["src"]
 
 [tool.ruff]
 target-version = "py312"
-line-length = 100
+line-length = 200
 select = [
   "E",   # general pep8 error rules (formatting)
   "F",   # pyflakes (logica/correctness)
@@ -66,6 +66,8 @@ select = [
   "UP",  # pyupgrade (modern syntax)
   "ANN", # type annotation rules
 ]
+
+[tool.ruff.lint]
 ignore = [
   "E203", # makes it compat with Black-style slicing
   "E501", # ignore line length
