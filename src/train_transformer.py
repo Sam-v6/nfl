@@ -235,6 +235,10 @@ def run_trial(config, args):
     best_val_loss = float('inf')
     epochs_no_improve = 0
 
+    # If running in CI mode, reduce epochs for speed, we just want to ensure it can actually train, not train a whole model in testing here (for pipelines later)
+    if args.ci:
+        config["epochs"] = 5
+
     for epoch in range(int(config["epochs"])):
 
         # Train
