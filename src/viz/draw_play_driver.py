@@ -6,11 +6,10 @@ Driver code to animate play for all given plays
 
 import random
 
-from data_processing.process import load_data
 from data_processing.draw_play import animate_play
+from data_processing.process import load_data
 
 from common.paths import PROJECT_ROOT
-
 
 if __name__ == "__main__":
 

@@ -6,6 +6,7 @@ Contains class for man zone transformer model
 
 import torch.nn as nn
 
+
 class ManZoneTransformer(nn.Module):
 
     def __init__(self, feature_len=5, model_dim=64, num_heads=2, num_layers=4, dim_feedforward=256, dropout=0.1, output_dim=2):

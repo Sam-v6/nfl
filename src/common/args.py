@@ -6,6 +6,7 @@ Parses input arguments to then act on in code
 
 import argparse
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(

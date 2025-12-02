@@ -13,35 +13,35 @@ Will train 50 epochs (unless it early stops) and produce model.pth
 """
 
 # Base imports
-import os
-import logging
-from pathlib import Path
-import random
 import json
+import logging
+import os
+import random
+from pathlib import Path
 
 # Util imports
 import numpy as np
 
+# ML imports
+# Ray Tune
+import ray
+
 # Torch imports
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
-from torch.amp import autocast
-
-# ML imports
-
-# Ray Tune
-import ray
 from ray import tune
 from ray.air.integrations.mlflow import MLflowLoggerCallback
-from ray.tune import Tuner, RunConfig, TuneConfig, FailureConfig
+from ray.tune import FailureConfig, RunConfig, TuneConfig, Tuner
 from ray.tune.schedulers import ASHAScheduler
+from torch.amp import autocast
+from torch.utils.data import DataLoader, TensorDataset
+
+from common.args import parse_args
+from common.decorators import set_time_decorators_enabled, time_fcn
+from common.paths import PROJECT_ROOT, SAVE_DIR
 
 # Local imports
 from models.transformer import create_transformer_model
-from common.decorators import set_time_decorators_enabled, time_fcn
-from common.paths import PROJECT_ROOT, SAVE_DIR
-from common.args import parse_args
 
 
 def set_seed(seed: int = 42) -> torch.Generator:
@@ -382,7 +382,7 @@ def main() -> None:
 
     # We are doing a single run with fixed model parameters located at nfl/data/training/model_params.json
     else:
-        with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
+        with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as file:
             model_params_map = json.load(file)
         run_trial(model_params_map, args)
 

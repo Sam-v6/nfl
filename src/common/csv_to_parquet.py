@@ -11,6 +11,7 @@ Outputs parquet data in nfl/data/parquet that is stored in git LFS
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq

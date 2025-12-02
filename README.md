@@ -143,6 +143,19 @@ The last command will start the MLflow GUI at your local host loopback on port 5
 
 ![mlflow_tune](./docs/images/mlflow_tune.png)
 
+# Contributing
+
+## Linting and Formatting
+We are using [ruff](https://docs.astral.sh/ruff/) as a the linter and formatter. Ruff can be used with:
+
+```bash
+# Get check results
+uv run ruff check .
+
+# Get check results and apply fixes (recommend review these with git diff)
+uv run ruff check . --fix
+```
+
 ## Future Work
 
 For model improvements I'm interested in switching to a flash attention layer which can accelerate training

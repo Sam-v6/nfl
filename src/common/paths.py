@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def project_root() -> Path:
     # 2 since this is at src/commmon/path.py
     return Path(__file__).resolve().parents[2]

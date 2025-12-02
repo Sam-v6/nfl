@@ -5,6 +5,7 @@ Contains class for default long short term memory model for general usage
 """
 from torch import nn
 
+
 class LSTMClassifier(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, dropout, bidir, num_classes):
         super().__init__()

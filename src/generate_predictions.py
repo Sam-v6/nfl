@@ -11,27 +11,33 @@ Performs inference on each week and saves to nfl/data/processed/week{n}_predicti
 """
 
 # Base imports
-import os
-import logging
 import json
+import logging
+import os
 from pathlib import Path
+
+import numpy as np
 
 # Additional imports
 import pandas as pd
-import numpy as np
 import polars as pl
-
 import torch
-import torchvision.models as models
-from torch.profiler import profile, ProfilerActivity, record_function
+from torch.profiler import ProfilerActivity
+
+from clean_data import (
+    calculate_velocity_components,
+    label_offense_defense_manzone,
+    make_plays_left_to_right,
+    pass_attempt_merging,
+    rotate_direction_and_orientation,
+)
+from common.args import parse_args
+from common.decorators import set_time_decorators_enabled, time_fcn
+from common.paths import PROJECT_ROOT
+from load_data import RawDataLoader
 
 # Local imports
 from models.transformer import create_transformer_model
-from load_data import RawDataLoader
-from clean_data import rotate_direction_and_orientation, make_plays_left_to_right, calculate_velocity_components, pass_attempt_merging, label_offense_defense_manzone
-from common.paths import PROJECT_ROOT
-from common.decorators import set_time_decorators_enabled, time_fcn
-from common.args import parse_args
 
 
 def process_week_data_preds(week_number, plays):
@@ -132,7 +138,7 @@ def main():
     #    4. Compile the model with torch.compile for faster inference
     #    5. Load the last checkpoint of the model weights
     #    6. Set to eval for inference
-    with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
+    with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as file:
         config = json.load(file)
     model = create_transformer_model(config)
     model = model.to(device)

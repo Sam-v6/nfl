@@ -4,38 +4,49 @@
 Trains xgboost model on location tracking data
 """
 # Standard imports
-import os
-import time
-import pickle
 import logging
-import joblib
+import os
+import pickle
+import time
 
-# General imports
-import numpy as np
+import joblib
 
 # Plotting imports
 import matplotlib.pyplot as plt
 
-# ML utils
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
-from sklearn.metrics import roc_auc_score, log_loss, precision_score, recall_score, f1_score, classification_report, roc_curve
-from sklearn.preprocessing import StandardScaler
-
 # MLflow
 import mlflow
-from common.mlflow import setup_mlflow
 
-# Models
-from xgboost import XGBClassifier
+# General imports
+import numpy as np
 
 # Local imports
 from common.data_loader import DataLoader
 from coverage.process_coverage import create_coverage_data
+from sklearn.metrics import (
+    classification_report,
+    f1_score,
+    log_loss,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
+)
+
+# ML utils
+from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Models
+from xgboost import XGBClassifier
+
+from common.mlflow import setup_mlflow
 
 # Local model imports
 #from common.models.xgb import XGBModel
 #from common.models.svc import SVC
 from common.paths import PROJECT_ROOT
+
 
 def load_data() -> dict[str]:
     base_path = PROJECT_ROOT / "data" / "coverage"

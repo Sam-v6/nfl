@@ -5,9 +5,9 @@ Loads raw parquet data for usage in training models
 """
 
 import os
-import pandas as pd
-from typing import Tuple
 from pathlib import Path
+
+import pandas as pd
 
 from common.paths import PROJECT_ROOT
 
@@ -51,7 +51,7 @@ class RawDataLoader:
         
         self.location_data_df = pd.concat(weekly_dfs, ignore_index=True)
 
-    def get_data(self, weeks: list[int] = range(1, 10)) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def get_data(self, weeks: list[int] = range(1, 10)) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Return the processed data"""
 
         # Load data

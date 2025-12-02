@@ -4,9 +4,9 @@
 Contains common use decorators
 """
 
-import time
 import functools
 import logging
+import time
 
 _TIME_DECORATORS_ENABLED = False
 

@@ -11,26 +11,35 @@ Will produce classification report, confusion matrix, and ROC curve for best mod
 # Base
 import logging
 
+import joblib
+import matplotlib.pyplot as plt
+import numpy as np
+
 # Common
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-# Sklearn utils
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, roc_curve, auc, precision_recall_fscore_support
-import joblib
 
 # PyTorch
 import torch
-from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
+from common.models.lstm import LSTMClassifier
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    auc,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+    roc_curve,
+)
+from sklearn.model_selection import train_test_split
+
+# Sklearn utils
+from sklearn.preprocessing import StandardScaler
+from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import DataLoader, TensorDataset
 
 # Local
 from common.decorators import time_fcn
-from common.models.lstm import LSTMClassifier
+
 
 @time_fcn
 def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
