@@ -123,16 +123,18 @@ def main():
     # Get model params and set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     with open(PROJECT_ROOT / "data" / "training" / "model_params.json", 'r') as file:
-        model_params_map = json.load(file)
+        config = json.load(file)
     model = ManZoneTransformer(
-        feature_len=5,                  # num of input features (x, y, v_x, v_y, defense)
-        model_dim=model_params_map["model_dim"],
-        num_heads=model_params_map["num_heads"],
-        num_layers=model_params_map["num_layers"],
-        dim_feedforward=int(model_params_map["model_dim"]) * int(model_params_map["num_layers"]),
-        dropout=model_params_map["dropout"],
-        output_dim=2      # man or zone classification
-    ).to(device)
+        feature_len=5,                                                          # num of input features (x, y, v_x, v_y, defense)
+        model_dim=int(config["model_dim"]),                                     # from ray tune or loaded
+        num_heads=int(config["num_heads"]),                                     # from ray tune or loaded
+        num_layers=int(config["num_layers"]),                                   # from ray tune or loaded
+        dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),   # from ray tune or loaded
+        dropout=float(config["dropout"]),                                       # from ray tune or loaded
+        output_dim=2                                                            # man or zone classification
+    )
+    # Move model to device (GPU)
+    model = model.to(device)
 
     # Compile with fullgraph
     model = torch.compile(
