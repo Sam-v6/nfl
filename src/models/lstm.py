@@ -32,6 +32,7 @@ class LSTMClassifier(nn.Module):
 		Outputs:
 		- Initializes the network modules.
 		"""
+
 		super().__init__()
 		self.lstm = nn.LSTM(
 			input_size=input_size,
@@ -54,6 +55,7 @@ class LSTMClassifier(nn.Module):
 		Outputs:
 		- logits: Tensor shaped [batch, num_classes].
 		"""
+
 		out, _ = self.lstm(x)
 		last = out[:, -1, :]
 		logits = self.head(last)

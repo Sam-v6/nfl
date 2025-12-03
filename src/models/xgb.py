@@ -29,4 +29,5 @@ class XGBModel:
 		Outputs:
 		- Initializes the self.model attribute.
 		"""
+
 		self.model = xgb.XGBClassifier(objective=objective, n_estimators=n_estimators, random_state=random_state)

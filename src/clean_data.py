@@ -69,6 +69,7 @@ def calculate_velocity_components(df: pd.DataFrame) -> pd.DataFrame:
 	Outputs:
 	- velocity_df: Dataframe with v_x and v_y components added.
 	"""
+
 	df["dir_radians"] = np.radians(df["dir_clean"])
 	df["v_x"] = df["s_clean"] * np.cos(df["dir_radians"])
 	df["v_y"] = df["s_clean"] * np.sin(df["dir_radians"])
@@ -86,6 +87,7 @@ def label_offense_defense_coverage(presnap_df: pd.DataFrame, plays_df: pd.DataFr
 	Outputs:
 	- labeled_df: Presnap rows with defense flag and coverage label added.
 	"""
+
 	coverage_replacements = {
 		"Cover-3 Cloud Right": "Cover-3",
 		"Cover-3 Cloud Left": "Cover-3",
@@ -126,6 +128,7 @@ def label_offense_defense_manzone(presnap_df: pd.DataFrame, plays_df: pd.DataFra
 	Outputs:
 	- labeled_df: Presnap rows with defense flag and man/zone label added.
 	"""
+
 	plays_df = plays_df.dropna(subset=["pff_manZone"])
 
 	coverage_mapping = {"Zone": 0, "Man": 1}
@@ -151,6 +154,7 @@ def label_offense_defense_formation(presnap_df: pd.DataFrame, plays_df: pd.DataF
 	Outputs:
 	- labeled_df: Presnap rows with formation code and offense/defense indicators.
 	"""
+
 	formation_mapping = {"EMPTY": 0, "I_FORM": 1, "JUMBO": 2, "PISTOL": 3, "SHOTGUN": 4, "SINGLEBACK": 5, "WILDCAT": 6}
 
 	merged_df = presnap_df.merge(plays_df[["gameId", "playId", "possessionTeam", "defensiveTeam", "offenseFormation"]], on=["gameId", "playId"], how="left")
@@ -171,6 +175,7 @@ def split_data_by_uniqueId(
 	unique_id_column: str = "uniqueId",
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 	"""
+
 	Splits tracking rows into train/test/val while keeping plays intact.
 
 	Inputs:
@@ -214,6 +219,7 @@ def pass_attempt_merging(tracking: pd.DataFrame, plays: pd.DataFrame) -> pd.Data
 	Outputs:
 	- merged_df: Tracking rows with passAttempt column.
 	"""
+
 	plays["passAttempt"] = np.where(plays["passResult"].isin(["C", "I", "IN", "S"]), 1, 0)
 
 	plays_for_merge = plays[["gameId", "playId", "passAttempt"]]
@@ -235,6 +241,7 @@ def prepare_frame_data(df: pd.DataFrame, features: Sequence[str], target_column:
 	- feature_tensor: Batched tensor of frame features.
 	- target_tensor: Tensor of frame targets aligned to feature order.
 	"""
+
 	features_array = df.groupby("frameUniqueId")[features].apply(lambda x: x.to_numpy(dtype=np.float32)).to_numpy()
 
 	try:
@@ -261,6 +268,7 @@ def select_augmented_frames(df: pd.DataFrame, num_samples: int, sigma: int = 5) 
 	Outputs:
 	- selected_frames: Array of frameUniqueId values to augment.
 	"""
+
 	df_frames = df[["frameUniqueId", "frames_from_snap"]].drop_duplicates()
 	weights = np.exp(-((df_frames["frames_from_snap"] + 10) ** 2) / (2 * sigma**2))
 
@@ -282,6 +290,7 @@ def data_augmentation(df: pd.DataFrame, augmented_frames: Iterable[str]) -> pd.D
 	Outputs:
 	- augmented_df: Augmented rows with flipped coordinates and tags.
 	"""
+
 	df_sample = df.loc[df["frameUniqueId"].isin(augmented_frames)].copy()
 
 	df_sample["y_clean"] = (160 / 3) - df_sample["y_clean"]
@@ -303,6 +312,7 @@ def add_frames_from_snap(df: pd.DataFrame) -> pd.DataFrame:
 	Outputs:
 	- df_with_offsets: Dataframe including frames_from_snap column.
 	"""
+	
 	snap_frames = df[df["frameType"] == "SNAP"].groupby("uniqueId")["frameId"].first()
 	df = df.merge(snap_frames.rename("snap_frame"), on="uniqueId", how="left")
 	df["frames_from_snap"] = df["frameId"] - df["snap_frame"]

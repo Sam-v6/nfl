@@ -29,6 +29,7 @@ class MLPModel(torch.nn.Module):
 		Outputs:
 		- Initializes the torch module layers.
 		"""
+
 		super().__init__()
 
 		self.layers = torch.nn.Sequential(torch.nn.Linear(input_size, hidden_size), torch.nn.ReLU(), torch.nn.Linear(hidden_size, output_size))
@@ -43,4 +44,5 @@ class MLPModel(torch.nn.Module):
 		Outputs:
 		- logits: Tensor of shape [batch, output_size].
 		"""
+
 		return self.layers(x)

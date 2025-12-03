@@ -16,6 +16,7 @@ def parse_args() -> argparse.Namespace:
 	Outputs:
 	- args: Namespace containing tune/profile/ci flags.
 	"""
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"--tune",

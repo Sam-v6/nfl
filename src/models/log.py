@@ -28,4 +28,5 @@ class LogisticModel:
 		Outputs:
 		- Initializes the self.model attribute.
 		"""
+
 		self.model = LogisticRegression(max_iter=max_iter, class_weight=class_weight)

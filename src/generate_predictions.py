@@ -3,33 +3,22 @@
 Runs the trained transformer to generate man/zone predictions for tracking data.
 """
 
-# Base imports
 import json
 import logging
 import os
 from pathlib import Path
 
 import numpy as np
-
-# Additional imports
 import pandas as pd
 import polars as pl
 import torch
 from torch.profiler import ProfilerActivity
 
-from clean_data import (
-	calculate_velocity_components,
-	label_offense_defense_manzone,
-	make_plays_left_to_right,
-	pass_attempt_merging,
-	rotate_direction_and_orientation,
-)
+from clean_data import calculate_velocity_components, label_offense_defense_manzone, make_plays_left_to_right, pass_attempt_merging, rotate_direction_and_orientation
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
-
-# Local imports
 from models.transformer import create_transformer_model
 
 
@@ -44,14 +33,18 @@ def process_week_data_preds(week_number: int, plays: pd.DataFrame) -> pd.DataFra
 	Outputs:
 	- week_df: Cleaned and labeled tracking rows for the requested week.
 	"""
+
+	# Swap the data root if it's CI (since CI runs with a local runner we are using the actual data location to avoid having the VM do git LFS pulls)
 	if os.getenv("CI_DATA_ROOT"):
 		WEEK_PARQUET_PATH = Path(os.getenv("CI_DATA_ROOT")) / f"tracking_week_{week_number}.parquet"
 	else:
 		WEEK_PARQUET_PATH = PROJECT_ROOT / "data" / "parquet" / f"tracking_week_{week_number}.parquet"
+
+	# Load data
 	week = pd.read_parquet(WEEK_PARQUET_PATH)
 	logging.info(f"Finished reading Week {week_number} data")
 
-	# applying cleaning functions
+	# Apply cleaning functions
 	week = rotate_direction_and_orientation(week)
 	week = make_plays_left_to_right(week)
 	week = calculate_velocity_components(week)
@@ -63,7 +56,7 @@ def process_week_data_preds(week_number: int, plays: pd.DataFrame) -> pd.DataFra
 	week["uniqueId"] = week["gameId"].astype(str) + "_" + week["playId"].astype(str)
 	week["frameUniqueId"] = week["gameId"].astype(str) + "_" + week["playId"].astype(str) + "_" + week["frameId"].astype(str)
 
-	# adding frames_from_snap (to do: make this a function but fine for now)
+	# Add frames_from_snap (to do: make this a function but fine for now)
 	snap_frames = week[week["frameType"] == "SNAP"].groupby("uniqueId")["frameId"].first()
 	week = week.merge(snap_frames.rename("snap_frame"), on="uniqueId", how="left")
 	week["frames_from_snap"] = week["frameId"] - week["snap_frame"]
@@ -71,7 +64,7 @@ def process_week_data_preds(week_number: int, plays: pd.DataFrame) -> pd.DataFra
 	# filtering only for even frames
 	# week = week[week['frameId'] % 2 == 0]
 
-	# ridding of any potential outliers (25 seconds after the snap)
+	# Ridding of any potential outliers (25 seconds after the snap)
 	week = week[(week["frames_from_snap"] >= -150) & (week["frames_from_snap"] <= 30)]
 
 	# applying data augmentation to increase training size (centered around 0-4 seconds presnap!)

@@ -89,6 +89,7 @@ def animate_play(
 
 	def init() -> list[Artist]:
 		"""Initializes artists for FuncAnimation."""
+
 		return player_dots + arrows + labels + [time_text]
 
 	def update(frame_id: int) -> list[Artist]:
@@ -101,6 +102,7 @@ def animate_play(
 		Outputs:
 		- artists: List of matplotlib artists for blitting.
 		"""
+		
 		for artist in player_dots + arrows + labels:
 			artist.remove()
 		player_dots.clear()

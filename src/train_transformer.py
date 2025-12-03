@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
-from common.paths import PROJECT_ROOT, SAVE_DIR
+from common.paths import PROCESSED_DIR, PROJECT_ROOT
 from models.transformer import create_transformer_model
 
 
@@ -37,13 +37,13 @@ def set_seed(seed: int = 42) -> torch.Generator:
 	Outputs:
 	- generator: Torch generator for deterministic DataLoader shuffling.
 	"""
-	# Python & NumPy
+
+	# Set seeds
 	random.seed(seed)
 	np.random.seed(seed)
 	torch.manual_seed(seed)
 	g = torch.Generator()  # Creates a generator that fixes the shuffle in torch Dataloader
 	g.manual_seed(seed)
-
 	os.environ["PYTHONHASHSEED"] = str(seed)
 
 	# PyTorch CPU & CUDA
@@ -78,6 +78,7 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 	Outputs:
 	- avg_train_loss: Mean loss across the epoch.
 	"""
+
 	# Training
 	model.train()
 	running_loss = 0.0
@@ -126,6 +127,7 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 	- avg_val_loss: Mean validation loss.
 	- val_accuracy: Classification accuracy.
 	"""
+	
 	# Validation
 	model.eval()
 	val_running_loss = 0.0
@@ -211,11 +213,11 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	# Create dataloaders
 	######################################################################
 	# Load in data and create tensor datasets
-	train_features = torch.load(SAVE_DIR / "features_training.pt")
-	train_targets = torch.load(SAVE_DIR / "targets_training.pt")
+	train_features = torch.load(PROCESSED_DIR / "features_training.pt")
+	train_targets = torch.load(PROCESSED_DIR / "targets_training.pt")
 
-	val_features = torch.load(SAVE_DIR / "features_val.pt")
-	val_targets = torch.load(SAVE_DIR / "targets_val.pt")
+	val_features = torch.load(PROCESSED_DIR / "features_val.pt")
+	val_targets = torch.load(PROCESSED_DIR / "targets_val.pt")
 
 	# Create data loaders for batching
 	train_loader = DataLoader(

@@ -27,4 +27,5 @@ class KNNModel:
 		Outputs:
 		- Initializes the self.model attribute.
 		"""
+
 		self.model = KNeighborsClassifier(n_neighbors=n_neighbors)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Defines the transformer architecture used for man/zone classification.
+Defines the transformer architecture used for man/zone classification and holds a fcn to create a model.
 """
 
 import torch
@@ -43,7 +43,8 @@ class ManZoneTransformer(nn.Module):
 		Outputs:
 		- Initialized model ready for training.
 		"""
-		super(ManZoneTransformer, self).__init__()
+
+		super().__init__()
 		self.feature_norm_layer = nn.BatchNorm1d(feature_len)
 
 		self.feature_embedding_layer = nn.Sequential(
@@ -84,6 +85,7 @@ class ManZoneTransformer(nn.Module):
 		Outputs:
 		- logits: Tensor shaped [batch, output_dim] representing class scores.
 		"""
+
 		# x shape: (batch_size, num_players, feature_len)
 		x = self.feature_norm_layer(x.permute(0, 2, 1)).permute(0, 2, 1)
 		x = self.feature_embedding_layer(x)
@@ -103,6 +105,7 @@ def create_transformer_model(config: dict[str, int | float]) -> ManZoneTransform
 	Outputs:
 	- model: Configured ManZoneTransformer instance.
 	"""
+
 	model = ManZoneTransformer(
 		feature_len=5,  # num of input features (x, y, v_x, v_y, defense)
 		model_dim=int(config["model_dim"]),  # from ray tune or loaded

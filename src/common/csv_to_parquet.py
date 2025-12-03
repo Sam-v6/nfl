@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Converts CSV files (optionally compressed) to Parquet format.
+Converts source AWS NGS csv files (optionally compressed) to Parquet format.
 """
 
 import sys
@@ -26,6 +26,7 @@ def csv_to_parquet(in_path: Path, out_path: Path, chunksize: int = 250_000, comp
 	Outputs:
 	- Writes a Parquet file to out_path.
 	"""
+
 	out_path.parent.mkdir(parents=True, exist_ok=True)
 	writer = None
 	try:

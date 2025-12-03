@@ -18,6 +18,16 @@ class RawDataLoader:
 	"""
 
 	def __init__(self) -> None:
+		"""
+		Builds a data loader for pulling raw parquet files.
+
+		Inputs:
+		- None
+
+		Outputs:
+		- Initialized data loader.
+		"""
+
 		if os.getenv("CI_DATA_ROOT"):
 			self.DATA_PATH = Path(os.getenv("CI_DATA_ROOT"))
 		else:
@@ -37,6 +47,7 @@ class RawDataLoader:
 		Outputs:
 		- df_or_none: DataFrame on success, None on failure.
 		"""
+
 		try:
 			return pd.read_parquet(filepath)
 		except Exception as e:
@@ -53,6 +64,7 @@ class RawDataLoader:
 		Outputs:
 		- Populates internal DataFrame attributes.
 		"""
+
 		self.games_df = self._load_parquet(self.DATA_PATH / "games.parquet")
 		self.plays_df = self._load_parquet(self.DATA_PATH / "plays.parquet")
 		self.players_df = self._load_parquet(self.DATA_PATH / "players.parquet")
@@ -67,6 +79,7 @@ class RawDataLoader:
 		Outputs:
 		- Populates location_data_df with concatenated rows.
 		"""
+
 		weekly_dfs = []
 
 		for week in weeks:
@@ -89,6 +102,7 @@ class RawDataLoader:
 		Outputs:
 		- games_df, plays_df, players_df, location_data_df in that order.
 		"""
+
 		self._load_base_data()
 		self._load_tracking_data(weeks=weeks)
 
@@ -105,6 +119,7 @@ def main() -> None:
 	Outputs:
 	- Loads data into DataFrames for manual exploration.
 	"""
+
 	loader = RawDataLoader()
 	games_df, plays_df, players_df, location_data_df = loader.get_data(weeks=[1, 2])
 

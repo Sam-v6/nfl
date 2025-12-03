@@ -3,48 +3,23 @@
 Legacy script to train and evaluate an XGBoost model on coverage data.
 """
 
-# Standard imports
 import logging
 import os
 import pickle
 import time
 
 import joblib
-
-# Plotting imports
 import matplotlib.pyplot as plt
-
-# MLflow
 import mlflow
-
-# General imports
 import numpy as np
-
-# Local imports
 from common.data_loader import DataLoader
 from coverage.process_coverage import create_coverage_data
-from sklearn.metrics import (
-	classification_report,
-	f1_score,
-	log_loss,
-	precision_score,
-	recall_score,
-	roc_auc_score,
-	roc_curve,
-)
-
-# ML utils
+from sklearn.metrics import classification_report, f1_score, log_loss, precision_score, recall_score, roc_auc_score, roc_curve
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
-
-# Models
 from xgboost import XGBClassifier
 
 from common.mlflow import setup_mlflow
-
-# Local model imports
-# from common.models.xgb import XGBModel
-# from common.models.svc import SVC
 from common.paths import PROJECT_ROOT
 
 
@@ -58,6 +33,7 @@ def load_data() -> dict[str, np.ndarray]:
 	Outputs:
 	- data_dict: Dictionary containing feature and label arrays.
 	"""
+
 	base_path = PROJECT_ROOT / "data" / "coverage"
 	data_file_list = ["x", "y"]
 	data_dict = {}
@@ -84,6 +60,7 @@ def plot_roc(y_test: np.ndarray, y_proba: np.ndarray) -> None:
 	Outputs:
 	- Saves and logs ROC plot artifact via MLflow.
 	"""
+
 	fpr, tpr, thresholds = roc_curve(y_test, y_proba[:, 1], pos_label=1)
 	plt.figure()
 	plt.plot(fpr, tpr, label=f"ROC Curve (AUC = {roc_auc_score(y_test, y_proba[:, 1]):.4f})")
@@ -210,6 +187,7 @@ def train_xgb(
 	y_test: np.ndarray,
 ) -> None:
 	"""
+
 	Performs cross-validation, training, and evaluation for the XGB model.
 
 	Inputs:
@@ -287,7 +265,7 @@ def train_xgb(
 	try:
 		# Just grab a few vals which is sufficient for artifacts
 		X_example = x_train[:5]
-		y_example = y_train[:5]
+		y_example = y_train[:5]  # TODO: Not used
 		sig = mlflow.models.infer_signature(X_example, model.predict_proba(X_example))
 		mlflow.sklearn.log_model(sk_model=model, artifact_path="model_relogged", signature=sig, input_example=X_example)
 	except Exception as e:

@@ -24,7 +24,7 @@ from clean_data import (
 )
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
-from common.paths import SAVE_DIR
+from common.paths import PROCESSED_DIR
 from load_data import RawDataLoader
 
 
@@ -85,20 +85,20 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
 	return combined_location_df
 
 
-def _load_weeks(weeks: Sequence[int], prefix: str, save_dir: Path) -> torch.Tensor:
+def _load_weeks(weeks: Sequence[int], prefix: str, PROCESSED_DIR: Path) -> torch.Tensor:
 	"""
 	Loads and concatenates saved tensors for a set of weeks.
 
 	Inputs:
 	- weeks: Week numbers to pull from disk.
 	- prefix: Base filename prefix (e.g., 'features').
-	- save_dir: Directory where tensors are stored.
+	- PROCESSED_DIR: Directory where tensors are stored.
 
 	Outputs:
 	- tensor: Concatenated tensor spanning the requested weeks.
 	"""
 
-	tensors = [torch.load(save_dir / f"{prefix}_w{w}.pt") for w in weeks]
+	tensors = [torch.load(PROCESSED_DIR / f"{prefix}_w{w}.pt") for w in weeks]
 	return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
 
@@ -113,10 +113,10 @@ def main() -> None:
 	Outputs:
 	- Serialized feature and target tensors for training and validation weeks.
 	"""
+
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 	args = parse_args()
-
 	if args.profile:
 		set_time_decorators_enabled(True)
 		logging.info("Timing decorators enabled")
@@ -147,27 +147,27 @@ def main() -> None:
 
 		features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
 
-		torch.save(features_tensor_w, SAVE_DIR / f"features_w{w}.pt")
-		torch.save(targets_tensor_w, SAVE_DIR / f"targets_w{w}.pt")
+		torch.save(features_tensor_w, PROCESSED_DIR / f"features_w{w}.pt")
+		torch.save(targets_tensor_w, PROCESSED_DIR / f"targets_w{w}.pt")
 
 		del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
 		gc.collect()
 
 	logging.info("Aggregrating training set (Week 1 through 8)")
-	train_features = _load_weeks(train_weeks, "features", SAVE_DIR)
-	train_targets = _load_weeks(train_weeks, "targets", SAVE_DIR)
+	train_features = _load_weeks(train_weeks, "features", PROCESSED_DIR)
+	train_targets = _load_weeks(train_weeks, "targets", PROCESSED_DIR)
 
 	logging.info("Aggregrating validation set (Week 9)")
-	val_features = _load_weeks(val_weeks, "features", SAVE_DIR)
-	val_targets = _load_weeks(val_weeks, "targets", SAVE_DIR)
+	val_features = _load_weeks(val_weeks, "features", PROCESSED_DIR)
+	val_targets = _load_weeks(val_weeks, "targets", PROCESSED_DIR)
 
 	train_features = train_features.to(torch.float32)
 	val_features = val_features.to(torch.float32)
 
-	torch.save(train_features, SAVE_DIR / "features_training.pt")
-	torch.save(train_targets, SAVE_DIR / "targets_training.pt")
-	torch.save(val_features, SAVE_DIR / "features_val.pt")
-	torch.save(val_targets, SAVE_DIR / "targets_val.pt")
+	torch.save(train_features, PROCESSED_DIR / "features_training.pt")
+	torch.save(train_targets, PROCESSED_DIR / "targets_training.pt")
+	torch.save(val_features, PROCESSED_DIR / "features_val.pt")
+	torch.save(val_targets, PROCESSED_DIR / "targets_val.pt")
 
 	logging.info("Train features: %s", getattr(train_features, "shape", None))
 	logging.info("Val features:   %s", getattr(val_features, "shape", None))

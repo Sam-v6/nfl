@@ -17,5 +17,6 @@ def setup_mlflow(experiment_name: str = "random-experiement", tracking_uri: str 
 	Outputs:
 	- Sets global MLflow state for subsequent logging calls.
 	"""
+
 	mlflow.set_tracking_uri(tracking_uri)
 	mlflow.set_experiment(experiment_name)

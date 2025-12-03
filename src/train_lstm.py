@@ -11,21 +11,14 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from common.models.lstm import LSTMClassifier
-from sklearn.metrics import (
-	ConfusionMatrixDisplay,
-	auc,
-	classification_report,
-	confusion_matrix,
-	precision_recall_fscore_support,
-	roc_curve,
-)
+from sklearn.metrics import ConfusionMatrixDisplay, auc, classification_report, confusion_matrix, precision_recall_fscore_support, roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, TensorDataset
 
 from common.decorators import time_fcn
+from common.models.lstm import LSTMClassifier
 
 PlayKey = tuple[int, int]
 SeriesDict = dict[PlayKey, np.ndarray]
@@ -73,6 +66,7 @@ def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
 	# filtered_plays_df = filtered_plays_df[filtered_plays_df['down'].isin([3, 4])]
 	# logging.info(f'Total plays after filtering for 3rd or 4th down: {len(filtered_plays_df)}')
 
+	# TODO: Fix
 	# Filter for plays that are in our gameIds (in location data df)
 	filtered_plays_df = filtered_plays_df[filtered_plays_df["gameId"].isin(location_data_df["gameId"].unique())]
 	logging.info(f"Total plays after making sure they are in our location data: {len(filtered_plays_df)}")

@@ -29,4 +29,5 @@ class RFRModel:
 		Outputs:
 		- Initializes the self.model attribute.
 		"""
+
 		self.model = RandomForestClassifier(n_estimators=n_estimators, class_weight=class_weight, random_state=random_state)

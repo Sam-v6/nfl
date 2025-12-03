@@ -29,4 +29,5 @@ class SVCModel:
 		Outputs:
 		- Initializes the self.model attribute.
 		"""
+
 		self.model = SVC(kernel=kernel, class_weight=class_weight, probability=True, random_state=random_state)
