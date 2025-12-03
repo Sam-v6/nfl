@@ -176,3 +176,5 @@ uv run ruff format .
     - Switch to flash attention layer which can accelerate training
   - General
     - Get docker working and implemented in CI
+    - Add git hook for ruff fix
+    - Look back on mypy for type
