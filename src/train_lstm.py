@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from common.models.lstm import LSTMClassifier
 from sklearn.metrics import ConfusionMatrixDisplay, auc, classification_report, confusion_matrix, precision_recall_fscore_support, roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -18,7 +19,6 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, TensorDataset
 
 from common.decorators import time_fcn
-from common.models.lstm import LSTMClassifier
 
 PlayKey = tuple[int, int]
 SeriesDict = dict[PlayKey, np.ndarray]
