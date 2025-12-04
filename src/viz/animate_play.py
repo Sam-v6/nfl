@@ -102,7 +102,7 @@ def animate_play(
 		Outputs:
 		- artists: List of matplotlib artists for blitting.
 		"""
-		
+
 		for artist in player_dots + arrows + labels:
 			artist.remove()
 		player_dots.clear()

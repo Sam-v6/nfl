@@ -100,9 +100,10 @@ This project uses `uv` for managing the python virtual environment. To install u
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-To create and activate the virtual environment, run the following:
+To create and activate the virtual environment and setup git hooks (for auto linting and formatting), run the following:
 ```bash
 uv sync --locked
+uv run pre-commit install
 ```
 
 ## Run instructions
@@ -158,6 +159,8 @@ uv run ruff check . --fix
 # Run formatter
 uv run ruff format .
 ```
+
+Note, if you followed instructions above to setup the git hook, ruff will run the linter (with auto fixing on) and formatting as a pre-commit git hook.
 
 ## Future Work
 - Data

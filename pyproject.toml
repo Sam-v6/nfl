@@ -38,6 +38,7 @@ dependencies = [
   "pandas>=2.3.2",
   "pip-tools>=7.5.0",
   "polars>=1.35.1",
+  "pre-commit>=4.5.0",
   "ray[train,tune]>=2.51.1",
   "ruff>=0.14.7",
   "scikit-learn>=1.7.2",
@@ -66,6 +67,7 @@ select = [
   "UP",  # pyupgrade (modern syntax)
   "ANN", # type annotation rules
 ]
+exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 ignore = [

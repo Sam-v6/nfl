@@ -312,7 +312,7 @@ def add_frames_from_snap(df: pd.DataFrame) -> pd.DataFrame:
 	Outputs:
 	- df_with_offsets: Dataframe including frames_from_snap column.
 	"""
-	
+
 	snap_frames = df[df["frameType"] == "SNAP"].groupby("uniqueId")["frameId"].first()
 	df = df.merge(snap_frames.rename("snap_frame"), on="uniqueId", how="left")
 	df["frames_from_snap"] = df["frameId"] - df["snap_frame"]

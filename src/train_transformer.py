@@ -127,7 +127,7 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 	- avg_val_loss: Mean validation loss.
 	- val_accuracy: Classification accuracy.
 	"""
-	
+
 	# Validation
 	model.eval()
 	val_running_loss = 0.0
