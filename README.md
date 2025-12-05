@@ -100,9 +100,10 @@ This project uses `uv` for managing the python virtual environment. To install u
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-To create and activate the virtual environment, run the following:
+To create and activate the virtual environment and setup git hooks (for auto linting and formatting), run the following:
 ```bash
 uv sync --locked
+uv run pre-commit install
 ```
 
 ## Run instructions
@@ -143,12 +144,40 @@ The last command will start the MLflow GUI at your local host loopback on port 5
 
 ![mlflow_tune](./docs/images/mlflow_tune.png)
 
+# Contributing
+
+## Linting and Formatting
+We are using [ruff](https://docs.astral.sh/ruff/) as a the linter and formatter. Ruff can be used with:
+
+```bash
+# Get check results
+uv run ruff check .
+
+# Get check results and apply fixes (recommend review these with git diff)
+uv run ruff check . --fix
+
+# Run formatter
+uv run ruff format .
+```
+
+Note, if you followed instructions above to setup the git hook, ruff will run the linter (with auto fixing on) and formatting as a pre-commit git hook.
+
 ## Future Work
-
-For model improvements I'm interested in switching to a flash attention layer which can accelerate training
-
-I also want to build up per team models, do ANOVA, then highlight specific players that are giving tells on coverages
-
-Want to try out the model on a non-binary problem and try distinguishing between distinct coverage types
-
-See if I can identify blitzer (is the blitzer player identified in the dataset?)
+- Data
+  - Incoporate the additional NGS data which likely will have the largest returns in increasing accuracy
+  - Look into additional data augmentation techniques
+- Model
+  - Consider model improvements in transformer arch
+  - Build per team model, do ANOVA, then highlight specific players that are giving tells on coverages
+  - Build multiclass output model instead of binary classification
+  - See if I can build a model to determine blitzer like red circle AWS at post snap
+  - Add in confusion matrix, ROC curve, and prediction post snap accuracy to automatic predictions and not just in notebook
+- Infra
+  - Profiler
+    - Add in PyTorch profiler with new tensorboard (new thing, this is deprecated) traces into Chrome UI, built into CI for profiler
+  - Optimization
+    - Switch to flash attention layer which can accelerate training
+  - General
+    - Get docker working and implemented in CI
+    - Add git hook for ruff fix
+    - Look back on mypy for type

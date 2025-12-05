@@ -1,180 +1,179 @@
 #!/usr/bin/env python
-
 """
-Creates features for model training
-
-Requires:
-- Raw location tracking data in nfl/data/parquet
-
-Cleans data and creates the following in nfl/data/processed:
-- features_training.pt
-- features_val.pt
-- targets_training.pt
-- targets_val.pt
+Builds weekly training and validation feature tensors from raw tracking data.
 """
 
 import gc
-import os
-import math
 import logging
+from collections.abc import Sequence
+from pathlib import Path
 
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import torch
-from torch.utils.data import TensorDataset
-from torch.utils.data import DataLoader
 
-from load_data import RawDataLoader
-from clean_data import *
-from common.decorators import *
-from common.paths import SAVE_DIR
+from clean_data import (
+	add_frames_from_snap,
+	calculate_velocity_components,
+	data_augmentation,
+	label_offense_defense_manzone,
+	make_plays_left_to_right,
+	pass_attempt_merging,
+	prepare_frame_data,
+	rotate_direction_and_orientation,
+	select_augmented_frames,
+)
 from common.args import parse_args
+from common.decorators import set_time_decorators_enabled, time_fcn
+from common.paths import PROCESSED_DIR
+from load_data import RawDataLoader
 
-def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame):
-    
-    # Clean data
-    location_df = rotate_direction_and_orientation(location_df)
-    location_df = make_plays_left_to_right(location_df)
-    location_df = calculate_velocity_components(location_df)
-    location_df = pass_attempt_merging(location_df, plays_df)
-    # location_df = label_offense_defense_coverage(location_df, plays_df)  # for specific coverage... currently set to man/zone only
-    location_df = label_offense_defense_manzone(location_df, plays_df)
 
-    # Filter out the football and if it's not a pass attempt
-    location_df = location_df[(location_df['club'] != 'football') & (location_df['passAttempt'] == 1)]
+def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.DataFrame) -> pd.DataFrame:
+	"""
+	Cleans a week of tracking data and enriches it with play context.
 
-    # Add in the week number
-    location_df = location_df.merge(
-      game_df[["gameId", "week"]],
-      on="gameId",
-      how="left"
-    )
+	Inputs:
+	- location_df: Raw tracking rows for a given set of plays.
+	- plays_df: Play metadata including man/zone labels.
+	- game_df: Game metadata containing week numbers.
 
-    # Create uids
-    location_df['uniqueId'] = location_df['gameId'].astype(str) + "_" + location_df['playId'].astype(str)
-    location_df['frameUniqueId'] = (
-        location_df['gameId'].astype(str) + "_" +
-        location_df['playId'].astype(str) + "_" +
-        location_df['frameId'].astype(str))
+	Outputs:
+	- cleaned_df: Tracking rows with directional fixes, labels, and snap-relative fields.
+	"""
 
-    # Adding frames_from_snap (to do: make this a function but fine for now)
-    location_df = add_frames_from_snap(location_df)
+	location_df = rotate_direction_and_orientation(location_df)
+	location_df = make_plays_left_to_right(location_df)
+	location_df = calculate_velocity_components(location_df)
+	location_df = pass_attempt_merging(location_df, plays_df)
+	location_df = label_offense_defense_manzone(location_df, plays_df)
 
-    # Get rid of noisier outliers out of scope (15 seconds after the snap)
-    location_df = location_df[(location_df['frames_from_snap'] >= -150) & (location_df['frames_from_snap'] <= 50)]
+	location_df = location_df[(location_df["club"] != "football") & (location_df["passAttempt"] == 1)]
 
-    return location_df
+	location_df = location_df.merge(game_df[["gameId", "week"]], on="gameId", how="left")
+
+	location_df["uniqueId"] = location_df["gameId"].astype(str) + "_" + location_df["playId"].astype(str)
+	location_df["frameUniqueId"] = location_df["gameId"].astype(str) + "_" + location_df["playId"].astype(str) + "_" + location_df["frameId"].astype(str)
+
+	location_df = add_frames_from_snap(location_df)
+	location_df = location_df[(location_df["frames_from_snap"] >= -150) & (location_df["frames_from_snap"] <= 50)]
+
+	return location_df
 
 
 def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.DataFrame) -> pd.DataFrame:
-  
-  location_df = clean_df(location_df, plays_df, games_df)
+	"""
+	Applies cleaning, subsampling, and augmentation to a week's tracking data.
 
-  # Filtering only for even frames (reduce amount of data that looks the same)
-  location_df = location_df[location_df['frameId'] % 2 == 0]
+	Inputs:
+	- location_df: Raw tracking rows for the week.
+	- plays_df: Play-level labels and metadata.
+	- games_df: Game-level metadata including weeks.
 
-  # Apply data augmentation to increase training size (centered around 0-4 seconds presnap!)
-  # -- 1/3rd of the current num of frames... specifically selecting for frames around the snap
-  num_unique_frames = len(set(location_df['frameUniqueId']))
-  selected_frames = select_augmented_frames(location_df, int(num_unique_frames / 3), sigma=5)
-  augmented_location_df = data_augmentation(location_df, selected_frames)
+	Outputs:
+	- processed_df: Combined original and augmented rows ready for tensorization.
+	"""
 
-  # Combine og and augmented data
-  combined_location_df = pd.concat([location_df, augmented_location_df])
+	location_df = clean_df(location_df, plays_df, games_df)
+	location_df = location_df[location_df["frameId"] % 2 == 0]
 
-  return combined_location_df
+	num_unique_frames = len(set(location_df["frameUniqueId"]))
+	selected_frames = select_augmented_frames(location_df, int(num_unique_frames / 3), sigma=5)
+	augmented_location_df = data_augmentation(location_df, selected_frames)
+
+	combined_location_df = pd.concat([location_df, augmented_location_df])
+
+	return combined_location_df
 
 
-def _load_weeks(weeks, prefix, SAVE_DIR):
-    tensors = [torch.load(SAVE_DIR / f"{prefix}_w{w}.pt") for w in weeks]
-    return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
+def _load_weeks(weeks: Sequence[int], prefix: str, PROCESSED_DIR: Path) -> torch.Tensor:
+	"""
+	Loads and concatenates saved tensors for a set of weeks.
+
+	Inputs:
+	- weeks: Week numbers to pull from disk.
+	- prefix: Base filename prefix (e.g., 'features').
+	- PROCESSED_DIR: Directory where tensors are stored.
+
+	Outputs:
+	- tensor: Concatenated tensor spanning the requested weeks.
+	"""
+
+	tensors = [torch.load(PROCESSED_DIR / f"{prefix}_w{w}.pt") for w in weeks]
+	return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
 
 @time_fcn
 def main() -> None:
-    # Logging
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+	"""
+	Generates and saves weekly and pooled tensors for transformer training.
 
-    # Get input args
-    args = parse_args()
+	Inputs:
+	- Command-line flags control profiling.
 
-    # Enable/disable timing decorators
-    if args.profile:
-        set_time_decorators_enabled(True)
-        logging.info("Timing decorators enabled")
-    else:
-        set_time_decorators_enabled(False)
-        logging.info("Timing decorators disabled")
+	Outputs:
+	- Serialized feature and target tensors for training and validation weeks.
+	"""
 
-    # Specify constants
-    all_weeks = list(range(1, 10))
-    train_weeks = list(range(1, 9))
-    val_weeks = [9]
-    features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
-    target_column = "pff_manZone"
+	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-    # Load data once
-    raw = RawDataLoader()
-    games_df, plays_df, players_df, _ = raw.get_data(weeks=all_weeks)
+	args = parse_args()
+	if args.profile:
+		set_time_decorators_enabled(True)
+		logging.info("Timing decorators enabled")
+	else:
+		set_time_decorators_enabled(False)
+		logging.info("Timing decorators disabled")
 
-    # Process each week
-    for w in all_weeks:
-        logging.info(f"Processing week: {w}")
+	all_weeks = list(range(1, 10))
+	train_weeks = list(range(1, 9))
+	val_weeks = [9]
+	features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
+	target_column = "pff_manZone"
 
-        # Load just this week’s location data
-        _, _, _, location_df_w = raw.get_data(weeks=[w])
+	raw = RawDataLoader()
+	games_df, plays_df, players_df, _ = raw.get_data(weeks=all_weeks)
 
-        # Process (cleaning, data augmentation, etc)
-        combined_loc_df_w = _process_df(location_df_w, plays_df, games_df)
+	for w in all_weeks:
+		logging.info(f"Processing week: {w}")
+		_, _, _, location_df_w = raw.get_data(weeks=[w])
 
-        # Keep the cols that we want to reduce memory
-        keep_cols = [
-            "frameUniqueId", "displayName", "frameId", "frameType",
-            "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam",
-            "pff_manZone", "defense"
-        ]
-        combined_loc_df_w = combined_loc_df_w[keep_cols].copy()
+		combined_loc_df_w = _process_df(location_df_w, plays_df, games_df)
 
-        # Downcast numeric columns before tensorization
-        for c in ["x_clean", "y_clean", "v_x", "v_y", "defense"]:
-            combined_loc_df_w[c] = pd.to_numeric(combined_loc_df_w[c], downcast="float")
+		keep_cols = ["frameUniqueId", "displayName", "frameId", "frameType", "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam", "pff_manZone", "defense"]
+		combined_loc_df_w = combined_loc_df_w[keep_cols].copy()
 
-        # Convert each frame to a tensor
-        features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
+		for c in ["x_clean", "y_clean", "v_x", "v_y", "defense"]:
+			combined_loc_df_w[c] = pd.to_numeric(combined_loc_df_w[c], downcast="float")
 
-        # Save per-week artifacts
-        torch.save(features_tensor_w,  SAVE_DIR / f"features_w{w}.pt")
-        torch.save(targets_tensor_w,  SAVE_DIR / f"targets_w{w}.pt")
+		features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
 
-        # Free memory for next loop
-        del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
-        gc.collect()
+		torch.save(features_tensor_w, PROCESSED_DIR / f"features_w{w}.pt")
+		torch.save(targets_tensor_w, PROCESSED_DIR / f"targets_w{w}.pt")
 
-    # Aggregrate train/val from saved weekly tensors
-    logging.info("Aggregrating training set (Week 1 through 8)")
-    train_features = _load_weeks(train_weeks, "features", SAVE_DIR)
-    train_targets  = _load_weeks(train_weeks, "targets", SAVE_DIR)
+		del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
+		gc.collect()
 
-    logging.info("Aggregrating validation set (Week 9)")
-    val_features = _load_weeks(val_weeks, "features", SAVE_DIR)
-    val_targets  = _load_weeks(val_weeks, "targets", SAVE_DIR)
+	logging.info("Aggregrating training set (Week 1 through 8)")
+	train_features = _load_weeks(train_weeks, "features", PROCESSED_DIR)
+	train_targets = _load_weeks(train_weeks, "targets", PROCESSED_DIR)
 
-    # Optional: ensure float32
-    train_features = train_features.to(torch.float32)
-    val_features   = val_features.to(torch.float32)
+	logging.info("Aggregrating validation set (Week 9)")
+	val_features = _load_weeks(val_weeks, "features", PROCESSED_DIR)
+	val_targets = _load_weeks(val_weeks, "targets", PROCESSED_DIR)
 
-    # Save pooled artifacts
-    torch.save(train_features, SAVE_DIR / "features_training.pt")
-    torch.save(train_targets, SAVE_DIR / "targets_training.pt")
-    torch.save(val_features, SAVE_DIR / "features_val.pt")
-    torch.save(val_targets, SAVE_DIR / "targets_val.pt")
+	train_features = train_features.to(torch.float32)
+	val_features = val_features.to(torch.float32)
 
-    logging.info("Train features: %s", getattr(train_features, "shape", None))
-    logging.info("Val features:   %s", getattr(val_features, "shape", None))
-    logging.info("Train targets:  %s", getattr(train_targets, "shape", None))
-    logging.info("Val targets:    %s", getattr(val_targets, "shape", None))
+	torch.save(train_features, PROCESSED_DIR / "features_training.pt")
+	torch.save(train_targets, PROCESSED_DIR / "targets_training.pt")
+	torch.save(val_features, PROCESSED_DIR / "features_val.pt")
+	torch.save(val_targets, PROCESSED_DIR / "targets_val.pt")
+
+	logging.info("Train features: %s", getattr(train_features, "shape", None))
+	logging.info("Val features:   %s", getattr(val_features, "shape", None))
+	logging.info("Train targets:  %s", getattr(train_targets, "shape", None))
+	logging.info("Val targets:    %s", getattr(val_targets, "shape", None))
 
 
 if __name__ == "__main__":
-  main()
+	main()

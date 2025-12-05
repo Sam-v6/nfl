@@ -33,14 +33,18 @@ dependencies = [
   "lightgbm>=4.6.0",
   "matplotlib>=3.10.6",
   "mlflow>=3.4.0",
+  "mypy>=1.19.0",
   "numpy>=2.3.3",
   "pandas>=2.3.2",
   "pip-tools>=7.5.0",
   "polars>=1.35.1",
+  "pre-commit>=4.5.0",
   "ray[train,tune]>=2.51.1",
+  "ruff>=0.14.7",
   "scikit-learn>=1.7.2",
   "seaborn>=0.13.2",
   "torch>=2.8.0",
+  "torchvision>=0.24.1",
   "tqdm>=4.67.1",
   "xgboost>=3.0.5",
 ]
@@ -51,3 +55,29 @@ myproject-cli = "myproject.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 200
+select = [
+  "E",   # general pep8 error rules (formatting)
+  "F",   # pyflakes (logica/correctness)
+  "B",   # bugbear (logic traps)
+  "I",   # isort-like import rules (import org)
+  "UP",  # pyupgrade (modern syntax)
+  "ANN", # type annotation rules
+]
+exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+ignore = [
+  "E203", # makes it compat with Black-style slicing
+  "E501", # ignore line length
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["nfl"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
