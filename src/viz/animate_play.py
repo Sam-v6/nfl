@@ -149,6 +149,6 @@ def animate_play(
 
 		return player_dots + arrows + labels + [time_text]
 
-	ani = FuncAnimation(fig, update, frames=frame_ids, init_func=init, blit=False, interval=100)
+	FuncAnimation(fig, update, frames=frame_ids, init_func=init, blit=False, interval=100)
 
 	plt.show()

@@ -25,7 +25,7 @@ SeriesDict = dict[PlayKey, np.ndarray]
 
 
 @time_fcn
-def filter_plays(plays_df: pd.DataFrame) -> pd.DataFrame:
+def filter_plays(plays_df: pd.DataFrame, location_data_df: pd.DataFrame) -> pd.DataFrame:
 	"""
 	Filters plays down to valid pass attempts with man/zone labels.
 
@@ -294,7 +294,7 @@ def _impute_timewise(X_np: np.ndarray) -> np.ndarray:
 
 
 @time_fcn
-def build_plays_data_numpy(off_series: SeriesDict, def_series: SeriesDict) -> tuple[list[np.ndarray], np.ndarray]:
+def build_plays_data_numpy(off_series: SeriesDict, def_series: SeriesDict, filtered_plays_df: pd.DataFrame) -> tuple[list[np.ndarray], np.ndarray]:
 	"""
 	Stacks offense/defense cubes into play-level tensors and builds labels.
 
@@ -499,7 +499,7 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
 	y_train = y_np[idx_train]  # Slice to the training fold
 	classes = np.array([0, 1], dtype=int)  # 0=Zone, 1=Man
 	w = compute_class_weight(class_weight="balanced", classes=classes, y=y_train)
-	logger.info("Class weights (Zone, Man): %s", w)
+	logging.info("Class weights (Zone, Man): %s", w)
 	class_weights = torch.tensor(w, dtype=torch.float32, device=device)
 	criterion = nn.CrossEntropyLoss(weight=class_weights)
 
@@ -538,7 +538,7 @@ def train_model(train_loader: DataLoader, val_loader: DataLoader, y_np: np.ndarr
 		tuned = tune_threshold_for_precision(y_true_val, y_prob_val, min_recall=set_min_recall, beta=0.5)
 
 		# Report at tuned threshold
-		stats_tuned = report_at_threshold(y_true_val, y_prob_val, thr=tuned["thr"], beta=0.5)
+		# stats_tuned = report_at_threshold(y_true_val, y_prob_val, thr=tuned["thr"], beta=0.5) #TODO: Not used
 		logging.info(f"[epoch {epoch + 1}] Tuned thr={tuned['thr']:.3f} | Man P={tuned['man_prec']:.2f} R={tuned['man_rec']:.2f}")
 
 		# Early-stop on best Man precision-at-tuned-threshold
@@ -634,7 +634,6 @@ def main() -> None:
 	"""
 	# Configure basic logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-	logger = logging.getLogger(__name__)
 
 	# Get raw data
 	from common.data_loader import RawDataLoader
@@ -643,7 +642,7 @@ def main() -> None:
 	games_df, plays_df, players_df, location_data_df = loader.get_data(weeks=[week for week in range(1, 10)])
 
 	# Filter data
-	filtered_plays_df = filter_plays(plays_df)
+	filtered_plays_df = filter_plays(plays_df, location_data_df)
 
 	# Create merged df
 	merged_df = create_merged_df(location_data_df, filtered_plays_df)
@@ -652,7 +651,7 @@ def main() -> None:
 	off_series, def_series = build_frame_data(merged_df)
 
 	# Impute data and convert to numpy
-	X_np, y_np = build_plays_data_numpy(off_series, def_series)
+	X_np, y_np = build_plays_data_numpy(off_series, def_series, filtered_plays_df)
 
 	# Create dataloaders
 	train_loader, val_loader, idx_train = create_dataloaders(X_np, y_np)

@@ -265,7 +265,7 @@ def train_xgb(
 	try:
 		# Just grab a few vals which is sufficient for artifacts
 		X_example = x_train[:5]
-		y_example = y_train[:5]  # TODO: Not used
+		# y_example = y_train[:5]  # TODO: Not used
 		sig = mlflow.models.infer_signature(X_example, model.predict_proba(X_example))
 		mlflow.sklearn.log_model(sk_model=model, artifact_path="model_relogged", signature=sig, input_example=X_example)
 	except Exception as e:

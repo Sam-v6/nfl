@@ -8,10 +8,9 @@ import functools
 import logging
 import time
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import ParamSpec
 
 _TIME_DECORATORS_ENABLED = False
-T = TypeVar("T")
 
 
 def set_time_decorators_enabled(enabled: bool) -> None:
@@ -28,7 +27,10 @@ def set_time_decorators_enabled(enabled: bool) -> None:
 	_TIME_DECORATORS_ENABLED = enabled
 
 
-def time_fcn(fn: Callable[..., T]) -> Callable[..., T]:
+P = ParamSpec("P")
+
+
+def time_fcn[T](fn: Callable[P, T]) -> Callable[P, T]:
 	"""
 	Wraps a function to log its wall-clock runtime when enabled.
 
@@ -40,7 +42,7 @@ def time_fcn(fn: Callable[..., T]) -> Callable[..., T]:
 	"""
 
 	@functools.wraps(fn)
-	def wrapper(*args: Any, **kwargs: Any) -> T:
+	def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
 		# Fast exit when disabled (minimal overhead)
 		if not _TIME_DECORATORS_ENABLED:
 			return fn(*args, **kwargs)
