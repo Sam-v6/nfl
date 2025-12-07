@@ -122,9 +122,6 @@ uv run src/train_transformer.py --tune
 uv run src/generate_predictions.py
 
 # From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
-
-# If you would like to time and of the runs you can append --profile, for example
-uv run src/train_transformer.py --profile
 ```
 
 ## Activating MLflow
@@ -143,6 +140,23 @@ mlflow ui \
 The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000. Viewing MLflow will look something like this (note our results are after a 500 trial hyper-parameter optimization run with Ray Tune)
 
 ![mlflow_tune](./docs/images/mlflow_tune.png)
+
+## Profiling Training and Inference
+The PyTorch profiler is used for examining the training process and run time inference.
+
+You can profile the training process with:
+```bash
+uv run src/train_transformer --profile
+```
+
+This will do three things:
+1) Give timing results for each function call through the decorators `time_fcn`
+2) Summarize the top CPU operations and GPU operations for training
+3) Output `log/profiler/trace.json` which can be loaded into https://ui.perfetto.dev/ to view the timeline of training
+
+An example of the timeline view (with the `trace.json` loaded into perfetto) is shown below:
+
+![profile](./docs/images/profiler_perfetto.png)
 
 # Contributing
 
