@@ -189,8 +189,8 @@ output/**/*.txt
 mlruns/
 mlflow.db
 
-# Ray
-ray_results/
+# Ray and profiler
+log
 
 # Artifacts
 *.pkl
