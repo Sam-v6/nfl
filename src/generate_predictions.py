@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import torch
-from torch.profiler import ProfilerActivity
+from torch.profiler import ProfilerActivity, profile, record_function
 
 from clean_data import calculate_velocity_components, label_offense_defense_manzone, make_plays_left_to_right, pass_attempt_merging, rotate_direction_and_orientation
 from common.args import parse_args
@@ -20,6 +20,8 @@ from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
 from models.transformer import create_transformer_model
+
+# ... at top of file you already import ProfilerActivity, so just add record_function, schedule if needed.
 
 
 def process_week_data_preds(week_number: int, plays: pd.DataFrame) -> pd.DataFrame:
@@ -100,6 +102,62 @@ def prepare_tensor(play: pd.DataFrame) -> torch.Tensor:
 	all_frames_tensor = torch.tensor(all_frames_tensor, dtype=torch.float32)
 
 	return all_frames_tensor  # Shape: [num_frames, num_players, num_features]
+
+
+def profile_inference(model: torch.nn.Module, device: torch.device) -> None:
+	"""
+	Profiles inference of a single frame using a saved example tensor.
+
+	Inputs:
+	- model: The transformer model to profile.
+	- device: The device to run the model on.
+
+	Outputs:
+	- Saved trace_inference.json file in log/profiler/ to visualize in Chrome/Perfetto.
+	"""
+
+	example_path = PROJECT_ROOT / "data" / "inference" / "example_frame_tensor.pt"
+	if example_path.exists():
+		frame_tensor = torch.load(example_path).to(device)
+
+		# Warmup to trigger torch.compile JIT and CUDA autotuning outside profiler
+		with torch.no_grad():
+			for _ in range(5):
+				_ = model(frame_tensor)
+
+		log_dir = PROJECT_ROOT / "log" / "profiler"
+		log_dir.mkdir(parents=True, exist_ok=True)
+		trace_path = log_dir / "trace_inference.json"
+
+		# Setup profiler
+		activities = [ProfilerActivity.CPU, ProfilerActivity.CUDA]
+		with (
+			torch.no_grad(),
+			profile(
+				activities=activities,
+				record_shapes=True,
+				profile_memory=True,
+				with_stack=True,
+			) as prof,
+		):
+			# Run several inferences to get stable averages
+			for _ in range(20):
+				with record_function("inference_step"):
+					_ = model(frame_tensor)
+
+		print("Top CPU ops (inference):")
+		print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=30))
+		print("Top CUDA ops (inference):")
+		print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
+
+		# Save Chrome/Perfetto trace
+		prof.export_chrome_trace(str(trace_path))
+		print(f"Inference trace saved to: {trace_path}")
+
+		# Early return so we don't also run the full weekly loop when profiling
+		return
+	else:
+		logging.warning("args.profile is set, but example_frame_tensor.pt not found. Run once without profiling to generate it.")
 
 
 @time_fcn
@@ -234,6 +292,10 @@ def main() -> None:
 		import gc
 
 		gc.collect()
+
+	# If profiling flag is set, run profiler
+	if args.profile:
+		profile_inference(model, device)
 
 
 if __name__ == "__main__":

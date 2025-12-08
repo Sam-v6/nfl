@@ -19,6 +19,7 @@ from ray.air.integrations.mlflow import MLflowLoggerCallback
 from ray.tune import FailureConfig, RunConfig, TuneConfig, Tuner
 from ray.tune.schedulers import ASHAScheduler
 from torch.amp import autocast
+from torch.profiler import ProfilerActivity, profile, record_function, schedule
 from torch.utils.data import DataLoader, TensorDataset
 
 from common.args import parse_args
@@ -62,8 +63,23 @@ def set_seed(seed: int = 42) -> torch.Generator:
 	return g
 
 
+def forward_backpropagate_optimize_step(amp_dtype: torch.dtype, model: nn.Module, features: torch.Tensor, targets: torch.Tensor, loss_fn: nn.Module, optimizer: torch.optim.Optimizer) -> torch.Tensor:
+	# For forward pass, allow mixed precision for speed in some operations
+	# NOTE: PyTorch keeps some sensitive ops in FP32 for stability
+	with autocast(device_type="cuda", dtype=amp_dtype):
+		outputs = model(features)
+		loss = loss_fn(outputs, targets)
+
+	# Backpropagate and optimize
+	# NOTE: We don't want the gradients in less than FP32, PyTorch would handle this for us but being explicit
+	loss.backward()
+	optimizer.step()
+
+	return loss
+
+
 @time_fcn
-def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, device: torch.device, amp_dtype: torch.dtype) -> float:
+def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.optim.Optimizer, loss_fn: nn.Module, device: torch.device, amp_dtype: torch.dtype, prof: profile) -> float:
 	"""
 	Runs one training epoch over the provided dataloader.
 
@@ -90,16 +106,13 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 		# Zero gradients
 		optimizer.zero_grad(set_to_none=True)
 
-		# For forward pass, allow mixed precision for speed in some operations
-		# NOTE: PyTorch keeps some sensitive ops in FP32 for stability
-		with autocast(device_type="cuda", dtype=amp_dtype):
-			outputs = model(features)
-			loss = loss_fn(outputs, targets)
-
-		# Backpropagate and optimize
-		# NOTE: We don't want the gradients in less than FP32, PyTorch would handle this for us but being explicit
-		loss.backward()
-		optimizer.step()
+		# Profiled training step
+		if prof:
+			with record_function("train_step"):
+				loss = forward_backpropagate_optimize_step(amp_dtype, model, features, targets, loss_fn, optimizer)
+			prof.step()
+		else:
+			loss = forward_backpropagate_optimize_step(amp_dtype, model, features, targets, loss_fn, optimizer)
 
 		# Record running loss
 		running_loss += loss.detach().item() * features.size(0)
@@ -238,6 +251,28 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	)
 
 	######################################################################
+	# Create profiler
+	######################################################################
+	if args.profile:
+		log_path = PROJECT_ROOT / "log" / "profiler"
+		log_path.mkdir(parents=True, exist_ok=True)
+		prof = profile(
+			activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+			schedule=schedule(
+				wait=1,  # ignore first step (cold start)
+				warmup=1,  # record but don't save
+				active=3,  # record + save 3 steps
+				repeat=2,  # repeat that pattern
+			),
+			record_shapes=True,
+			profile_memory=True,
+			with_stack=True,
+		)
+		prof.start()
+	else:
+		prof = None
+
+	######################################################################
 	# Train model (and evaluate)
 	######################################################################
 	# Init
@@ -252,9 +287,10 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	if args.ci:
 		config["epochs"] = 5
 
+	# Training loop
 	for epoch in range(int(config["epochs"])):
 		# Train
-		avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype)
+		avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype, prof)
 		train_losses.append(avg_train_loss)
 
 		# Validate
@@ -292,6 +328,15 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 				if epochs_no_improve >= early_stopping_patience:
 					logging.info("Early stopping triggered")
 					break
+
+	# Stop profiler
+	if prof:
+		prof.stop()
+		print("Top CPU ops:")
+		print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=30))
+		print("Top GPU (CUDA kernel) ops:")
+		print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
+		prof.export_chrome_trace(str(log_path / "trace_training.json"))
 
 
 @time_fcn
