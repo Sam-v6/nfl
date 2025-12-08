@@ -336,7 +336,7 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=30))
 		print("Top GPU (CUDA kernel) ops:")
 		print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=30))
-		prof.export_chrome_trace(str(log_path / "trace.json"))
+		prof.export_chrome_trace(str(log_path / "trace_training.json"))
 
 
 @time_fcn

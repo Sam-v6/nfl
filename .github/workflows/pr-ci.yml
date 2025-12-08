@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-model-training:
+  test-model-training-and-prediction-generation:
     # Only run on:
     # - push
     # - PRs where the branch lives in this repo (not a fork)
@@ -23,7 +23,7 @@ jobs:
     # Self hosted runner
     runs-on: [self-hosted]
 
-    # The runner is self hosted on my machine, so this data path will be guarenteed to have this data path
+    # The runner is self hosted on my machine, so this data path will be guaranteed to have this data path
     env:
       CI_DATA_ROOT: /home/sam/repos/hobby-repos/nfl/data/parquet
 
@@ -42,11 +42,11 @@ jobs:
       - name: Test feature creation
         run: uv run src/create_features.py --profile
 
-        # This will output model_params.json
+        # This will output model_params.json (--ci only runs 5 epochs for a single trial)
       - name: Test ray hyperparameter tuning
         run: uv run src/train_transformer.py --tune --ci
 
-        # This will use model_params.json to create best_model.pth
+        # This will use model_params.json to create transformer.pt (--ci only runs 5 epochs)
       - name: Test transformer training
         run: uv run src/train_transformer.py --profile --ci
 
