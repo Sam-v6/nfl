@@ -85,12 +85,12 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
 	return combined_location_df
 
 
-def _load_weeks(weeks: Sequence[int], prefix: str, PROCESSED_DIR: Path) -> torch.Tensor:
+def _load_weeks(prefix_seasons_weeks: dict[str, Sequence[int]], prefix: str, PROCESSED_DIR: Path) -> torch.Tensor:
 	"""
 	Loads and concatenates saved tensors for a set of weeks.
 
 	Inputs:
-	- weeks: Week numbers to pull from disk.
+	- prefix_seasons_weeks: map that contains season as key and the weeks in a list as the values.
 	- prefix: Base filename prefix (e.g., 'features').
 	- PROCESSED_DIR: Directory where tensors are stored.
 
@@ -98,7 +98,10 @@ def _load_weeks(weeks: Sequence[int], prefix: str, PROCESSED_DIR: Path) -> torch
 	- tensor: Concatenated tensor spanning the requested weeks.
 	"""
 
-	tensors = [torch.load(PROCESSED_DIR / f"{prefix}_w{w}.pt") for w in weeks]
+	tensors = []
+	for s in prefix_seasons_weeks.keys():
+		for w in prefix_seasons_weeks[s]:
+			tensors.append(torch.load(PROCESSED_DIR / f"s{s}_w{w}_{prefix}.pt"))
 	return torch.cat(tensors, dim=0) if len(tensors) > 1 else tensors[0]
 
 
@@ -114,8 +117,10 @@ def main() -> None:
 	- Serialized feature and target tensors for training and validation weeks.
 	"""
 
+	# Enable logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+	# Parse command line args
 	args = parse_args()
 	if args.profile:
 		set_time_decorators_enabled(True)
@@ -124,42 +129,48 @@ def main() -> None:
 		set_time_decorators_enabled(False)
 		logging.info("Timing decorators disabled")
 
-	all_weeks = list(range(1, 10))
-	train_weeks = list(range(1, 9))
-	val_weeks = [9]
+	# Define training/validation
+	seasons_weeks = {"2021": range(1, 9), "2022": range(1, 10)}
+
+	# Features and target defintions
 	features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
 	target_column = "pff_manZone"
 
+	# Create dataloader and get the main data
 	raw = RawDataLoader()
-	games_df, plays_df, players_df, _ = raw.get_data(weeks=all_weeks)
+	games_df, plays_df, players_df = raw.get_base_data()
 
-	for w in all_weeks:
-		logging.info(f"Processing week: {w}")
-		_, _, _, location_df_w = raw.get_data(weeks=[w])
+	for s in seasons_weeks.keys():
+		for w in seasons_weeks[s]:
+			logging.info(f"Processing week: {w}")
+			location_df_w = raw.get_tracking_data(weeks=[w], seasons=[s])
+			combined_loc_df_w = _process_df(location_df_w, plays_df, games_df)
 
-		combined_loc_df_w = _process_df(location_df_w, plays_df, games_df)
+			keep_cols = ["frameUniqueId", "displayName", "frameId", "frameType", "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam", "pff_manZone", "defense"]
+			combined_loc_df_w = combined_loc_df_w[keep_cols].copy()
 
-		keep_cols = ["frameUniqueId", "displayName", "frameId", "frameType", "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam", "pff_manZone", "defense"]
-		combined_loc_df_w = combined_loc_df_w[keep_cols].copy()
+			for c in ["x_clean", "y_clean", "v_x", "v_y", "defense"]:
+				combined_loc_df_w[c] = pd.to_numeric(combined_loc_df_w[c], downcast="float")
 
-		for c in ["x_clean", "y_clean", "v_x", "v_y", "defense"]:
-			combined_loc_df_w[c] = pd.to_numeric(combined_loc_df_w[c], downcast="float")
+			features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
 
-		features_tensor_w, targets_tensor_w = prepare_frame_data(combined_loc_df_w, features=features, target_column=target_column)
+			torch.save(features_tensor_w, PROCESSED_DIR / f"s{s}_w{w}_features.pt")
+			torch.save(targets_tensor_w, PROCESSED_DIR / f"s{s}_w{w}_targets.pt")
 
-		torch.save(features_tensor_w, PROCESSED_DIR / f"features_w{w}.pt")
-		torch.save(targets_tensor_w, PROCESSED_DIR / f"targets_w{w}.pt")
+			del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
+			gc.collect()
 
-		del location_df_w, combined_loc_df_w, features_tensor_w, targets_tensor_w
-		gc.collect()
+	# Splitting out training and validation
+	train_seasons_weeks = {"2021": range(1, 9), "2022": range(1, 9)}
+	val_seasons_weeks = {"2022": [9]}
 
-	logging.info("Aggregrating training set (Week 1 through 8)")
-	train_features = _load_weeks(train_weeks, "features", PROCESSED_DIR)
-	train_targets = _load_weeks(train_weeks, "targets", PROCESSED_DIR)
+	logging.info("Aggregrating training set")
+	train_features = _load_weeks(train_seasons_weeks, "features", PROCESSED_DIR)
+	train_targets = _load_weeks(train_seasons_weeks, "targets", PROCESSED_DIR)
 
-	logging.info("Aggregrating validation set (Week 9)")
-	val_features = _load_weeks(val_weeks, "features", PROCESSED_DIR)
-	val_targets = _load_weeks(val_weeks, "targets", PROCESSED_DIR)
+	logging.info("Aggregrating validation set")
+	val_features = _load_weeks(val_seasons_weeks, "features", PROCESSED_DIR)
+	val_targets = _load_weeks(val_seasons_weeks, "targets", PROCESSED_DIR)
 
 	train_features = train_features.to(torch.float32)
 	val_features = val_features.to(torch.float32)
