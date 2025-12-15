@@ -48,13 +48,14 @@ def clean_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, game_df: pd.Data
 	location_df = label_offense_defense_manzone(location_df, plays_df)
 
 	location_df = location_df[(location_df["club"] != "football") & (location_df["passAttempt"] == 1)]
-
 	location_df = location_df.merge(game_df[["gameId", "week"]], on="gameId", how="left")
 
 	location_df["uniqueId"] = location_df["gameId"].astype(str) + "_" + location_df["playId"].astype(str)
+
 	location_df["frameUniqueId"] = location_df["gameId"].astype(str) + "_" + location_df["playId"].astype(str) + "_" + location_df["frameId"].astype(str)
 
 	location_df = add_frames_from_snap(location_df)
+
 	location_df = location_df[(location_df["frames_from_snap"] >= -150) & (location_df["frames_from_snap"] <= 50)]
 
 	return location_df
@@ -75,11 +76,8 @@ def _process_df(location_df: pd.DataFrame, plays_df: pd.DataFrame, games_df: pd.
 
 	location_df = clean_df(location_df, plays_df, games_df)
 	location_df = location_df[location_df["frameId"] % 2 == 0]
-
-	num_unique_frames = len(set(location_df["frameUniqueId"]))
-	selected_frames = select_augmented_frames(location_df, int(num_unique_frames / 3), sigma=5)
+	selected_frames = select_augmented_frames(location_df, sigma=5)
 	augmented_location_df = data_augmentation(location_df, selected_frames)
-
 	combined_location_df = pd.concat([location_df, augmented_location_df])
 
 	return combined_location_df
@@ -130,7 +128,7 @@ def main() -> None:
 		logging.info("Timing decorators disabled")
 
 	# Define training/validation
-	seasons_weeks = {"2021": range(1, 9), "2022": range(1, 10)}
+	seasons_weeks = {2021: range(1, 9), 2022: range(1, 10)}
 
 	# Features and target defintions
 	features = ["x_clean", "y_clean", "v_x", "v_y", "defense"]
@@ -142,11 +140,11 @@ def main() -> None:
 
 	for s in seasons_weeks.keys():
 		for w in seasons_weeks[s]:
-			logging.info(f"Processing week: {w}")
+			logging.info(f"Processing season {s}, week: {w}")
 			location_df_w = raw.get_tracking_data(weeks=[w], seasons=[s])
 			combined_loc_df_w = _process_df(location_df_w, plays_df, games_df)
 
-			keep_cols = ["frameUniqueId", "displayName", "frameId", "frameType", "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam", "pff_manZone", "defense"]
+			keep_cols = ["frameUniqueId", "frameId", "x_clean", "y_clean", "v_x", "v_y", "defensiveTeam", "pff_manZone", "defense"]
 			combined_loc_df_w = combined_loc_df_w[keep_cols].copy()
 
 			for c in ["x_clean", "y_clean", "v_x", "v_y", "defense"]:

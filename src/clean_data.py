@@ -256,27 +256,62 @@ def prepare_frame_data(df: pd.DataFrame, features: Sequence[str], target_column:
 	return features_tensor, targets_tensor
 
 
-def select_augmented_frames(df: pd.DataFrame, num_samples: int, sigma: int = 5) -> np.ndarray:
+def select_augmented_frames(df: pd.DataFrame, sigma: int = 5) -> np.ndarray:
 	"""
 	Samples frames for augmentation, biased around the snap.
 
 	Inputs:
 	- df: Tracking rows with frame identifiers and snap offsets.
-	- num_samples: Number of frame identifiers to sample.
 	- sigma: Spread of the snap-centered weighting.
 
 	Outputs:
 	- selected_frames: Array of frameUniqueId values to augment.
 	"""
 
-	df_frames = df[["frameUniqueId", "frames_from_snap"]].drop_duplicates()
-	weights = np.exp(-((df_frames["frames_from_snap"] + 10) ** 2) / (2 * sigma**2))
+	df_frames = (
+		df[["frameUniqueId", "frames_from_snap"]]
+		.dropna(subset=["frameUniqueId", "frames_from_snap"])
+		.drop_duplicates(subset=["frameUniqueId"])  # one row per frame id (critical)
+		.reset_index(drop=True)
+	)
 
-	weights /= weights.sum()
+	n = len(df_frames)
+	if n == 0:
+		raise ValueError("select_augmented_frames: no valid frames after dropna/dedup")
 
-	selected_frames = np.random.choice(df_frames["frameUniqueId"], size=num_samples, replace=False, p=weights)
+	# sample size based on the actual candidate pool
+	num_samples = n // 3
+	if num_samples <= 0:
+		raise ValueError(f"select_augmented_frames: num_samples={num_samples} from n={n}")
 
-	return selected_frames
+	x = df_frames["frames_from_snap"].to_numpy(dtype=np.float64)
+	sigma = float(sigma)
+
+	weights = np.exp(-((x + 10.0) ** 2) / (2.0 * sigma**2))
+
+	# Validate weights BEFORE normalization
+	if not np.isfinite(weights).all():
+		bad = np.sum(~np.isfinite(weights))
+		raise ValueError(f"select_augmented_frames: weights contain non-finite values (count={bad})")
+
+	s = weights.sum()
+	if not np.isfinite(s) or s <= 0:
+		raise ValueError(f"select_augmented_frames: bad weights sum={s}")
+
+	weights = weights / s
+
+	# Final probability sanity checks
+	if (weights < 0).any():
+		raise ValueError("select_augmented_frames: weights contain negative values after normalization")
+	# (Optional strictness)
+	# if not np.isclose(weights.sum(), 1.0):
+	#     raise ValueError(f"select_augmented_frames: weights not normalized, sum={weights.sum()}")
+
+	frame_ids = df_frames["frameUniqueId"].to_numpy()
+	if num_samples > len(frame_ids):
+		raise ValueError(f"select_augmented_frames: num_samples={num_samples} > candidates={len(frame_ids)}")
+
+	return np.random.choice(frame_ids, size=num_samples, replace=False, p=weights)
 
 
 def data_augmentation(df: pd.DataFrame, augmented_frames: Iterable[str]) -> pd.DataFrame:
@@ -313,7 +348,7 @@ def add_frames_from_snap(df: pd.DataFrame) -> pd.DataFrame:
 	- df_with_offsets: Dataframe including frames_from_snap column.
 	"""
 
-	snap_frames = df[df["frameType"] == "SNAP"].groupby("uniqueId")["frameId"].first()
+	snap_frames = df[df["event"] == "ball_snap"].groupby("uniqueId")["frameId"].first()
 	df = df.merge(snap_frames.rename("snap_frame"), on="uniqueId", how="left")
 	df["frames_from_snap"] = df["frameId"] - df["snap_frame"]
 

@@ -79,6 +79,7 @@ class RawDataLoader:
 
 		plays_2021_df = self._load_parquet(self.DATA_PATH / "2021" / "plays.parquet")
 		plays_2021_df["season"] = 2021
+		plays_2021_df["pff_manZone"] = plays_2021_df["pff_passCoverageType"]
 		plays_2022_df = self._load_parquet(self.DATA_PATH / "2022" / "plays.parquet")
 		plays_2022_df["season"] = 2022
 		self.plays_df = pd.concat([plays_2021_df, plays_2022_df], ignore_index=True)
@@ -95,12 +96,15 @@ class RawDataLoader:
 		"""
 
 		weekly_dfs = []
-
 		for season in seasons:
 			for week in weeks:
 				filepath = self.DATA_PATH / f"{season}" / f"tracking_week_{week}.parquet"
 				df = self._load_parquet(filepath)
 				df["season"] = season
+
+				# 2021 data doesn't have club which we use in processing, assign that to team
+				if season == 2021:
+					df["club"] = df["team"]
 				if df is not None:
 					weekly_dfs.append(df)
 				else:
