@@ -279,9 +279,7 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	train_losses = []
 	val_losses = []
 	val_accuracies = []
-	early_stopping_patience = 20
 	best_val_loss = float("inf")
-	epochs_no_improve = 0
 
 	# If running in CI mode, reduce epochs for speed, we just want to ensure it can actually train, not train a whole model in testing here (for pipelines later)
 	if args.ci:
@@ -317,17 +315,11 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 			val_losses.append(avg_val_loss)
 			val_accuracies.append(val_accuracy)
 
-			# Adding early stopping check (effort to prevent overfitting)
+			# Update saved model
 			best_model_path = PROJECT_ROOT / "data" / "training" / "transformer.pt"
 			if avg_val_loss < best_val_loss:
 				best_val_loss = avg_val_loss
-				epochs_no_improve = 0
 				torch.save(model.state_dict(), best_model_path)
-			else:
-				epochs_no_improve += 1
-				if epochs_no_improve >= early_stopping_patience:
-					logging.info("Early stopping triggered")
-					break
 
 	# Stop profiler
 	if prof:

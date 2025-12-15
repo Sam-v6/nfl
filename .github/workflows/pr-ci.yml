@@ -50,6 +50,10 @@ jobs:
       - name: Test transformer training
         run: uv run src/train_transformer.py --profile --ci
 
-        # This will use best_model.pth for inference
+        # This will use transformer.pt for inference, will make predictions for all of week 9
       - name: Test prediction generation
         run: uv run src/generate_predictions.py --profile
+
+        # This will use the predictions saved as parquet in stage above, only 1 plot, one animated play, and one confusion matrix is created
+      - name: Test process predictions
+        run: uv run src/process_predictions.py --profile --ci

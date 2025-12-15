@@ -79,6 +79,22 @@ git lfs pull
 ```
 
 This will fully populate `nfl/parquet/*` with:
+
+`2021/`:
+- `games.parquet`
+- `pffScoutingData.parquet`
+- `players.parquet`
+- `plays.parquet`
+- `tracking_week_1.parquet`
+- `tracking_week_2.parquet`
+- `tracking_week_3.parquet`
+- `tracking_week_4.parquet`
+- `tracking_week_5.parquet`
+- `tracking_week_6.parquet`
+- `tracking_week_7.parquet`
+- `tracking_week_8.parquet`
+
+`2022/`:
 - `games.parquet`
 - `player_play.parquet`
 - `players.parquet`
@@ -92,7 +108,6 @@ This will fully populate `nfl/parquet/*` with:
 - `tracking_week_7.parquet`
 - `tracking_week_8.parquet`
 - `tracking_week_9.parquet`
-
 
 ## Setup python virtual environment
 This project uses `uv` for managing the python virtual environment. To install uv please see the official [documentation](https://docs.astral.sh/uv/getting-started/installation/) or install via CLI below:
@@ -119,9 +134,10 @@ uv run src/train_transformer.py
 uv run src/train_transformer.py --tune
 
 # Run inference on week 9
-uv run src/generate_predictions.py
+uv run src/generate_predictions.py 
 
-# From this point you can explore the notebooks/predictions.ipynb, adjust the data path as neccesary and see the animations and plots
+# Create artifacts (plot on accuracy for week 9, classification report, and animations of plays)
+uv run src/process_predictions.py
 ```
 
 ## Activating MLflow
@@ -144,11 +160,19 @@ The last command will start the MLflow GUI at your local host loopback on port 5
 ## Profiler
 The PyTorch profiler is used for examining the training process and run time inference.
 
+### Miscellaneous Profiling
+You can profile any core scripts with:
+```bash
+# Generic profiling (uses the decorators to shown time the fcns take)
+uv run src/the_script.py --profile
+
+```
 
 ### Profiling Training
+
 You can profile the training process with:
 ```bash
-uv run src/train_transformer --profile
+uv run src/train_transformer.py --profile
 ```
 
 This will do three things:
@@ -363,11 +387,8 @@ Note, if you followed instructions above to setup the git hook, ruff will run th
   - See if I can build a model to determine blitzer like red circle AWS at post snap
   - Add in confusion matrix, ROC curve, and prediction post snap accuracy to automatic predictions and not just in notebook
 - Infra
-  - Profiler
-    - Add in PyTorch profiler with new tensorboard (new thing, this is deprecated) traces into Chrome UI, built into CI for profiler
   - Optimization
     - Switch to flash attention layer which can accelerate training
   - General
     - Get docker working and implemented in CI
-    - Add git hook for ruff fix
     - Look back on mypy for type

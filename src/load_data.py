@@ -37,6 +37,8 @@ class RawDataLoader:
 		self.players_df = None
 		self.location_data_df = None
 
+		self._load_base_data()
+
 	def _load_parquet(self, filepath: Path) -> pd.DataFrame | None:
 		"""
 		Loads a parquet file with basic error handling.
@@ -56,7 +58,7 @@ class RawDataLoader:
 
 	def _load_base_data(self) -> None:
 		"""
-		Pulls games, plays, and players tables into memory.
+		Concats 2021 and 2022 base data files: games, plays, players into a single dataframe that has a new season column.
 
 		Inputs:
 		- None.
@@ -65,11 +67,24 @@ class RawDataLoader:
 		- Populates internal DataFrame attributes.
 		"""
 
-		self.games_df = self._load_parquet(self.DATA_PATH / "games.parquet")
-		self.plays_df = self._load_parquet(self.DATA_PATH / "plays.parquet")
-		self.players_df = self._load_parquet(self.DATA_PATH / "players.parquet")
+		games_2021_df = self._load_parquet(self.DATA_PATH / "2021" / "games.parquet")
+		games_2022_df = self._load_parquet(self.DATA_PATH / "2022" / "games.parquet")
+		self.games_df = pd.concat([games_2021_df, games_2022_df], ignore_index=True)
 
-	def _load_tracking_data(self, weeks: Iterable[int]) -> None:
+		players_2021_df = self._load_parquet(self.DATA_PATH / "2021" / "players.parquet")
+		players_2021_df["season"] = 2021
+		players_2022_df = self._load_parquet(self.DATA_PATH / "2022" / "players.parquet")
+		players_2022_df["season"] = 2022
+		self.players_df = pd.concat([players_2021_df, players_2022_df], ignore_index=True)
+
+		plays_2021_df = self._load_parquet(self.DATA_PATH / "2021" / "plays.parquet")
+		plays_2021_df["season"] = 2021
+		plays_2021_df["pff_manZone"] = plays_2021_df["pff_passCoverageType"]
+		plays_2022_df = self._load_parquet(self.DATA_PATH / "2022" / "plays.parquet")
+		plays_2022_df["season"] = 2022
+		self.plays_df = pd.concat([plays_2021_df, plays_2022_df], ignore_index=True)
+
+	def _load_tracking_data(self, weeks: list[int], seasons: list[int]) -> None:
 		"""
 		Loads weekly tracking parquet files and concatenates them.
 
@@ -81,18 +96,38 @@ class RawDataLoader:
 		"""
 
 		weekly_dfs = []
+		for season in seasons:
+			for week in weeks:
+				filepath = self.DATA_PATH / f"{season}" / f"tracking_week_{week}.parquet"
+				df = self._load_parquet(filepath)
+				df["season"] = season
 
-		for week in weeks:
-			filepath = self.DATA_PATH / f"tracking_week_{week}.parquet"
-			df = self._load_parquet(filepath)
-			if df is not None:
-				weekly_dfs.append(df)
-			else:
-				print(f"Skipping week {week} due to load error.")
+				# 2021 data doesn't have club which we use in processing, assign that to team
+				if season == 2021:
+					df["club"] = df["team"]
+				if df is not None:
+					weekly_dfs.append(df)
+				else:
+					print(f"Skipping week {week} due to load error.")
 
 		self.location_data_df = pd.concat(weekly_dfs, ignore_index=True)
 
-	def get_data(self, weeks: Iterable[int] = range(1, 10)) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+	def get_base_data(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+		"""
+		Returns concataned games_df, players_df, plays_df across two seasons
+
+		Inputs:
+		- None
+
+		Outputs:
+		- games_df, plays_df, plays_df, players_df in that order.
+		"""
+
+		self._load_base_data()
+
+		return (self.games_df, self.plays_df, self.players_df)
+
+	def get_tracking_data(self, weeks: Iterable[int] = range(1, 10), seasons: Iterable[int] = [2021, 2022]) -> pd.DataFrame:
 		"""
 		Loads requested datasets and returns them as a tuple.
 
@@ -103,10 +138,9 @@ class RawDataLoader:
 		- games_df, plays_df, players_df, location_data_df in that order.
 		"""
 
-		self._load_base_data()
-		self._load_tracking_data(weeks=weeks)
+		self._load_tracking_data(weeks=weeks, seasons=seasons)
 
-		return (self.games_df, self.plays_df, self.players_df, self.location_data_df)
+		return self.location_data_df
 
 
 def main() -> None:
@@ -121,7 +155,9 @@ def main() -> None:
 	"""
 
 	loader = RawDataLoader()
-	games_df, plays_df, players_df, location_data_df = loader.get_data(weeks=[1, 2])
+	games_df, plays_df, players_df = loader.get_base_data()
+	tracking_df = loader.get_tracking_data(weeks=[1, 2])
+	print(tracking_df.head())
 
 
 if __name__ == "__main__":
