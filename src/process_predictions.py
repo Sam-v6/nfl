@@ -3,12 +3,15 @@
 Processes predictions to create various plots and animations to interpret model results.
 """
 
+import logging
+
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
+from common.args import parse_args
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
 
@@ -215,6 +218,12 @@ def main() -> None:
 	- None.
 	"""
 
+	# Set logging
+	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+	# Get input args
+	args = parse_args()
+
 	# Make the articats
 	ARTIFACT_PATH = PROJECT_ROOT / "artifacts"
 	ARTIFACT_PATH.mkdir(parents=True, exist_ok=True)
@@ -246,7 +255,11 @@ def main() -> None:
 	merged_df = predictions_df.merge(plays_df, on=["gameId", "playId"], how="left")
 
 	# Create animations
-	for _, row in top_plays_df.iterrows():
+	for idx, row in top_plays_df.iterrows():
+		# Only make one plot if it's CI
+		if args.ci and idx > 1:
+			break
+
 		play = merged_df[(merged_df["playId"] == row["playId"]) & (merged_df["gameId"] == row["gameId"])]
 		if play["passResult"].values[0] == "C":
 			print(f"gameId: {play['gameId'].iloc[0]}, playId: {play['playId'].iloc[0]}, Q: {play['quarter'].iloc[0]}, {play['playDescription'].iloc[0]}")
