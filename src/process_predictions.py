@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Trains and tunes a transformer model for man/zone classification on tracking data.
+Processes predictions to create various plots and animations to interpret model results.
 """
 
 import matplotlib.animation as animation
@@ -171,39 +171,16 @@ def animate_play(df: pd.DataFrame, game_id: int, play_id: int, quarter: int, pla
 	plt.close(fig)
 
 
-def main() -> None:
+def get_top_man_coverage_prob_increase_plays(predictions_df: pd.Dataframe) -> pd.Dataframe:
 	"""
-	Driver to process predictions and make plots.
+	Grab plays that have the largest increase in man coverage probability, end with over 80% man prob and are passes.
 
 	Inputs:
-	- None.
+	- df: Dataframe of predictions for all plays in a specific week.
 
 	Outputs:
-	- None.
+	- Datafrane of top 50 plays
 	"""
-
-	# Load predictions
-	predictions = []
-
-	for s in [2022]:
-		for w in [9]:
-			preds_week = pd.read_parquet(PROJECT_ROOT / "data" / "inference" / f"tracking_s{s}_w{w}_preds.parquet")
-			predictions.append(preds_week)
-			print(f"Finished processing seasons {s}, week {w}...")
-
-	predictions_df = pd.concat(predictions, ignore_index=True)
-	predictions_df["base_correct"] = predictions_df["pred"] == predictions_df["actual"]
-
-	# Take 15s before snap and 1.5s post snap
-	week_truncated_play_df = predictions_df[(predictions_df["week"] == 9) & (predictions_df["frames_from_snap"] < 15) & (predictions_df["frames_from_snap"] > -150)].copy()
-
-	# Create plot
-	plot_accuracy_across_frames(s=s, w=w, df=week_truncated_play_df)
-
-	###################
-	# Grab plays that have the largest increase in man coverage probability, end with over 80% man prob and are passes
-	######################
-
 	# Get a df that is only pre snap and pass attempts, also that is sorted by frames from snap
 	pre_snap_df = predictions_df[(predictions_df["frames_from_snap"] < 0) & (predictions_df["passAttempt"] == 1)].copy()
 	pre_snap_df = pre_snap_df.sort_values(["gameId", "playId", "frames_from_snap"])
@@ -223,6 +200,38 @@ def main() -> None:
 	largest_man_prob_increase = change_df.sort_values("man_prob_change", ascending=False)
 	largest_man_prob_increase = largest_man_prob_increase[largest_man_prob_increase["man_prob_end"] > 0.8]
 	top_50_plays = largest_man_prob_increase.head(50)
+	return top_50_plays
+
+
+def main() -> None:
+	"""
+	Driver to process predictions and make plots.
+
+	Inputs:
+	- None.
+
+	Outputs:
+	- None.
+	"""
+
+	# Load predictions
+	predictions = []
+	for s in [2022]:
+		for w in [9]:
+			preds_week = pd.read_parquet(PROJECT_ROOT / "data" / "inference" / f"tracking_s{s}_w{w}_preds.parquet")
+			predictions.append(preds_week)
+			print(f"Finished processing seasons {s}, week {w}...")
+	predictions_df = pd.concat(predictions, ignore_index=True)
+	predictions_df["base_correct"] = predictions_df["pred"] == predictions_df["actual"]
+
+	# Take 15s before snap and 1.5s post snap
+	week_truncated_play_df = predictions_df[(predictions_df["week"] == 9) & (predictions_df["frames_from_snap"] < 15) & (predictions_df["frames_from_snap"] > -150)].copy()
+
+	# Create plot
+	plot_accuracy_across_frames(s=s, w=w, df=week_truncated_play_df)
+
+	# Get top x plays that have the large man coverage prob increase and are pass plays
+	top_plays_df = get_top_man_coverage_prob_increase_plays
 
 	# Load in plays df
 	rawLoader = RawDataLoader()
@@ -230,7 +239,9 @@ def main() -> None:
 
 	# Merge
 	merged_df = predictions_df.merge(plays_df, on=["gameId", "playId"], how="left")
-	for _, row in top_50_plays.iterrows():
+
+	# Create animations
+	for _, row in top_plays_df.iterrows():
 		play = merged_df[(merged_df["playId"] == row["playId"]) & (merged_df["gameId"] == row["gameId"])]
 		if play["passResult"].values[0] == "C":
 			print(f"gameId: {play['gameId'].iloc[0]}, playId: {play['playId'].iloc[0]}, Q: {play['quarter'].iloc[0]}, {play['playDescription'].iloc[0]}")
