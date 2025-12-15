@@ -55,5 +55,5 @@ jobs:
         run: uv run src/generate_predictions.py --profile
 
         # This will use the predictions saved as parquet in stage above, only 1 plot, one animated play, and one confusion matrix is created
-      - name: Post process predictions
+      - name: Test process predictions
         run: uv run src/process_predictions.py --profile --ci
