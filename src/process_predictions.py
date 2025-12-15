@@ -256,7 +256,7 @@ def main() -> None:
 	plot_accuracy_across_frames(s=s, w=w, df=week_truncated_play_df)
 
 	# Get top x plays that have the large man coverage prob increase and are pass plays
-	top_plays_df = get_top_man_coverage_prob_increase_plays
+	top_plays_df = get_top_man_coverage_prob_increase_plays(predictions_df)
 
 	# Load in plays df
 	rawLoader = RawDataLoader()
@@ -266,11 +266,8 @@ def main() -> None:
 	merged_df = predictions_df.merge(plays_df, on=["gameId", "playId"], how="left")
 
 	# Create animations
-	for idx, row in top_plays_df.iterrows():
-		# Only make one plot if it's CI
-		if args.ci and idx > 1:
-			break
-
+	animation_created = False
+	for _, row in top_plays_df.iterrows():
 		play = merged_df[(merged_df["playId"] == row["playId"]) & (merged_df["gameId"] == row["gameId"])]
 		if play["passResult"].values[0] == "C":
 			print(f"gameId: {play['gameId'].iloc[0]}, playId: {play['playId'].iloc[0]}, Q: {play['quarter'].iloc[0]}, {play['playDescription'].iloc[0]}")
@@ -283,6 +280,10 @@ def main() -> None:
 				actual_coverage=play["actual"].iloc[0],
 				specific_coverage=play["pff_passCoverage"].iloc[0],
 			)
+			animation_created = True
+
+		if args.ci and animation_created:
+			break
 
 	# Create classification report and confusion matrix
 	y_true = predictions_df["actual"]
