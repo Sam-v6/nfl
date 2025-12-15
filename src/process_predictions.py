@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
@@ -73,7 +74,7 @@ def plot_accuracy_across_frames(s: int, w: int, df: pd.DataFrame) -> None:
 		text.set_color(SUBT)
 
 	fig.tight_layout()
-	plt.savefig(PROJECT_ROOT / "data" / "inference" / f"plot_s{s}_w{w}_accuracy.png", dpi=300)
+	plt.savefig(PROJECT_ROOT / "artifacts" / f"plot_s{s}_w{w}_accuracy.png", dpi=300)
 
 
 def animate_play(df: pd.DataFrame, game_id: int, play_id: int, quarter: int, play_description: str, actual_coverage: str, specific_coverage: str) -> None:
@@ -167,11 +168,11 @@ def animate_play(df: pd.DataFrame, game_id: int, play_id: int, quarter: int, pla
 
 	ani = animation.FuncAnimation(fig, update, frames=len(x_all), init_func=init, blit=True, interval=1, repeat=False)
 	fig.tight_layout()
-	ani.save(PROJECT_ROOT / "data" / "inference" / f"play_{uuid}.gif", writer="pillow", fps=60)
+	ani.save(PROJECT_ROOT / "artifacts" / f"play_{uuid}.gif", writer="pillow", fps=60)
 	plt.close(fig)
 
 
-def get_top_man_coverage_prob_increase_plays(predictions_df: pd.Dataframe) -> pd.Dataframe:
+def get_top_man_coverage_prob_increase_plays(predictions_df: pd.DataFrame) -> pd.DataFrame:
 	"""
 	Grab plays that have the largest increase in man coverage probability, end with over 80% man prob and are passes.
 
@@ -214,6 +215,10 @@ def main() -> None:
 	- None.
 	"""
 
+	# Make the articats
+	ARTIFACT_PATH = PROJECT_ROOT / "artifacts"
+	ARTIFACT_PATH.mkdir(parents=True, exist_ok=True)
+
 	# Load predictions
 	predictions = []
 	for s in [2022]:
@@ -254,6 +259,21 @@ def main() -> None:
 				actual_coverage=play["actual"].iloc[0],
 				specific_coverage=play["pff_passCoverage"].iloc[0],
 			)
+
+	# Create classification report and confusion matrix
+	y_true = predictions_df["actual"]
+	y_pred = predictions_df["pred"]
+	cm_norm = confusion_matrix(y_true, y_pred, labels=[0, 1], normalize="true")
+	class_names = ["Zone", "Man"]
+	disp = ConfusionMatrixDisplay(confusion_matrix=cm_norm, display_labels=class_names)
+	fig, ax = plt.subplots(figsize=(6, 6))
+	disp.plot(ax=ax, values_format=".2f", cmap="Blues")
+	ax.set_title("Confusion Matrix (Normalized by True Label)")
+	accuracy = (y_true == y_pred).mean()
+	ax.set_xlabel(f"Predicted label\nAccuracy = {accuracy:.3f}")
+	ax.set_ylabel("True label")
+	plt.tight_layout()
+	plt.savefig(PROJECT_ROOT / "artifacts" / "confusion_matrix.png", dpi=200, bbox_inches="tight")
 
 
 if __name__ == "__main__":

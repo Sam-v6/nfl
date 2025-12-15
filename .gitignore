@@ -194,6 +194,7 @@ log
 
 # Artifacts
 *.pkl
+artifacts/
 
 # Any mp4s that sneak in
 *.mp4
