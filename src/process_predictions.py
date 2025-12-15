@@ -12,10 +12,12 @@ from matplotlib.ticker import AutoMinorLocator, MultipleLocator
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 from common.args import parse_args
+from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
 
 
+@time_fcn
 def plot_accuracy_across_frames(s: int, w: int, df: pd.DataFrame) -> None:
 	"""
 	Plots accuracy pre snap and a few moments post SNAP for all provided plays in a week.
@@ -80,6 +82,7 @@ def plot_accuracy_across_frames(s: int, w: int, df: pd.DataFrame) -> None:
 	plt.savefig(PROJECT_ROOT / "artifacts" / f"plot_s{s}_w{w}_accuracy.png", dpi=300)
 
 
+@time_fcn
 def animate_play(df: pd.DataFrame, game_id: int, play_id: int, quarter: int, play_description: str, actual_coverage: str, specific_coverage: str) -> None:
 	"""
 	Animates a specific play to show accuracy across frames, mostly before snap with a few frames shown post snap.
@@ -175,6 +178,7 @@ def animate_play(df: pd.DataFrame, game_id: int, play_id: int, quarter: int, pla
 	plt.close(fig)
 
 
+@time_fcn
 def get_top_man_coverage_prob_increase_plays(predictions_df: pd.DataFrame) -> pd.DataFrame:
 	"""
 	Grab plays that have the largest increase in man coverage probability, end with over 80% man prob and are passes.
@@ -207,6 +211,7 @@ def get_top_man_coverage_prob_increase_plays(predictions_df: pd.DataFrame) -> pd
 	return top_50_plays
 
 
+@time_fcn
 def main() -> None:
 	"""
 	Driver to process predictions and make plots.
@@ -221,8 +226,14 @@ def main() -> None:
 	# Set logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-	# Get input args
+	# Parse command line args
 	args = parse_args()
+	if args.profile:
+		set_time_decorators_enabled(True)
+		logging.info("Timing decorators enabled")
+	else:
+		set_time_decorators_enabled(False)
+		logging.info("Timing decorators disabled")
 
 	# Make the articats
 	ARTIFACT_PATH = PROJECT_ROOT / "artifacts"
