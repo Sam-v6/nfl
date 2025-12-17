@@ -33,7 +33,6 @@ dependencies = [
   "lightgbm>=4.6.0",
   "matplotlib>=3.10.6",
   "mlflow>=3.4.0",
-  "mypy>=1.19.0",
   "numpy>=2.3.3",
   "pandas>=2.3.2",
   "pip-tools>=7.5.0",

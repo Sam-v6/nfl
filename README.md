@@ -1,6 +1,6 @@
 
 # Overview
-This repo trains on the 2022 NFL Season Weeks 1 - 8 to predict man or zone pass coverage BEFORE the snap with machine learning. Week 9 plays are used for evaluation.
+This repo trains a machine learning model on 2021 & 2022 NFL location tracking data to predict pass coverage BEFORE the snap. 
 
 Two models are implemented:
 - LSTM "naive" model that treats location tracking data as true time series inputs
@@ -378,7 +378,6 @@ Note, if you followed instructions above to setup the git hook, ruff will run th
 
 ## Future Work
 - Data
-  - Incoporate the additional NGS data which likely will have the largest returns in increasing accuracy
   - Look into additional data augmentation techniques
 - Model
   - Consider model improvements in transformer arch
