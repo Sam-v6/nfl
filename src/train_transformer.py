@@ -416,6 +416,10 @@ def run_hpo(args: argparse.Namespace) -> None:
 	######################################################################
 	# Build tuner; pass MLflow context and PARENT RUN ID to workers via env vars
 	######################################################################
+	if args.ci:
+		total_trials = 1
+	else:
+		total_trials = 1000  # Setting to really high, ASHA will prune bad trials early
 	trainable = tune.with_parameters(run_trial, args=args)  # Allows each training run to have any specific params
 	tuner = Tuner(
 		tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}),  # Gives 16 CPU and one GPU per trial
@@ -424,7 +428,7 @@ def run_hpo(args: argparse.Namespace) -> None:
 			metric="val_accuracy",
 			mode="max",
 			scheduler=scheduler,
-			num_samples=1,  # total trials, set to 1 for CI, modify here for HPO runs
+			num_samples=total_trials,  # Total number of trials to initially start running
 		),
 		run_config=RunConfig(
 			name="transformer_hpo",
