@@ -10,6 +10,7 @@ import os
 import random
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import ray
 import torch
@@ -26,6 +27,32 @@ from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROCESSED_DIR, PROJECT_ROOT
 from models.transformer import create_transformer_model
+
+
+def plot_training_results(train_losses: list[float], val_losses: list[float]) -> None:
+	"""
+	Plots training and validation losses over epochs.
+
+	Inputs:
+	- train_losses: List of training losses per epoch.
+	- val_losses: List of validation losses per epoch.
+
+	Outputs:
+	- Saves a plot of training and validation losses in artifacts/.
+	"""
+
+	epochs = range(1, len(train_losses) + 1)
+
+	# Plot losses
+	plt.figure(figsize=(12, 5), dpi=200)
+	plt.plot(epochs, train_losses, label="Training Loss")
+	plt.plot(epochs, val_losses, label="Validation Loss")
+	plt.xlabel("Epochs")
+	plt.ylabel("Loss")
+	plt.title("Training and Validation Loss")
+	plt.legend()
+	plt.tight_layout()
+	plt.savefig(PROJECT_ROOT / "artifacts" / "training_validation_loss_history.png")
 
 
 def set_seed(seed: int = 42) -> torch.Generator:
@@ -286,13 +313,17 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		config["epochs"] = 5
 
 	# Training loop
+	train_losses = []
+	val_losses = []
 	for epoch in range(int(config["epochs"])):
 		# Train
 		avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype, prof)
 		train_losses.append(avg_train_loss)
+		train_losses.append(avg_train_loss)
 
 		# Validate
 		avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device, amp_dtype)
+		val_losses.append(avg_val_loss)
 
 		# Info
 		logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
@@ -320,6 +351,12 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 			if avg_val_loss < best_val_loss:
 				best_val_loss = avg_val_loss
 				torch.save(model.state_dict(), best_model_path)
+
+	if not args.tune:
+		# Plot the training results (we don't want to do this with HPO because Ray records these as metrics)
+		ARTIFACT_PATH = PROJECT_ROOT / "artifacts"
+		ARTIFACT_PATH.mkdir(parents=True, exist_ok=True)
+		plot_training_results(train_losses, val_losses)
 
 	# Stop profiler
 	if prof:

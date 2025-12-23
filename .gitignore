@@ -190,7 +190,8 @@ mlruns/
 mlflow.db
 
 # Ray and profiler
-log
+log/
+ray_results/
 
 # Artifacts
 *.pkl
