@@ -122,21 +122,62 @@ uv run pre-commit install
 ```
 
 ## Run instructions
+
+To digest the "raw" location tracking data and create meanigful features, you can run the following command. This will:
+- Ingest the raw data
+- Clean and normalize the raw data
+- Create synthetic data to increase samples
+- Consolidate into meanigful features for transformer model training
+
 ```bash
-
-# Digest the raw data and create features
+# Normal run command
 uv run src/create_features.py
+```
 
+With features in hand, we can now train the model. The model will train on Season 2021 Weeks 1-8 and Season 2022 Weeks 1-8 data. Week 9 data from Season 2023 will be used for validation.
+
+To train the transformer with the default `model_params.json` you can run:
+
+```bash
 # Train the model
 uv run src/train_transformer.py
+```
 
-# Alternatively, you can run hyper-parameter optimization which will save the best model and parameters with
+Alternatively, you can run hyper-parameter optimization (HPO) which will save the best model (`transformer.pt`) and `model_params.json`. By default this will run 1000 trials (which are automatically pruned with an ASHA scheduler via Ray Tune).
+
+```bash
+# Run HPO
 uv run src/train_transformer.py --tune
+```
 
-# Run inference on week 9
+If you don't actually want to run HPO and instead verify functionality, you can simply run the following which will run 1 trial with 5 epochs. This still logs metrics to Ray with the MLflow callback and ensure complete capability works.
+
+```bash
+# Run HPO just to see if things are working
+uv run src/train_transformer.py --tune --ci
+```
+
+Realitically to run useful HPO with many trials (like 1000), you will likely need to access to significant GPU resources to complete this training in a reasonable time. Given you are likely to ssh into this machine (where an interrupt to the connection can kill the process itself), the following command is given for convenience which will allow for specific GPUs on the host machine to be available to Ray Tune and allow the user to disconnect from the process but allow the PID to continue.
+
+```bash
+# Set CUDA devices (let's assume we have 8 GPUs on the host machine), run training with the ability to disconnect the process and tee results to a log file
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 nohup uv run src/train_transformer.py --tune > tune.log 2>&1 &
+
+# Disconnect from the process
+disown
+```
+
+With a trained model, we can now run inference on Season 2022 - Week 9 plays. This will save predictions in parquet format which will get pulled in downstream.
+
+```bash
+# Run inference
 uv run src/generate_predictions.py 
+```
 
-# Create artifacts (plot on accuracy for week 9, classification report, and animations of plays)
+Finally we can create artifacts based on the predictions (saved upstream as parquet files). This will plot accuracy for Season 2022 Week 9, provide a classification report, and create animations of several interesting plays (that have the highest model increase in predicted man coverage probability across frames before the snap).
+
+```bash
+# Create artifacts
 uv run src/process_predictions.py
 ```
 
