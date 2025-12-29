@@ -28,6 +28,11 @@ def parse_args() -> argparse.Namespace:
 		action="store_true",
 		help="Enable @time_fcn timing decorators for profiling",
 	)
+	parser.add_argument(
+		"--deterministic",
+		action="store_true",
+		help="Force deterministic training settings (may slow down training)",
+	)
 
 	parser.add_argument(
 		"--ci",

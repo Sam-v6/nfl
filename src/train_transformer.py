@@ -181,7 +181,7 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
         """
 
         # Set seeds
-        deterministic_mode = args.profile
+        deterministic_mode = args.profile or args.deterministic
         g = set_seed(42, deterministic=deterministic_mode)
 
         ######################################################################
@@ -322,7 +322,8 @@ def run_hpo(args: argparse.Namespace) -> None:
         experiment = "transformer"
 
         # Keep Ray search reproducible
-        set_seed(42, deterministic=args.profile)
+        deterministic_mode = args.profile or args.deterministic
+        set_seed(42, deterministic=deterministic_mode)
 
         ######################################################################
         # Define search space and scheduler
