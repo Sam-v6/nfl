@@ -8,6 +8,114 @@ Two models are implemented:
 
 Both models yield about 88% accuracy in predicting man or pass coverage BEFORE the snap for all plays in Week 9 of the 2022 NFL season.
 
+# Data + modeling pipeline (what each script does)
+
+This section maps the end-to-end workflow to the code paths you’ll run. It focuses on the transformer workflow, which is what the repo uses for Week 9 evaluation.
+
+## 1) Data engineering + feature creation (`src/create_features.py`)
+
+`create_features.py` orchestrates the full data engineering pipeline. At a high level it:
+
+1. **Loads raw parquet data** via `RawDataLoader` (`src/load_data.py`):
+   - Combines 2021 + 2022 `games`, `plays`, and `players` into unified DataFrames.
+   - Loads weekly tracking files for each season/week requested.
+   - Normalizes older 2021 tracking data by copying `team` into `club` (2021 lacks `club`).
+
+2. **Cleans and normalizes tracking data** via `clean_df` in `create_features.py` (using functions in `src/clean_data.py`):
+   - `rotate_direction_and_orientation`: normalizes direction/orientation so 0° points left-to-right.
+   - `make_plays_left_to_right`: flips every play so offense always moves left-to-right; creates `x_clean`, `y_clean`, `o_clean`, `dir_clean`, etc.
+   - `calculate_velocity_components`: derives `v_x`, `v_y` from cleaned speed + direction.
+   - `pass_attempt_merging`: joins play metadata to flag pass attempts.
+   - `label_offense_defense_manzone`: joins PFF man/zone labels and identifies defenders (`defense` flag).
+   - Filters to defenders + pass attempts only, adds `week`, `uniqueId`, `frameUniqueId`, and computes `frames_from_snap`.
+   - Keeps frames from 15s before snap through 5s after snap (`frames_from_snap` between -150 and 50).
+
+3. **Consolidates + subsamples frames** via `_process_df` in `create_features.py`:
+   - Keeps **even frames only** (`frameId % 2 == 0`) for a lighter, consistent sampling rate.
+   - Selects snap-centered frames for augmentation using `select_augmented_frames`.
+
+4. **Synthetic data generation (augmentation)** via `data_augmentation`:
+   - Mirrors selected frames left-to-right across the field (`y_clean` flip + direction flip).
+   - Appends `_aug` to `frameUniqueId` to keep augmented frames distinct.
+
+5. **Feature tensorization** via `prepare_frame_data`:
+   - For each `frameUniqueId`, stacks per-player features into a fixed tensor.
+   - Features used: `["x_clean", "y_clean", "v_x", "v_y", "defense"]`.
+   - Target label: `pff_manZone` (mapped Zone→0, Man→1).
+
+6. **Writes weekly + pooled tensors**:
+   - Saves per-week tensors: `data/processed/s{season}_w{week}_features.pt` and `..._targets.pt`.
+   - Concatenates weeks into:
+     - `features_training.pt` / `targets_training.pt` (2021 W1–8 + 2022 W1–8)
+     - `features_val.pt` / `targets_val.pt` (2022 W9)
+
+## 2) Model training (`src/train_transformer.py` + `src/models/transformer.py`)
+
+`train_transformer.py` loads the prepared tensors and trains the transformer model defined in `src/models/transformer.py`.
+
+**Model architecture (`src/models/transformer.py`):**
+- `ManZoneTransformer` takes `[batch, num_players, 5]` inputs:
+  - 5 features = `x_clean`, `y_clean`, `v_x`, `v_y`, `defense`.
+- Layers:
+  - BatchNorm over feature dimension.
+  - Linear + ReLU + LayerNorm embedding to `model_dim`.
+  - Transformer encoder stack (`num_layers`, `num_heads`, `dim_feedforward`, `dropout`).
+  - Adaptive average pooling across players (reduces to a per-frame embedding).
+  - MLP decoder to 2 logits (Zone vs Man).
+
+**Training flow (`src/train_transformer.py`):**
+1. Loads `features_training.pt` / `targets_training.pt` and validation tensors.
+2. Builds `DataLoader`s with fixed seeds for reproducible shuffling.
+3. Uses `AdamW` optimizer + `CrossEntropyLoss`.
+4. Runs mixed precision forward passes (`torch.autocast`) on GPU for speed.
+5. Tracks training + validation loss and accuracy each epoch.
+6. Saves the best model to `data/training/transformer.pt` (by lowest validation loss).
+7. Optional Ray Tune (`--tune`) runs hyperparameter search and writes best config to `data/training/model_params.json`.
+
+## 3) Prediction generation (`src/generate_predictions.py`)
+
+`generate_predictions.py` loads the trained transformer and streams Week 9 frames through it:
+
+1. **Re-loads and cleans tracking data** (same cleaning logic as training):
+   - `rotate_direction_and_orientation`
+   - `make_plays_left_to_right`
+   - `calculate_velocity_components`
+   - `pass_attempt_merging`
+   - `label_offense_defense_manzone`
+   - Adds `uniqueId`, `frameUniqueId`, `frames_from_snap`.
+   - Filters to pass attempts + defenders, and keeps frames from -150 to +30.
+
+2. **Builds frame tensors on the fly**:
+   - For each `frameUniqueId`, builds `[num_frames, num_players, 5]` tensor.
+   - Runs inference with the compiled transformer.
+
+3. **Writes prediction outputs**:
+   - Per-frame predictions saved as `data/inference/week{week}_preds.csv` with:
+     - `zone_prob`, `man_prob`, `pred`, `actual`.
+   - Joins predictions back to tracking data and saves:
+     - `data/inference/tracking_s{season}_w{week}_preds.parquet`.
+
+## 4) Post-processing + evaluation (`src/process_predictions.py`)
+
+`process_predictions.py` turns the predictions into evaluation artifacts:
+
+1. **Accuracy vs. time-from-snap plot**:
+   - Aggregates frame-level correctness by `seconds_from_snap`.
+   - Saves `artifacts/plot_s{season}_w{week}_accuracy.png`.
+
+2. **Play-level animation artifacts**:
+   - Finds plays with the largest increase in man-coverage probability pre-snap.
+   - Generates animated GIFs of man-probability vs. time for top plays.
+
+3. **Confusion matrix**:
+   - Builds a normalized confusion matrix (Zone vs. Man).
+   - Saves `artifacts/confusion_matrix.png`.
+
+4. **ROC curve (optional extension)**:
+   - `generate_predictions.py` already writes probabilities (`man_prob`, `zone_prob`) per frame.
+   - If you want ROC/AUC, those probabilities are ready to feed into `sklearn.metrics.roc_curve` and `auc`.
+   - (Currently, the script outputs confusion matrix + accuracy plot; ROC is straightforward to add on top of the saved probabilities.)
+
 # Demo
 
 
