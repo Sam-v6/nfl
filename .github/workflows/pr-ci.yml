@@ -53,7 +53,7 @@ jobs:
           uv run src/train_transformer.py --profile --ci
           cp data/training/training_metrics.json /tmp/training_metrics_run1.json
           uv run src/train_transformer.py --profile --ci
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import math
           from pathlib import Path
