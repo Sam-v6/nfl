@@ -2,6 +2,7 @@
 """
 Trains and tunes a transformer model for man/zone classification on tracking data.
 """
+from __future__ import annotations
 
 import argparse
 import json
@@ -12,7 +13,6 @@ from pathlib import Path
 
 import numpy as np
 import ray
-import torch
 import torch.nn as nn
 from ray import tune
 from ray.air.integrations.mlflow import MLflowLoggerCallback
@@ -39,6 +39,8 @@ def configure_determinism(deterministic: bool, seed: int = 42) -> torch.Generato
 	Outputs:
 	- generator: Torch generator for deterministic DataLoader shuffling.
 	"""
+
+	import torch
 
 	os.environ["PYTHONHASHSEED"] = str(seed)
 	random.seed(seed)
@@ -68,6 +70,8 @@ def configure_determinism(deterministic: bool, seed: int = 42) -> torch.Generato
 
 
 def forward_backpropagate_optimize_step(amp_dtype: torch.dtype, model: nn.Module, features: torch.Tensor, targets: torch.Tensor, loss_fn: nn.Module, optimizer: torch.optim.Optimizer) -> torch.Tensor:
+	import torch
+
 	# For forward pass, allow mixed precision for speed in some operations
 	# NOTE: PyTorch keeps some sensitive ops in FP32 for stability
 	with autocast(device_type="cuda", dtype=amp_dtype):
@@ -98,6 +102,8 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 	Outputs:
 	- avg_train_loss: Mean loss across the epoch.
 	"""
+
+	import torch
 
 	# Training
 	model.train()
@@ -144,6 +150,8 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 	- avg_val_loss: Mean validation loss.
 	- val_accuracy: Classification accuracy.
 	"""
+
+	import torch
 
 	# Validation
 	model.eval()
