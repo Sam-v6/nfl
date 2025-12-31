@@ -333,6 +333,17 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 				best_val_loss = avg_val_loss
 				torch.save(model.state_dict(), best_model_path)
 
+	if not args.tune and train_losses:
+		metrics_output = {
+			"train_loss": float(train_losses[-1]),
+			"val_loss": float(val_losses[-1]),
+			"val_accuracy": float(val_accuracies[-1]),
+			"best_val_loss": float(best_val_loss),
+		}
+		metrics_path = PROJECT_ROOT / "data" / "training" / "training_metrics.json"
+		with open(metrics_path, "w") as json_file:
+			json.dump(metrics_output, json_file, indent=4)
+
 	# Stop profiler
 	if prof:
 		prof.stop()
