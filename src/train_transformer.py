@@ -2,6 +2,7 @@
 """
 Trains and tunes a transformer model for man/zone classification on tracking data.
 """
+from __future__ import annotations
 
 import argparse
 import json
@@ -12,7 +13,6 @@ from pathlib import Path
 
 import numpy as np
 import ray
-import torch
 import torch.nn as nn
 from ray import tune
 from ray.air.integrations.mlflow import MLflowLoggerCallback
@@ -28,42 +28,50 @@ from common.paths import PROCESSED_DIR, PROJECT_ROOT
 from models.transformer import create_transformer_model
 
 
-def set_seed(seed: int = 42) -> torch.Generator:
+def configure_determinism(deterministic: bool, seed: int = 42) -> torch.Generator:
 	"""
-	Sets Python, NumPy, and Torch seeds for reproducible runs.
+	Configures PyTorch determinism knobs based on training intent.
 
 	Inputs:
+	- deterministic: Whether to enforce fully deterministic execution.
 	- seed: Seed value to apply.
 
 	Outputs:
 	- generator: Torch generator for deterministic DataLoader shuffling.
 	"""
 
-	# Set seeds
+	import torch
+
+	os.environ["PYTHONHASHSEED"] = str(seed)
 	random.seed(seed)
 	np.random.seed(seed)
 	torch.manual_seed(seed)
 	g = torch.Generator()  # Creates a generator that fixes the shuffle in torch Dataloader
 	g.manual_seed(seed)
-	os.environ["PYTHONHASHSEED"] = str(seed)
 
-	# PyTorch CPU & CUDA
-	torch.manual_seed(seed)
 	if torch.cuda.is_available():
 		torch.cuda.manual_seed(seed)
 		torch.cuda.manual_seed_all(seed)
 
-	# Keep cudnn deterministic, but allow normal algorithms
-	# torch.backends.cudnn.benchmark = False
-	# torch.backends.cudnn.deterministic = True
-
-	# DO NOT enforce deterministic algorithms globally
-	# torch.use_deterministic_algorithms(False)
+	if deterministic:
+		os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+		torch.backends.cudnn.benchmark = False
+		torch.backends.cudnn.deterministic = True
+		torch.use_deterministic_algorithms(True)
+		torch.backends.cuda.matmul.allow_tf32 = False
+		torch.backends.cudnn.allow_tf32 = False
+		torch.set_float32_matmul_precision("highest")
+		logging.info("Deterministic training enabled (may reduce throughput).")
+	else:
+		torch.backends.cuda.matmul.allow_tf32 = True
+		torch.backends.cudnn.allow_tf32 = True
 
 	return g
 
 
 def forward_backpropagate_optimize_step(amp_dtype: torch.dtype, model: nn.Module, features: torch.Tensor, targets: torch.Tensor, loss_fn: nn.Module, optimizer: torch.optim.Optimizer) -> torch.Tensor:
+	import torch
+
 	# For forward pass, allow mixed precision for speed in some operations
 	# NOTE: PyTorch keeps some sensitive ops in FP32 for stability
 	with autocast(device_type="cuda", dtype=amp_dtype):
@@ -94,6 +102,8 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 	Outputs:
 	- avg_train_loss: Mean loss across the epoch.
 	"""
+
+	import torch
 
 	# Training
 	model.train()
@@ -141,6 +151,8 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 	- val_accuracy: Classification accuracy.
 	"""
 
+	import torch
+
 	# Validation
 	model.eval()
 	val_running_loss = 0.0
@@ -182,8 +194,7 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	- Trains the model and optionally reports metrics to Ray Tune.
 	"""
 
-	# Set seeds
-	g = set_seed(42)
+	deterministic = args.profile
 
 	######################################################################
 	# Set things that allow for speed-up in training (valid on Ampere+ GPUs)
@@ -194,9 +205,8 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	# Use mixed precision with FP16 for speed for forward pass (see train_epoch)
 	amp_dtype = torch.float16
 
-	# Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
-	torch.backends.cuda.matmul.allow_tf32 = True
-	torch.backends.cudnn.allow_tf32 = True
+	# Configure determinism (full determinism can slow training; only enforced when profiling)
+	g = configure_determinism(deterministic, seed=42)
 
 	# Set device
 	device = torch.device("cuda")  # this is the Ray-assigned GPU (Ray sets CUDA_VISIBLE_DEVICES)
@@ -218,7 +228,9 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		model.parameters(),
 		lr=float(config["lr"]),
 		weight_decay=float(config["weight_decay"]),
-		fused=True,  # All operations on single CUDA kernel for speed
+		# Fused AdamW uses a single CUDA kernel for speed but can introduce non-deterministic reductions.
+		# Disable it when deterministic mode is requested.
+		fused=not deterministic,
 	)
 	loss_fn = nn.CrossEntropyLoss()
 
@@ -320,6 +332,17 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 			if avg_val_loss < best_val_loss:
 				best_val_loss = avg_val_loss
 				torch.save(model.state_dict(), best_model_path)
+
+	if not args.tune and train_losses:
+		metrics_output = {
+			"train_loss": float(train_losses[-1]),
+			"val_loss": float(val_losses[-1]),
+			"val_accuracy": float(val_accuracies[-1]),
+			"best_val_loss": float(best_val_loss),
+		}
+		metrics_path = PROJECT_ROOT / "data" / "training" / "training_metrics.json"
+		with open(metrics_path, "w") as json_file:
+			json.dump(metrics_output, json_file, indent=4)
 
 	# Stop profiler
 	if prof:

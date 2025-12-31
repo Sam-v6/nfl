@@ -47,8 +47,28 @@ jobs:
         run: uv run src/train_transformer.py --tune --ci
 
         # This will use model_params.json to create transformer.pt (--ci only runs 5 epochs)
-      - name: Test transformer training
-        run: uv run src/train_transformer.py --profile --ci
+      - name: Check deterministic transformer training
+        run: |
+          set -euo pipefail
+          uv run src/train_transformer.py --profile --ci
+          cp data/training/training_metrics.json /tmp/training_metrics_run1.json
+          uv run src/train_transformer.py --profile --ci
+          python3 - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          first = json.loads(Path("/tmp/training_metrics_run1.json").read_text())
+          second = json.loads(Path("data/training/training_metrics.json").read_text())
+          tol = 1e-5
+          keys = ("train_loss", "val_loss", "val_accuracy", "best_val_loss")
+          for key in keys:
+            if not math.isclose(first[key], second[key], rel_tol=0.0, abs_tol=tol):
+              raise SystemExit(
+                f"Determinism check failed for {key}: {first[key]} vs {second[key]} (tol={tol})"
+              )
+          print("Determinism check passed.")
+          PY
 
         # This will use transformer.pt for inference, will make predictions for all of week 9
       - name: Test prediction generation
