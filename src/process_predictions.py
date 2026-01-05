@@ -16,6 +16,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, classification_report, confu
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT
+from load_data import RawDataLoader
 
 
 @time_fcn
@@ -283,34 +284,34 @@ def main() -> None:
 	plot_accuracy_across_frames(s=s, w=w, df=week_truncated_play_df)
 
 	# Get top x plays that have the large man coverage prob increase and are pass plays
-	# top_plays_df = get_top_man_coverage_prob_increase_plays(predictions_df)
+	top_plays_df = get_top_man_coverage_prob_increase_plays(predictions_df)
 
-	# # Load in plays df
-	# rawLoader = RawDataLoader()
-	# games_df, plays_df, players_df = rawLoader.get_base_data()
+	# Load in plays df
+	rawLoader = RawDataLoader()
+	games_df, plays_df, players_df = rawLoader.get_base_data()
 
-	# # Merge
-	# merged_df = predictions_df.merge(plays_df, on=["gameId", "playId"], how="left")
+	# Merge
+	merged_df = predictions_df.merge(plays_df, on=["gameId", "playId"], how="left")
 
-	# # Create animations
-	# animation_created = False
-	# for _, row in top_plays_df.iterrows():
-	# 	play = merged_df[(merged_df["playId"] == row["playId"]) & (merged_df["gameId"] == row["gameId"])]
-	# 	if play["passResult"].values[0] == "C":
-	# 		print(f"gameId: {play['gameId'].iloc[0]}, playId: {play['playId'].iloc[0]}, Q: {play['quarter'].iloc[0]}, {play['playDescription'].iloc[0]}")
-	# 		animate_play(
-	# 			df=week_truncated_play_df,
-	# 			game_id=play["gameId"].iloc[0],
-	# 			play_id=play["playId"].iloc[0],
-	# 			quarter=play["quarter"].iloc[0],
-	# 			play_description=play["playDescription"].iloc[0],
-	# 			actual_coverage=play["actual"].iloc[0],
-	# 			specific_coverage=play["pff_passCoverage"].iloc[0],
-	# 		)
-	# 		animation_created = True
+	# Create animations
+	animation_created = False
+	for _, row in top_plays_df.iterrows():
+		play = merged_df[(merged_df["playId"] == row["playId"]) & (merged_df["gameId"] == row["gameId"])]
+		if play["passResult"].values[0] == "C":
+			print(f"gameId: {play['gameId'].iloc[0]}, playId: {play['playId'].iloc[0]}, Q: {play['quarter'].iloc[0]}, {play['playDescription'].iloc[0]}")
+			animate_play(
+				df=week_truncated_play_df,
+				game_id=play["gameId"].iloc[0],
+				play_id=play["playId"].iloc[0],
+				quarter=play["quarter"].iloc[0],
+				play_description=play["playDescription"].iloc[0],
+				actual_coverage=play["actual"].iloc[0],
+				specific_coverage=play["pff_passCoverage"].iloc[0],
+			)
+			animation_created = True
 
-	# 	if args.ci and animation_created:
-	# 		break
+		if args.ci and animation_created:
+			break
 
 	# Snag values for creation of artifacts below
 	y_true = predictions_df["actual"].to_numpy().astype(int)

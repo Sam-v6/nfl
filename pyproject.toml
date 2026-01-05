@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nfl"            
 version = "0.1.0"              
-description = "Machine learnin models for NFL"
+description = "Machine learning models for NFL"
 readme = "README.md"          
 license = { file = "LICENSE" }   
 authors = [

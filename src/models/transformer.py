@@ -7,6 +7,29 @@ import torch
 import torch.nn as nn
 
 
+class AttentionPooling(nn.Module):
+	"""
+	Attention-based pooling layer to learn a weight per player.
+
+	Inputs:
+	- model_dim: Embedding dimension.
+
+	Outputs:
+	- forward returns pooled tensor of shape (B, D).
+	"""
+
+	def __init__(self, model_dim: int) -> None:
+		super().__init__()
+		self.attn = nn.Linear(model_dim, 1)
+
+	def forward(self, x: torch.Tensor) -> torch.Tensor:
+		# x: (B, N_players, D)
+		weights = self.attn(x)  # (B, N_players, 1)
+		weights = torch.softmax(weights, dim=1)
+		pooled = (weights * x).sum(dim=1)  # (B, D)
+		return pooled
+
+
 class ManZoneTransformer(nn.Module):
 	"""
 	Transformer encoder that ingests per-player features and predicts coverage.
@@ -63,7 +86,8 @@ class ManZoneTransformer(nn.Module):
 		)
 		self.transformer_encoder = nn.TransformerEncoder(transformer_encoder_layer, num_layers=num_layers)
 
-		self.player_pooling_layer = nn.AdaptiveAvgPool1d(1)
+		# Learns a weight per player and computes a weighted sum
+		self.player_pooling_layer = AttentionPooling(model_dim)
 
 		self.decoder = nn.Sequential(
 			nn.Linear(model_dim, model_dim),
@@ -90,7 +114,7 @@ class ManZoneTransformer(nn.Module):
 		x = self.feature_norm_layer(x.permute(0, 2, 1)).permute(0, 2, 1)
 		x = self.feature_embedding_layer(x)
 		x = self.transformer_encoder(x)
-		x = self.player_pooling_layer(x.permute(0, 2, 1)).squeeze(-1)
+		x = self.player_pooling_layer(x)
 		x = self.decoder(x)
 		return x
 

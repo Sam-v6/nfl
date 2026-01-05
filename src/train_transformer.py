@@ -319,11 +319,11 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		# Train
 		avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype, prof)
 		train_losses.append(avg_train_loss)
-		train_losses.append(avg_train_loss)
 
 		# Validate
 		avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device, amp_dtype)
 		val_losses.append(avg_val_loss)
+		val_accuracies.append(val_accuracy)
 
 		# Info
 		logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
@@ -342,10 +342,6 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 			}
 			tune.report(metrics)
 		else:
-			# Record metrics
-			val_losses.append(avg_val_loss)
-			val_accuracies.append(val_accuracy)
-
 			# Update saved model
 			best_model_path = PROJECT_ROOT / "data" / "training" / "transformer.pt"
 			if avg_val_loss < best_val_loss:
