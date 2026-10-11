@@ -9,7 +9,7 @@ from torch import nn
 
 from coverage_labels import CLASSES
 from dataset import FEATURES, file_hash
-from models.transformer import create_transformer_model
+from models.factory import create_coverage_model
 
 
 def save_bundle(model: nn.Module, path: Path, config: dict[str, Any], dataset_hash: str, best_epoch: int | None = None) -> None:
@@ -43,7 +43,7 @@ def load_bundle(path: Path, device: torch.device) -> tuple[nn.Module, dict[str, 
 	config = metadata["config"]
 	if int(config.get("num_classes", 2)) != len(metadata["classes"]) or int(config.get("feature_len", 5)) != 5:
 		raise ValueError("Model dimensions disagree with metadata")
-	model = create_transformer_model(config).to(device)
+	model = create_coverage_model(config).to(device)
 	state = torch.load(path / "weights.pt", map_location=device, weights_only=True)
 	model.load_state_dict({name.removeprefix("_orig_mod."): tensor for name, tensor in state.items()})
 	return model.eval(), metadata
@@ -59,7 +59,7 @@ def import_legacy_binary(weights_path: Path, config: dict[str, Any], output_dir:
 		raise ValueError("Legacy conversion requires explicit num_classes=2 and feature_len=5")
 	if output_dir.exists():
 		raise ValueError("Legacy bundle output already exists")
-	model = create_transformer_model(config)
+	model = create_coverage_model(config)
 	state = torch.load(weights_path, map_location="cpu", weights_only=True)
 	model.load_state_dict({name.removeprefix("_orig_mod."): tensor for name, tensor in state.items()})
 	save_bundle(model, output_dir, config, "legacy-unverified:" + file_hash(weights_path))

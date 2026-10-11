@@ -5,7 +5,7 @@ import math
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -17,7 +17,7 @@ from dataset import file_hash
 from dataset_io import load_examples
 from evaluate import _macro_from_cm, score_predictions
 from model_bundle import save_bundle
-from models.transformer import create_transformer_model
+from models.factory import create_coverage_model, forward_model
 
 DEFAULTS = {
 	"model_dim": 64,
@@ -36,6 +36,10 @@ DEFAULTS = {
 	"precision": "auto",
 	"compile": False,
 	"patience": 10,
+	"input_pipeline": "loader",
+	"model_type": "spatial",
+	"fit_season": None,
+	"class_weighting": False,
 }
 
 
@@ -74,9 +78,11 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	amp_dtype = {"fp32": torch.float32, "bf16": torch.bfloat16, "fp16": torch.float16}[precision]
 	resume = bool(settings.pop("resume", False))
 	identity = {key: value for key, value in settings.items() if key != "epochs"}
-	x_train, _, y_train, _ = load_examples(manifest_path, "fit")
-	x_val, _, y_val, _ = load_examples(manifest_path, "tune", offset=-1)
-	x_train, x_val = x_train[:, -1].contiguous(), x_val[:, -1].contiguous()
+	x_train, mask_train, y_train, train_index = load_examples(manifest_path, "fit", season=settings["fit_season"])
+	x_val, mask_val, y_val, _ = load_examples(manifest_path, "tune", offset=-1)
+	if settings["model_type"] == "spatial":
+		x_train, x_val = x_train[:, -1:].contiguous(), x_val[:, -1:].contiguous()
+		mask_train, mask_val = mask_train[:, -1:].contiguous(), mask_val[:, -1:].contiguous()
 	if settings["num_classes"] == 2:
 		y_train = ((y_train == 0) | (y_train == 1) | (y_train == 5)).long()
 		y_val = ((y_val == 0) | (y_val == 1) | (y_val == 5)).long()
@@ -89,13 +95,26 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 		torch.backends.cuda.matmul.allow_tf32 = True
 		torch.backends.cudnn.allow_tf32 = True
 	generator = torch.Generator().manual_seed(int(settings["seed"]))
-	eager = create_transformer_model(settings).to(device)
-	model = eager
+	eager = create_coverage_model(settings).to(device)
+	model: nn.Module = eager
 	optimizer = torch.optim.AdamW(eager.parameters(), lr=float(settings["lr"]), weight_decay=float(settings["weight_decay"]), fused=device.type == "cuda")
 	scaler = GradScaler("cuda", enabled=precision == "fp16")
-	loss_fn = nn.CrossEntropyLoss()
-	train_loader = DataLoader(TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True, generator=generator, pin_memory=device.type == "cuda", num_workers=0)
-	val_loader = DataLoader(TensorDataset(x_val, y_val), batch_size=batch_size, pin_memory=device.type == "cuda", num_workers=0)
+	weights = None
+	if settings["class_weighting"]:
+		counts = torch.bincount(y_train[torch.from_numpy((~train_index.augmented).to_numpy())], minlength=int(settings["num_classes"])).float()
+		weights = (counts.sum() / (len(counts) * counts.clamp_min(1))).clamp_max(5).to(device)
+		settings["fitted_class_weights"] = weights.cpu().tolist()
+	loss_fn = nn.CrossEntropyLoss(weight=weights)
+	val_loader = DataLoader(TensorDataset(x_val, mask_val, y_val), batch_size=batch_size, pin_memory=device.type == "cuda", num_workers=0)
+	pipeline = str(settings["input_pipeline"])
+	if pipeline not in ("loader", "direct", "device"):
+		raise ValueError("Unknown input pipeline")
+	if pipeline == "device":
+		if device.type != "cuda":
+			raise ValueError("Device-resident input requires CUDA")
+		x_train, mask_train, y_train = x_train.to(device), mask_train.to(device), y_train.to(device)
+	elif pipeline == "direct" and device.type == "cuda":
+		x_train, mask_train, y_train = x_train.pin_memory(), mask_train.pin_memory(), y_train.pin_memory()
 	history: list[dict[str, Any]] = []
 	start_epoch, elapsed_base, best = 0, 0.0, (-1.0, -math.inf)
 	bad_epochs = 0
@@ -118,9 +137,9 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 		rng = torch.get_rng_state()
 		cuda_rng = torch.cuda.get_rng_state_all() if device.type == "cuda" else []
 		try:
-			model = torch.compile(eager)
+			model = cast(nn.Module, torch.compile(eager))
 			with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=precision != "fp32"):
-				model(x_train[:batch_size].to(device)).sum().backward()
+				forward_model(model, x_train[:batch_size].to(device), mask_train[:batch_size].to(device)).sum().backward()
 		except (RuntimeError, ValueError) as exc:
 			model, compile_fallback = eager, str(exc)
 		finally:
@@ -135,11 +154,26 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 			epoch_start = time.monotonic()
 			eager.train()
 			loss_sum = torch.zeros((), device=device)
-			for features, targets in train_loader:
-				features, targets = features.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+			order = torch.randperm(len(x_train), generator=generator)
+			if pipeline == "loader":
+				batches = iter(
+					DataLoader(
+						TensorDataset(x_train, mask_train, y_train),
+						batch_size=batch_size,
+						sampler=order.tolist(),
+						generator=torch.Generator().manual_seed(0),
+						pin_memory=device.type == "cuda",
+						num_workers=0,
+					)
+				)
+			else:
+				order = order.to(x_train.device)
+				batches = ((x_train[ids], mask_train[ids], y_train[ids]) for ids in order.split(batch_size))
+			for features, time_mask, targets in batches:
+				features, time_mask, targets = features.to(device, non_blocking=True), time_mask.to(device, non_blocking=True), targets.to(device, non_blocking=True)
 				optimizer.zero_grad(set_to_none=True)
 				with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=precision != "fp32"):
-					loss = loss_fn(model(features), targets)
+					loss = loss_fn(forward_model(model, features, time_mask), targets)
 				scaler.scale(loss).backward()
 				scaler.step(optimizer)
 				scaler.update()
@@ -148,9 +182,9 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 			eager.eval()
 			outputs = []
 			with torch.inference_mode():
-				for features, _ in val_loader:
+				for features, time_mask, _ in val_loader:
 					with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=precision != "fp32"):
-						outputs.append(model(features.to(device, non_blocking=True)).float())
+						outputs.append(forward_model(model, features.to(device, non_blocking=True), time_mask.to(device, non_blocking=True)).float())
 			metrics = _score(torch.cat(outputs), y_val, int(settings["num_classes"]))
 			if not math.isfinite(train_loss) or not math.isfinite(metrics["log_loss"]):
 				raise ValueError("Nonfinite training or validation loss")

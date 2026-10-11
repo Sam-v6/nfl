@@ -53,6 +53,34 @@ def main(argv: Sequence[str] | None = None) -> int:
 				from training import train_model
 
 				print(train_model(config, paths.data_root / "manifest.json", paths.run_dir))
+		elif args.command == "predict":
+			from generate_predictions import predict_dataset
+
+			config = json.loads(args.config.read_text()) if args.config else {}
+			if "bundle" not in config:
+				parser.error("predict requires a config naming the model bundle")
+			print(
+				predict_dataset(
+					Path(config["bundle"]),
+					paths.data_root / "manifest.json",
+					paths.run_dir,
+					int(config.get("batch_size", 512)),
+					split=config.get("split", "predict"),
+					device=args.device if args.device != "auto" else config.get("device", "auto"),
+					precision=config.get("precision", "fp32"),
+					offset=config.get("offset"),
+				)
+			)
+		elif args.command == "benchmark":
+			from benchmark import benchmark
+
+			config = json.loads(args.config.read_text()) if args.config else {}
+			if "bundle" not in config:
+				parser.error("benchmark requires a config naming the model bundle")
+			config["manifest"] = str(paths.data_root / "manifest.json")
+			if args.device != "auto":
+				config["device"] = args.device
+			print(benchmark(config, paths.run_dir))
 		else:
 			parser.error(f"{args.command} is not implemented yet")
 	except (OSError, ValueError) as exc:

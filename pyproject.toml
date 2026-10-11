@@ -55,7 +55,7 @@ nfl = "cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["cli", "audit_data", "coverage_labels", "dataset", "dataset_io", "evaluate", "model_bundle", "training", "load_data", "clean_data", "create_features", "train_transformer", "generate_predictions", "process_predictions"]
+py-modules = ["cli", "audit_data", "coverage_labels", "dataset", "dataset_io", "evaluate", "model_bundle", "training", "benchmark", "inference_data", "football_features", "load_data", "clean_data", "create_features", "train_transformer", "generate_predictions", "process_predictions"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -101,5 +101,5 @@ markers = ["integration: bounded real-data or GPU checks"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-include = ["src/cli.py", "src/audit_data.py", "src/common/paths.py", "src/dataset.py", "src/coverage_labels.py", "src/evaluate.py", "src/models/baselines.py", "src/dataset_io.py", "src/model_bundle.py", "src/training.py", "src/models/transformer.py", "src/train_transformer.py"]
+include = ["src/cli.py", "src/audit_data.py", "src/common/paths.py", "src/dataset.py", "src/coverage_labels.py", "src/evaluate.py", "src/models/baselines.py", "src/dataset_io.py", "src/model_bundle.py", "src/training.py", "src/models/transformer.py", "src/train_transformer.py", "src/generate_predictions.py", "src/benchmark.py", "src/inference_data.py", "src/models/factory.py", "src/models/temporal.py", "src/football_features.py"]
 typeCheckingMode = "standard"
