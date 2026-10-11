@@ -69,7 +69,7 @@ Historical Week 9 is reported separately: preselected neural seed 42 macro-F1 0.
 
 ## Performance evidence
 
-Measurements use an RTX 4090, Torch 2.9.1, four CPU threads, FP32, and verified prepared Week 5 tensors. Raw tracking preparation is outside the weekly prediction timing. No speedup claim includes data download, preprocessing, calibration, or report generation.
+Measurements use an RTX 4090, Torch 2.9.1, four CPU threads, FP32, and 5,162 verified prepared Week 5 play/horizon examples. Raw tracking preparation is outside the weekly prediction timing. No speedup claim includes data download, preprocessing, calibration, or report generation.
 
 | Matched workload | Reference | Optimized | Interpretation |
 |---|---:|---:|---|
@@ -78,7 +78,7 @@ Measurements use an RTX 4090, Torch 2.9.1, four CPU threads, FP32, and verified 
 | CPU prepared-week prediction, batch 1 →512 | 1.044 s | 0.248 s | 4.2× |
 | Selected-runtime FP32 training kernel, eager →compiled | 2.705 ms | 2.331 ms | 1.16× steady kernel; 7.23 s cold compiled step |
 
-Selected-runtime batch-one repeats ranged from 2.315 to 10.664 seconds; batch-512 repeats ranged from 0.129 to 0.173 seconds. Another project had an existing GPU allocation, left untouched. These shared-host timings are not a dedicated-GPU guarantee. Full training did not establish the proposed 1.5× target. Compilation remains off because startup is material for short runs. BF16 and temporal additions failed development quality or cost tradeoffs; Torch 2.13 was rejected for a measured workload regression. See [runtime decisions](../2026-10-11-runtime-decisions.md).
+Selected-runtime batch-one repeats ranged from 2.315 to 10.664 seconds; batch-512 repeats ranged from 0.129 to 0.173 seconds. Another project had an existing GPU allocation, left untouched. These shared-host timings are not a dedicated-GPU guarantee. The full benchmark process peaked at 207.17 MiB of PyTorch-allocated CUDA memory across tested modes; this excludes reserved allocator memory and other processes. Full training did not establish the proposed 1.5× target. Compilation remains off because startup is material for short runs. BF16 and temporal additions failed development quality or cost tradeoffs; Torch 2.13 was rejected for a measured workload regression. See [runtime decisions](../2026-10-11-runtime-decisions.md).
 
 The six confirmation subprocesses consumed 139.92 elapsed GPU-accounted seconds. Including the conservative imported allowance, the ledger ended at 20 attempts and 4,200.92 seconds, below 24 trials / 24 GPU-hours. Older benchmark overhead is conservatively reserved rather than claimed exactly measured; [development inventory](../2026-10-11-development-budget.json) records receipt hashes.
 
