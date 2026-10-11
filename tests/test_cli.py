@@ -24,7 +24,7 @@ def test_missing_dataset_fails_without_creating_run(tmp_path: Path) -> None:
 	assert not (tmp_path / "run").exists()
 
 
-@pytest.mark.parametrize("command", ["prepare", "train", "predict", "evaluate", "benchmark", "experiment"])
+@pytest.mark.parametrize("command", ["train", "predict", "evaluate", "benchmark", "experiment"])
 def test_pending_commands_fail_clearly(command: str, tmp_path: Path) -> None:
 	result = invoke(command, "--data-root", str(tmp_path), "--run-dir", str(tmp_path / "run"), cwd=tmp_path)
 	assert result.returncode != 0

@@ -1,0 +1,6 @@
+{
+  "seasons": [2021, 2022],
+  "cutoffs": [-30, -20, -10, -5, -1],
+  "history_frames": 30,
+  "seed": 42
+}
