@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 import torch
 from test_model_bundle import MODEL_CONFIG
 
@@ -135,3 +136,31 @@ def test_direct_and_loader_use_identical_shuffles(tmp_path: Path) -> None:
 	for name, tensor in a["model"].items():
 		torch.testing.assert_close(tensor, b["model"][name], atol=0, rtol=0)
 	assert a["history"] == b["history"]
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_resume_honors_checkpoint_early_stop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, interrupted: bool) -> None:
+	import training
+
+	manifest = training_fixture(tmp_path / "data")
+	config = {**MODEL_CONFIG, "device": "cpu", "epochs": 10, "batch_size": 8, "patience": 1}
+	monkeypatch.setattr(training, "_score", lambda *args: {"macro_f1": 0.5, "accuracy": 0.5, "log_loss": 1.0})
+	training.train_model(config, manifest, tmp_path / "whole")
+
+	def interrupt(metrics: dict, directory: Path) -> None:
+		if metrics["epoch"] == 1:
+			raise KeyboardInterrupt("after checkpoint, before early stop")
+
+	if interrupted:
+		with pytest.raises(KeyboardInterrupt):
+			training.train_model(config, manifest, tmp_path / "resumed", reporter=interrupt)
+	else:
+		training.train_model(config, manifest, tmp_path / "resumed")
+	training.train_model({**config, "resume": True}, manifest, tmp_path / "resumed")
+	whole = torch.load(tmp_path / "whole/latest.pt", weights_only=True)
+	resumed = torch.load(tmp_path / "resumed/latest.pt", weights_only=True)
+	assert whole["epoch"] == resumed["epoch"] == 1
+	assert whole["history"] == resumed["history"]
+	for name, tensor in whole["model"].items():
+		torch.testing.assert_close(tensor, resumed["model"][name], atol=0, rtol=0)
+	assert json.loads((tmp_path / "resumed/terminal.json").read_text())["epochs_completed"] == 2

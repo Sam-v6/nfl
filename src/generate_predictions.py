@@ -1,6 +1,7 @@
 """Batched, keyed prediction using verified causal inputs and portable bundles."""
 
 import json
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -16,9 +17,9 @@ from models.factory import forward_model
 from training import select_device
 
 
-def predict_batches(model: nn.Module, features: torch.Tensor, time_mask: torch.Tensor, batch_size: int, device: torch.device, precision: str = "fp32", temperature: float = 1.0) -> torch.Tensor:
-	if batch_size < 1 or not len(features) or temperature <= 0:
-		raise ValueError("Require positive batch size, nonempty input and positive temperature")
+def predict_logits(model: nn.Module, features: torch.Tensor, time_mask: torch.Tensor, batch_size: int, device: torch.device, precision: str = "fp32") -> torch.Tensor:
+	if batch_size < 1 or not len(features):
+		raise ValueError("Require positive batch size and nonempty input")
 	if precision not in ("fp32", "bf16", "fp16") or (device.type == "cpu" and precision != "fp32"):
 		raise ValueError("Unsupported prediction precision")
 	if precision == "bf16" and not torch.cuda.is_bf16_supported():
@@ -31,8 +32,17 @@ def predict_batches(model: nn.Module, features: torch.Tensor, time_mask: torch.T
 			x = features[start : start + batch_size].to(device, non_blocking=True)
 			with torch.autocast(device_type=device.type, dtype=dtype, enabled=precision != "fp32"):
 				logits = forward_model(model, x, time_mask[start : start + batch_size].to(device, non_blocking=True))
-			outputs.append((logits.float() / temperature).softmax(-1).cpu())
-	return torch.cat(outputs)
+			outputs.append(logits.float().cpu())
+	result = torch.cat(outputs)
+	if not torch.isfinite(result).all():
+		raise ValueError("Nonfinite model logits")
+	return result
+
+
+def predict_batches(model: nn.Module, features: torch.Tensor, time_mask: torch.Tensor, batch_size: int, device: torch.device, precision: str = "fp32", temperature: float = 1.0) -> torch.Tensor:
+	if not math.isfinite(temperature) or temperature <= 0:
+		raise ValueError("Require a finite positive temperature")
+	return (predict_logits(model, features, time_mask, batch_size, device, precision) / temperature).softmax(-1)
 
 
 def predict_dataset(
@@ -61,6 +71,8 @@ def predict_dataset(
 	output = index[[*KEYS, "offset", "split"]].reset_index(drop=True)
 	for i in range(len(metadata["classes"])):
 		output[f"prob_{i}"] = probabilities[:, i].numpy()
+	output["confidence"] = probabilities.max(dim=1).values.numpy()
+	output["answered"] = output.confidence.ge(float(metadata.get("confidence_threshold", 0.0)))
 	output_dir.mkdir(parents=True)
 	path = output_dir / "predictions.parquet"
 	output.to_parquet(path, index=False)
@@ -74,6 +86,7 @@ def predict_dataset(
 		"elapsed_seconds": time.monotonic() - started,
 		"manifest_sha256": file_hash(manifest_path),
 		"weights_sha256": metadata["weights_sha256"],
+		"metadata_sha256": file_hash(bundle_path / "metadata.json"),
 		"predictions_sha256": file_hash(path),
 	}
 	(output_dir / "terminal.json").write_text(json.dumps(receipt, indent=2) + "\n")

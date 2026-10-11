@@ -1,6 +1,6 @@
 # NFL coverage prediction: proposed direction
 
-Status: **APPROVED FOR IMPLEMENTATION on October 11, 2026.**
+Status: **Implementation and frozen evaluation completed October 11, 2026; neural promotion rejected.** This document preserves the approved protocol and original planning audit, not current runtime state. See [results](../../reports/2026-10-11-coverage-comparison/README.md) and [delivery](../../reports/2026-10-11-delivery.md) for outcomes and review/merge status.
 
 Date: October 10, 2026. Scope confirmed in chat: **pre-snap prediction first; post-snap identification later.**
 

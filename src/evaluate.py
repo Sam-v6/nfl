@@ -1,6 +1,7 @@
 """Play-level metrics and paired game-bootstrap comparisons."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -76,7 +77,7 @@ def evaluate_predictions(predictions: pd.DataFrame, manifest_path: Path, output_
 		raise ValueError("Dataset index hash mismatch")
 	expected = pd.read_parquet(index_path).query("not augmented")
 	_validate_keys(predictions)
-	joined = predictions.drop(columns=["target"], errors="ignore").merge(expected, on=KEYS, how="left", validate="one_to_one", indicator=True)
+	joined = predictions.drop(columns=["target", "split", "offset"], errors="ignore").merge(expected, on=KEYS, how="left", validate="one_to_one", indicator=True)
 	if not np.all(joined["_merge"].to_numpy() == "both"):
 		raise ValueError("Prediction keys outside the dataset")
 	if np.any(joined["split"].to_numpy() == "final"):
@@ -98,6 +99,7 @@ def evaluate_predictions(predictions: pd.DataFrame, manifest_path: Path, output_
 		report["answered_accuracy"] = float((group[PROB_COLUMNS].to_numpy()[answered].argmax(axis=1) == group.target.to_numpy()[answered]).mean()) if answered.any() else None
 		reports[f"{split}/{offset}"] = report
 	output_dir.mkdir(parents=True, exist_ok=False)
+	os.environ.setdefault("MPLCONFIGDIR", str(output_dir / "matplotlib-cache"))
 	import matplotlib
 
 	matplotlib.use("Agg")
@@ -161,3 +163,90 @@ def compare_predictions(candidate: pd.DataFrame, baseline: pd.DataFrame, seed: i
 		"excluded_replicates": 0,
 		"seed": seed,
 	}
+
+
+PROMOTION_GATES = {"evidence", "identical_cohort", "class_support", "positive_game_bootstrap", "calibrated_log_loss", "binary_macro_f1", "class_recall", "secondary_endpoint"}
+
+
+def check_promotion(candidate_metrics: dict[str, Any], baseline_metrics: dict[str, Any], comparison: dict[str, Any]) -> dict[str, Any]:
+	"""Fail closed when quality, replication or provenance evidence is missing."""
+	evidence = comparison.get("evidence", {})
+	ci = comparison.get("ci95", [])
+	candidate_classes = candidate_metrics.get("per_class", {})
+	baseline_classes = baseline_metrics.get("per_class", {})
+	support = all(
+		label in candidate_classes and label in baseline_classes and candidate_classes[label].get("support", 0) >= 20 and candidate_classes[label]["support"] == baseline_classes[label]["support"]
+		for label in CLASSES
+	)
+	gates = {
+		"evidence": evidence.get("seeds") == [17, 42, 73]
+		and evidence.get("benchmark_verified") is True
+		and evidence.get("calibration_split") == "calibrate"
+		and all(evidence.get(key) for key in ("selection_hash", "weights_sha256", "dataset_hash", "metadata_sha256", "manifest_sha256")),
+		"identical_cohort": candidate_metrics.get("eligible_plays", 0) > 0 and candidate_metrics.get("eligible_plays") == baseline_metrics.get("eligible_plays"),
+		"class_support": support,
+		"positive_game_bootstrap": len(ci) == 2 and np.isfinite(ci).all() and ci[0] > 0 and comparison.get("replicates") == 2000 and comparison.get("n_games", 0) >= 2,
+		"calibrated_log_loss": candidate_metrics.get("log_loss", np.inf) <= baseline_metrics.get("log_loss", -np.inf) + 1e-10,
+		"binary_macro_f1": candidate_metrics.get("binary", {}).get("macro_f1", -np.inf)
+		>= max(baseline_metrics.get("binary", {}).get("macro_f1", np.inf), comparison.get("binary_reference_f1", -np.inf)) - 0.01 - 1e-12,
+		"class_recall": support and all(candidate_classes[label]["recall"] >= baseline_classes[label]["recall"] - 0.05 - 1e-12 for label in CLASSES),
+		"secondary_endpoint": comparison.get("secondary_candidate_f1", -np.inf) >= comparison.get("secondary_baseline_f1", np.inf) - 0.01 - 1e-12,
+	}
+	return {"approved": bool(all(gates.values())), "gates": {name: bool(value) for name, value in gates.items()}, "evidence": evidence}
+
+
+def promote_bundle(bundle: Path, decision: dict[str, Any], pointer: Path, fixture: bool = False) -> bool:
+	if fixture or not decision.get("approved"):
+		return False
+	gate_sets = [decision.get("gates", {})]
+	seeds = decision.get("seed_decisions", {})
+	if set(seeds) != {"17", "42", "73"}:
+		raise ValueError("Promotion requires all three seed decisions")
+	gate_sets.extend(seeds.values())
+	if any(set(gates) != PROMOTION_GATES or not all(value is True for value in gates.values()) for gates in gate_sets):
+		raise ValueError("Promotion requires every successful gate decision")
+	import torch
+
+	from model_bundle import load_bundle
+
+	_, metadata = load_bundle(bundle, torch.device("cpu"))
+	evidence = decision.get("evidence", {})
+	if len(metadata["dataset_hash"]) != 64 or metadata["dataset_hash"] != evidence.get("dataset_hash") or metadata["weights_sha256"] != evidence.get("weights_sha256"):
+		raise ValueError("Promotion provenance mismatch or fixture artifact")
+	metadata_hash = file_hash(bundle / "metadata.json")
+	calibration = metadata.get("calibration", {})
+	if metadata_hash != evidence.get("metadata_sha256") or calibration.get("split") != "calibrate" or calibration.get("manifest_sha256") != evidence.get("manifest_sha256"):
+		raise ValueError("Evaluated calibration metadata mismatch")
+	import shutil
+
+	published = pointer.parent / "accepted" / metadata_hash
+	if not published.exists():
+		published.parent.mkdir(parents=True, exist_ok=True)
+		partial = published.with_suffix(".partial")
+		if partial.exists():
+			shutil.rmtree(partial)
+		shutil.copytree(bundle, partial)
+		partial.replace(published)
+	_, protected_metadata = load_bundle(published, torch.device("cpu"))
+	if file_hash(published / "metadata.json") != metadata_hash or protected_metadata != metadata:
+		raise ValueError("Accepted artifact content mismatch")
+	for path in published.rglob("*"):
+		path.chmod(0o555 if path.is_dir() else 0o444)
+	published.chmod(0o555)
+	pointer.parent.mkdir(parents=True, exist_ok=True)
+	temporary = pointer.with_suffix(".tmp")
+	temporary.write_text(
+		json.dumps(
+			{
+				"bundle": str(published.resolve()),
+				"dataset_hash": metadata["dataset_hash"],
+				"weights_sha256": metadata["weights_sha256"],
+				"metadata_sha256": metadata_hash,
+				"decision": decision,
+			},
+			indent=2,
+		)
+		+ "\n"
+	)
+	temporary.replace(pointer)
+	return True

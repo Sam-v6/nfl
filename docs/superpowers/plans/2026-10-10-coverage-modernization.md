@@ -10,7 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-10-coverage-modernization.md`.
 
-**Status:** APPROVED FOR IMPLEMENTATION on October 11, 2026. Progress is recorded in the execution ledger.
+**Status:** Tasks 1–8 implemented and frozen evaluation completed October 11, 2026. Neural promotion failed; measured inference gains passed, while the proposed full-training speed target was not established. See [execution ledger](../execution-progress.md), [results](../../reports/2026-10-11-coverage-comparison/README.md) and [delivery](../../reports/2026-10-11-delivery.md).
+
+The original step checklists below are retained as the approved design, not a live completion queue or a claim that every optional experiment was selected. Task outcomes and deviations are recorded in the execution ledger: temporal models and class weighting were tested but not selected; optional pretraining/context extensions and distributed training were deferred. User authorization now permits merging after review and passing checks.
 
 ## Global Constraints
 

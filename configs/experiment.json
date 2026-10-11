@@ -1,0 +1,13 @@
+{
+  "manifest": "artifacts/runs/dataset-v1/manifest.json",
+  "stage": "search",
+  "max_trials": 24,
+  "gpu_hours": 24,
+  "reserve_hours": 12,
+  "trial_seconds": 3600,
+  "wall_seconds": 86400,
+  "trials": [{"backend": "ray", "device": "cuda", "epochs": 30, "num_samples": 4,
+    "model_dim": 64, "num_heads": 4, "num_layers": 2, "multiplier": 4, "dropout": 0.1,
+    "num_classes": 7, "feature_len": 5, "precision": "bf16", "batch_size": 512,
+    "search_space": {"lr": [0.0001, 0.0003], "weight_decay": [0.001, 0.01]}}]
+}

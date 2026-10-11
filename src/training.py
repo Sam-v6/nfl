@@ -2,6 +2,7 @@
 
 import json
 import math
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -40,6 +41,9 @@ DEFAULTS = {
 	"model_type": "spatial",
 	"fit_season": None,
 	"class_weighting": False,
+	"inference_precision": "fp32",
+	"tf32": False,
+	"cpu_threads": 4,
 }
 
 
@@ -63,6 +67,9 @@ def _score(logits: torch.Tensor, targets: torch.Tensor, num_classes: int) -> dic
 
 def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, reporter: Callable[[dict[str, Any], Path], None] | None = None) -> Path:
 	settings = {**DEFAULTS, **config}
+	if not 1 <= int(settings["cpu_threads"]) <= 32:
+		raise ValueError("CPU thread count must be 1–32")
+	torch.set_num_threads(int(settings["cpu_threads"]))
 	device = select_device(str(settings["device"]))
 	epochs = int(settings["epochs"])
 	batch_size = int(settings["batch_size"])
@@ -77,7 +84,9 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 		raise ValueError("GPU does not support BF16")
 	amp_dtype = {"fp32": torch.float32, "bf16": torch.bfloat16, "fp16": torch.float16}[precision]
 	resume = bool(settings.pop("resume", False))
-	identity = {key: value for key, value in settings.items() if key != "epochs"}
+	if settings["inference_precision"] != "fp32":
+		raise ValueError("Model selection uses the FP32 inference reference")
+	identity = {key: value for key, value in settings.items() if key not in ("epochs", "fitted_class_weights")}
 	x_train, mask_train, y_train, train_index = load_examples(manifest_path, "fit", season=settings["fit_season"])
 	x_val, mask_val, y_val, _ = load_examples(manifest_path, "tune", offset=-1)
 	if settings["model_type"] == "spatial":
@@ -92,8 +101,8 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	torch.manual_seed(int(settings["seed"]))
 	if device.type == "cuda":
 		torch.cuda.manual_seed_all(int(settings["seed"]))
-		torch.backends.cuda.matmul.allow_tf32 = True
-		torch.backends.cudnn.allow_tf32 = True
+		torch.backends.cuda.matmul.allow_tf32 = bool(settings["tf32"])
+		torch.backends.cudnn.allow_tf32 = bool(settings["tf32"])
 	generator = torch.Generator().manual_seed(int(settings["seed"]))
 	eager = create_coverage_model(settings).to(device)
 	model: nn.Module = eager
@@ -133,6 +142,7 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 		start_epoch, history = state["epoch"] + 1, state["history"]
 		best, bad_epochs, elapsed_base = tuple(state["best"]), state["bad_epochs"], state["elapsed_seconds"]
 	if settings["compile"]:
+		os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", str(run_dir / "compiler-cache"))
 		original = {key: value.detach().clone() for key, value in eager.state_dict().items()}
 		rng = torch.get_rng_state()
 		cuda_rng = torch.cuda.get_rng_state_all() if device.type == "cuda" else []
@@ -151,6 +161,8 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	(run_dir / "config.json").write_text(json.dumps(settings, indent=2) + "\n")
 	try:
 		for epoch in range(start_epoch, epochs):
+			if int(settings["patience"]) > 0 and bad_epochs >= int(settings["patience"]):
+				break
 			epoch_start = time.monotonic()
 			eager.train()
 			loss_sum = torch.zeros((), device=device)
@@ -183,8 +195,7 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 			outputs = []
 			with torch.inference_mode():
 				for features, time_mask, _ in val_loader:
-					with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=precision != "fp32"):
-						outputs.append(forward_model(model, features.to(device, non_blocking=True), time_mask.to(device, non_blocking=True)).float())
+					outputs.append(forward_model(model, features.to(device, non_blocking=True), time_mask.to(device, non_blocking=True)).float())
 			metrics = _score(torch.cat(outputs), y_val, int(settings["num_classes"]))
 			if not math.isfinite(train_loss) or not math.isfinite(metrics["log_loss"]):
 				raise ValueError("Nonfinite training or validation loss")

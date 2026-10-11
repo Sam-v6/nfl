@@ -1,12 +1,64 @@
+# NFL pre-snap coverage prediction
 
-# Overview
-This repo trains a machine learning model on 2021 & 2022 NFL location tracking data to predict pass coverage BEFORE the snap. 
+Predict seven coverage labels from player tracking observed before the snap: Cover 0, Cover 1, Cover 2, Cover 3, Quarters, 2-Man, and Cover 6. Man probability is the sum of Cover 0, Cover 1, and 2-Man. The maintained pipeline supports spatial and masked temporal models, geometric baselines, calibrated probabilities, portable bundles, and bounded local/Ray experiments.
 
-Two models are implemented:
-- LSTM "naive" model that treats location tracking data as true time series inputs
-- Transformer model that follows the SumerSports and SmitBajaj implementation
+Evaluation separates fitting, development, calibration, and final comparison by whole games. The primary endpoint is 0.1 seconds before the snap; a separate one-second endpoint checks earlier prediction. This is an existing labeled pass-play cohort, with exclusions recorded in the dataset manifest. Weeks 7–8 and historical Week 9 were exposed during older development, so their new comparisons cannot establish fresh-data generalization.
 
-Both models yield about 88% accuracy in predicting man or pass coverage BEFORE the snap for all plays in Week 9 of the 2022 NFL season.
+[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md) · [Frozen results and gates](docs/reports/2026-10-11-coverage-comparison/README.md) · [PR delivery stack](docs/reports/2026-10-11-delivery.md)
+
+## Maintained workflow
+
+Use Python 3.12 and the locked worktree-local environment. If global uv is older, bootstrap with:
+
+```bash
+uvx --from uv==0.12.17 uv sync --locked --extra tuning
+.venv/bin/nfl --help
+.venv/bin/pytest -q -m 'not integration'
+.venv/bin/ruff check src tests scripts
+.venv/bin/pyright
+```
+
+Every command requires explicit input and output paths; existing outputs are protected. Raw Parquet files remain read-only.
+
+```bash
+.venv/bin/nfl audit --data-root /path/to/data/parquet --run-dir artifacts/runs/audit
+.venv/bin/nfl prepare --data-root /path/to/data/parquet --run-dir artifacts/runs/dataset --config configs/coverage.json
+.venv/bin/nfl train --data-root artifacts/runs/dataset --run-dir artifacts/runs/training --config configs/training.json
+```
+
+`predict` accepts a JSON config naming `bundle`, `split`, `batch_size`, and `device`. For unlabeled live observations, `prepare` accepts `unlabeled: true`, `tracking_file`, and `requests_file` (Parquet paths relative to `--data-root`); it requires no coverage labels or outcomes. `calibrate` uses the designated Week 6 role only. `evaluate` verifies complete keyed cohorts and emits confusion/calibration plots. `experiment` enforces persisted budgets; recovery requires `resume: true` with the same frozen configuration. See `configs/experiment.json` for a bounded search and `configs/final-comparison.json` for the frozen three-seed protocol.
+
+A real-data integration check is isolated and performs no final-role inference or scoring:
+
+```bash
+.venv/bin/python scripts/integration_check.py --data-root /path/to/data/parquet --run-dir artifacts/runs/integration --device cpu
+.venv/bin/pytest -q tests/test_tune_smoke.py -m integration
+```
+
+GPU training uses one job at a time. FP32 is the measured default; AMP and compilation remain explicit experiments. Bundle metadata records vocabulary, preprocessing schema, weight hashes, source provenance, runtime, and calibration.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+    A[Observed tracking prefix] --> B[Cutoff features and history mask]
+    B --> C[Whole-game fit and development splits]
+    C --> D[Shared local or Ray trainer]
+    D --> E[Portable seven-class bundle]
+    E --> F[Week 6 calibration]
+    F --> G[Frozen Weeks 7–8 comparison]
+    G --> H{All three seeds pass?}
+    H -->|Yes| I[Protected accepted bundle]
+    H -->|No| J[Retain baseline and report limitations]
+```
+
+The October 2026 neural model improved mean seven-class macro precision from **46.84% to 50.51%**, macro recall from **40.76% to 45.74%**, and macro-F1 from **41.88% to 46.61%**. It failed binary/recall/earlier-endpoint promotion gates; no accepted-model pointer was written. The preselected seed 42 reached 55.07% macro precision, 46.63% macro recall and 58.40% accuracy. These are equal-class metrics on historically exposed weeks, not a comparison to the old binary headline.
+
+Batching reduced a matched prepared-week GPU prediction workload from **1.656 s to 0.128 s (12.9×)** and CPU prediction from **1.044 s to 0.248 s (4.2×)**. A shared-host GPU repeat varied substantially. Compiled training kernels improved 1.16× with a 7.23 s cold step; the full-training 1.5× target was not established, so compilation stays off. See the frozen report for workload boundaries and all repeats.
+
+## Historical binary demonstrations
+
+The examples below belong to the original binary models and their older evaluation protocol. Their approximately 88% Week 9 accuracy is not directly comparable to the seven-class, play-level evaluation.
 
 # Demo
 
@@ -59,9 +111,8 @@ If we look across all plays in Week 9, our model on average is ~88% accurate in 
 ![plot](./docs/images/accuracy_across_frames.png)
 
 
-# Getting started
+## Data
 
-## Get the raw data
 The raw data that was provided by NFL NextGenStats has been removed from the original Kaggle source. The orginal csv data has been transformed to parquet data and stored with git large file storage (LFS).
 
 To retrieve the data, first install git LFS
@@ -78,7 +129,7 @@ git lfs install
 git lfs pull
 ```
 
-This will fully populate `nfl/parquet/*` with:
+This will fully populate `data/parquet/*` with:
 
 `2021/`:
 - `games.parquet`
@@ -109,326 +160,24 @@ This will fully populate `nfl/parquet/*` with:
 - `tracking_week_8.parquet`
 - `tracking_week_9.parquet`
 
-## Setup python virtual environment
-This project uses `uv` for managing the python virtual environment. To install uv please see the official [documentation](https://docs.astral.sh/uv/getting-started/installation/) or install via CLI below:
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+## Development and optional tools
 
-To create and activate the virtual environment and setup git hooks (for auto linting and formatting), run the following:
-```bash
-uv sync --locked
-uv run pre-commit install
-```
-
-## Run instructions
-
-To digest the "raw" location tracking data and create meanigful features, you can run the following command. This will:
-- Ingest the raw data
-- Clean and normalize the raw data
-- Create synthetic data to increase samples
-- Consolidate into meanigful features for transformer model training
+Use the maintained `nfl` commands above. The former direct-script training, 1,000-trial HPO, inference and profiler instructions have been retired; their binary demonstrations and figures above are historical artifacts. The current search is bounded by `configs/experiment.json`, and benchmark receipts separate warm execution from compilation startup.
 
 ```bash
-# Normal run command
-uv run src/create_features.py
+.venv/bin/ruff check src tests scripts
+.venv/bin/ruff format --check src tests scripts
+.venv/bin/pyright
+.venv/bin/pytest -q -m 'not integration'
+.venv/bin/pre-commit install
 ```
 
-With features in hand, we can now train the model. The model will train on Season 2021 Weeks 1-8 and Season 2022 Weeks 1-8 data. Week 9 data from Season 2023 will be used for validation.
-
-To train the transformer with the default `model_params.json` you can run:
+Optional packages: `--extra tuning` for Ray, `--extra tracking` for MLflow, `--extra notebooks` for notebooks, and `--extra legacy` for old model dependencies. Install with the pinned uv bootstrap shown above. For local MLflow viewing after installing tracking dependencies:
 
 ```bash
-# Train the model
-uv run src/train_transformer.py
+.venv/bin/mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
 ```
 
-Alternatively, you can run hyper-parameter optimization (HPO) which will save the best model (`transformer.pt`) and `model_params.json`. By default this will run 1000 trials (which are automatically pruned with an ASHA scheduler via Ray Tune).
+## Remaining research
 
-```bash
-# Run HPO
-uv run src/train_transformer.py --tune
-```
-
-If you don't actually want to run HPO and instead verify functionality, you can simply run the following which will run 1 trial with 5 epochs. This still logs metrics to Ray with the MLflow callback and ensure complete capability works.
-
-```bash
-# Run HPO just to see if things are working
-uv run src/train_transformer.py --tune --ci
-```
-
-Realitically to run useful HPO with many trials (like 1000), you will likely need to access to significant GPU resources to complete this training in a reasonable time. Given you are likely to ssh into this machine (where an interrupt to the connection can kill the process itself), the following command is given for convenience which will allow for specific GPUs on the host machine to be available to Ray Tune and allow the user to disconnect from the process but allow the PID to continue.
-
-```bash
-# Set CUDA devices (let's assume we have 8 GPUs on the host machine), run training with the ability to disconnect the process and tee results to a log file
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 nohup uv run src/train_transformer.py --tune > tune.log 2>&1 &
-
-# Disconnect from the process
-disown
-```
-
-With a trained model, we can now run inference on Season 2022 - Week 9 plays. This will save predictions in parquet format which will get pulled in downstream.
-
-```bash
-# Run inference
-uv run src/generate_predictions.py 
-```
-
-Finally we can create artifacts based on the predictions (saved upstream as parquet files). This will plot accuracy for Season 2022 Week 9, provide a classification report, and create animations of several interesting plays (that have the highest model increase in predicted man coverage probability across frames before the snap).
-
-```bash
-# Create artifacts
-uv run src/process_predictions.py
-```
-
-## Activating MLflow
-This project uses MLflow to manage ML models and track experiments from hyper paremter optimization. To start MLflow simply:
-```bash
-# Make sure your virtual environment is sourced so the terminal recognizes mlflow
-source .venv/bin/activate
-
-# Start the tracking server
-mlflow ui \
-  --backend-store-uri sqlite:///mlflow.db \
-  --host 0.0.0.0 \
-  --port 5000
-```
-
-The last command will start the MLflow GUI at your local host loopback on port 5000: http://127.0.0.1:5000. Viewing MLflow will look something like this (note our results are after a 500 trial hyper-parameter optimization run with Ray Tune)
-
-![mlflow_tune](./docs/images/mlflow_tune.png)
-
-## Profiler
-The PyTorch profiler is used for examining the training process and run time inference.
-
-### Miscellaneous Profiling
-You can profile any core scripts with:
-```bash
-# Generic profiling (uses the decorators to shown time the fcns take)
-uv run src/the_script.py --profile
-
-```
-
-### Profiling Training
-
-You can profile the training process with:
-```bash
-uv run src/train_transformer.py --profile
-```
-
-This will do three things:
-1) Give timing results for each function call through the decorators `time_fcn`
-2) Summarize the top CPU operations and GPU operations for training
-3) Output `log/profiler/trace_training.json` which can be loaded into https://ui.perfetto.dev/ to view the timeline of training
-
-An example of the top CPU and GPU operations (sorted by time) are shown below:
-```sh
-Top CPU ops:
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                          ProfilerStep*         0.06%     337.228us        93.40%     571.986ms     190.662ms       0.000us         0.00%      38.696ms      12.899ms           0 B           0 B           0 B     -24.61 MB             3  
-enumerate(DataLoader)#_SingleProcessDataLoaderIter._...        42.21%     258.480ms        73.95%     452.836ms     150.945ms       0.000us         0.00%       0.000us       0.000us           0 B     -24.61 MB           0 B           0 B             3  
-                                           aten::select        14.88%      91.123ms        18.94%     116.013ms       1.007us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B        115200  
-                                             aten::item         0.00%       8.599us        16.61%     101.720ms      33.907ms       0.000us         0.00%       3.584us       1.195us           0 B           0 B           0 B           0 B             3  
-                              aten::_local_scalar_dense         0.01%      33.658us        16.61%     101.711ms      33.904ms       3.584us         0.00%       3.584us       1.195us           0 B           0 B           0 B           0 B             3  
-                                  cudaStreamSynchronize        16.60%     101.645ms        16.60%     101.645ms      33.882ms       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B             3  
-                                            aten::stack         4.07%      24.929ms        12.24%      74.931ms      12.489ms       0.000us         0.00%       0.000us       0.000us      24.61 MB           0 B           0 B           0 B             6  
-                                        aten::unsqueeze         4.40%      26.957ms         5.98%      36.642ms       0.636us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B         57600  
-                                       aten::as_strided         5.65%      34.607ms         5.65%      34.607ms       0.200us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B        172875  
-                                  cudaDeviceSynchronize         5.18%      31.706ms         5.18%      31.706ms      31.706ms       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B             1  
-                                             train_step         1.61%       9.858ms         2.72%      16.653ms       5.551ms       0.000us         0.00%      37.244ms      12.415ms           0 B           0 B       1.87 MB      -6.22 GB             3  
-                                              aten::cat         2.18%      13.330ms         2.18%      13.354ms       2.226ms       0.000us         0.00%       0.000us       0.000us      24.61 MB      24.61 MB           0 B           0 B             6  
-autograd::engine::evaluate_function: CompiledFunctio...         0.01%      61.062us         1.33%       8.153ms       2.718ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB    -225.00 KB             3  
-                               CompiledFunctionBackward         0.06%     365.321us         1.32%       8.092ms       2.697ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB           0 B             3  
-## Call CompiledFxGraph fs2eo6ymbddiaqvlvl43h26r4o56...         0.83%       5.082ms         1.26%       7.727ms       2.576ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB      -7.58 GB             3  
-                             Torch-Compiled Region: 0/0         0.05%     294.930us         0.89%       5.433ms       1.811ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB           0 B             3  
-                                       CompiledFunction         0.06%     365.452us         0.82%       5.033ms       1.678ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB           0 B             3  
-## Call CompiledFxGraph fr2crjjm6bea2bu25s5lujbtakhq...         0.49%       2.994ms         0.76%       4.668ms       1.556ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB       5.74 GB             3  
-                                       aten::pin_memory         0.14%     848.272us         0.56%       3.411ms     568.551us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B             6  
-                                      aten::_pin_memory         0.22%       1.378ms         0.41%       2.482ms     413.705us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B             6  
-                                            aten::copy_         0.20%       1.198ms         0.22%       1.317ms      43.893us       3.468ms         2.33%       3.468ms     115.599us           0 B           0 B           0 B           0 B            30  
-                                               aten::mm         0.14%     828.708us         0.19%       1.133ms      11.108us      25.366ms        17.07%      25.366ms     248.691us           0 B           0 B           0 B           0 B           102  
-                              Optimizer.step#AdamW.step         0.14%     859.283us         0.17%       1.032ms     344.061us       0.000us         0.00%     483.613us     161.204us           0 B           0 B           0 B           0 B             3  
-                                         cuLaunchKernel         0.13%     789.408us         0.13%     789.408us       2.105us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           375  
-                                       cudaLaunchKernel         0.07%     412.417us         0.07%     412.417us       2.455us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           168  
-     aten::_scaled_dot_product_flash_attention_backward         0.01%      44.965us         0.07%     406.717us      67.786us       0.000us         0.00%      31.322ms       5.220ms           0 B           0 B       1.36 GB           0 B             6  
-autograd::engine::evaluate_function: torch::autograd...         0.03%     154.030us         0.05%     327.798us       2.875us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           114  
-                        aten::_flash_attention_backward         0.01%      65.186us         0.05%     307.896us      51.316us      29.312ms        19.73%      31.322ms       5.220ms           0 B           0 B       1.36 GB      -8.05 GB             6  
-                                               aten::to         0.00%      21.143us         0.04%     262.985us      17.532us       0.000us         0.00%       1.458ms      97.216us           0 B           0 B      25.27 MB           0 B            15  
-                    Optimizer.zero_grad#AdamW.zero_grad         0.04%     247.293us         0.04%     247.293us      82.431us       0.000us         0.00%       0.000us       0.000us           0 B           0 B      -1.87 MB      -1.87 MB             3  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 612.384ms
-Self CUDA time total: 148.575ms
-
-Top GPU (CUDA kernel) ops:
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                          ProfilerStep*         0.00%       0.000us         0.00%       0.000us       0.000us     454.566ms       305.95%     454.566ms     151.522ms           0 B           0 B           0 B           0 B             3  
-## Call CompiledFxGraph fs2eo6ymbddiaqvlvl43h26r4o56...         0.00%       0.000us         0.00%       0.000us       0.000us      76.829ms        51.71%      76.829ms      25.610ms           0 B           0 B           0 B           0 B             3  
-autograd::engine::evaluate_function: CompiledFunctio...         0.01%      61.062us         1.33%       8.153ms       2.718ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB    -225.00 KB             3  
-                               CompiledFunctionBackward         0.06%     365.321us         1.32%       8.092ms       2.697ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB           0 B             3  
-## Call CompiledFxGraph fs2eo6ymbddiaqvlvl43h26r4o56...         0.83%       5.082ms         1.26%       7.727ms       2.576ms       0.000us         0.00%      76.588ms      25.529ms           0 B           0 B      -6.22 GB      -7.58 GB             3  
-                                          ProfilerStep*         0.06%     337.228us        93.40%     571.986ms     190.662ms       0.000us         0.00%      38.696ms      12.899ms           0 B           0 B           0 B     -24.61 MB             3  
-                                             train_step         1.61%       9.858ms         2.72%      16.653ms       5.551ms       0.000us         0.00%      37.244ms      12.415ms           0 B           0 B       1.87 MB      -6.22 GB             3  
-## Call CompiledFxGraph fr2crjjm6bea2bu25s5lujbtakhq...         0.00%       0.000us         0.00%       0.000us       0.000us      37.069ms        24.95%      37.069ms      12.356ms           0 B           0 B           0 B           0 B             3  
-                             Torch-Compiled Region: 0/0         0.05%     294.930us         0.89%       5.433ms       1.811ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB           0 B             3  
-                                       CompiledFunction         0.06%     365.452us         0.82%       5.033ms       1.678ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB           0 B             3  
-## Call CompiledFxGraph fr2crjjm6bea2bu25s5lujbtakhq...         0.49%       2.994ms         0.76%       4.668ms       1.556ms       0.000us         0.00%      36.715ms      12.238ms           0 B           0 B       6.22 GB       5.74 GB             3  
-     aten::_scaled_dot_product_flash_attention_backward         0.01%      44.965us         0.07%     406.717us      67.786us       0.000us         0.00%      31.322ms       5.220ms           0 B           0 B       1.36 GB           0 B             6  
-                        aten::_flash_attention_backward         0.01%      65.186us         0.05%     307.896us      51.316us      29.312ms        19.73%      31.322ms       5.220ms           0 B           0 B       1.36 GB      -8.05 GB             6  
-                                               aten::mm         0.14%     828.708us         0.19%       1.133ms      11.108us      25.366ms        17.07%      25.366ms     248.691us           0 B           0 B           0 B           0 B           102  
-void pytorch_flash::flash_bwd_dq_dk_dv_loop_seqk_par...         0.00%       0.000us         0.00%       0.000us       0.000us      23.759ms        15.99%      23.759ms       2.970ms           0 B           0 B           0 B           0 B             8  
-void pytorch_flash::flash_bwd_dot_do_o_kernel<true, ...         0.00%       0.000us         0.00%       0.000us       0.000us       8.661ms         5.83%       8.661ms       1.083ms           0 B           0 B           0 B           0 B             8  
-void pytorch_flash::flash_fwd_kernel<Flash_fwd_kerne...         0.00%       0.000us         0.00%       0.000us       0.000us       8.291ms         5.58%       8.291ms       1.184ms           0 B           0 B           0 B           0 B             7  
-              aten::_scaled_dot_product_flash_attention         0.01%      32.816us         0.04%     215.414us      35.902us       0.000us         0.00%       7.121ms       1.187ms           0 B           0 B     485.37 MB           0 B             6  
-                         aten::_flash_attention_forward         0.01%      51.505us         0.02%     140.659us      23.443us       7.121ms         4.79%       7.121ms       1.187ms           0 B           0 B     485.37 MB           0 B             6  
-void pytorch_flash::flash_bwd_convert_dq_kernel<Flas...         0.00%       0.000us         0.00%       0.000us       0.000us       6.514ms         4.38%       6.514ms     814.277us           0 B           0 B           0 B           0 B             8  
-triton_per_fused__to_copy_add_addmm_native_layer_nor...         0.00%       0.000us         0.00%       0.000us       0.000us       6.513ms         4.38%       6.513ms     814.161us           0 B           0 B           0 B           0 B             8  
-ampere_fp16_s16816gemm_fp16_128x64_ldg8_f2f_stages_6...         0.00%       0.000us         0.00%       0.000us       0.000us       6.364ms         4.28%       6.364ms     397.772us           0 B           0 B           0 B           0 B            16  
-triton_per_fused__to_copy_add_addmm_native_layer_nor...         0.01%      43.349us         0.01%      55.353us       9.225us       4.987ms         3.36%       4.987ms     831.101us           0 B           0 B           0 B           0 B             6  
-void cutlass::Kernel2<cutlass_80_tensorop_f16_s16816...         0.00%       0.000us         0.00%       0.000us       0.000us       4.718ms         3.18%       4.718ms     589.702us           0 B           0 B           0 B           0 B             8  
-triton_per_fused__to_copy_add_native_layer_norm_back...         0.00%       0.000us         0.00%       0.000us       0.000us       4.653ms         3.13%       4.653ms     581.618us           0 B           0 B           0 B           0 B             8  
-triton_poi_fused_add_clone_select_backward_squeeze_t...         0.00%       0.000us         0.00%       0.000us       0.000us       4.652ms         3.13%       4.652ms     581.533us           0 B           0 B           0 B           0 B             8  
-triton_poi_fused__to_copy_addmm_relu_threshold_backw...         0.00%       0.000us         0.00%       0.000us       0.000us       4.354ms         2.93%       4.354ms     544.302us           0 B           0 B           0 B           0 B             8  
-          ampere_fp16_s1688gemm_fp16_256x64_ldg8_f2f_tn         0.00%       0.000us         0.00%       0.000us       0.000us       4.153ms         2.80%       4.153ms     519.086us           0 B           0 B           0 B           0 B             8  
-ampere_fp16_s1688gemm_fp16_128x128_ldg8_f2f_stages_3...         0.00%       0.000us         0.00%       0.000us       0.000us       3.764ms         2.53%       3.764ms     235.225us           0 B           0 B           0 B           0 B            16  
-triton_poi_fused__to_copy__unsafe_view_add_clone_squ...         0.00%       0.000us         0.00%       0.000us       0.000us       3.735ms         2.51%       3.735ms     533.548us           0 B           0 B           0 B           0 B             7  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 612.384ms
-Self CUDA time total: 148.575ms
-
-2025-12-08 15:53:09,345 - INFO - Function run_trial took 829.8971 s
-```
-
-An example of the timeline view (with the `trace_training.json` loaded into perfetto) is shown below:
-![profile_training_timeline](./docs/images/profile_training_timeline.png)
-
-### Profiling Inference
-You can profile inference with:
-```bash
-uv run src/generate_predictions --profile
-```
-
-This will do three things:
-1) Give timing results for each function call through the decorators `time_fcn`
-2) Summarize the top CPU operations and GPU operations for inference
-3) Output `log/profiler/trace_inference.json` which can be loaded into https://ui.perfetto.dev/ to view the timeline of inference for a single frame
-
-An example of the top CPU and GPU operations (sorted by time) are shown below:
-```sh
-Top CPU ops (inference):
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                         inference_step         5.87%     848.468us        99.96%      14.444ms     722.205us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB           0 B            20  
-                             Torch-Compiled Region: 0/0         5.33%     770.511us        92.22%      13.326ms     666.299us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB           0 B            20  
-## Call CompiledFxGraph fbnp6yhlifehv3ftgsqc26y42ure...        26.63%       3.847ms        85.24%      12.317ms     615.834us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB    -330.00 KB            20  
-                   aten::_transformer_encoder_layer_fwd         3.67%     529.978us        45.69%       6.601ms     165.031us       0.000us         0.00%       1.307ms      32.684us           0 B           0 B     340.00 KB      -1.66 MB            40  
-                     aten::_native_multi_head_attention         4.95%     714.936us        26.17%       3.781ms      94.520us       0.000us         0.00%     704.765us      17.619us           0 B        -160 B     340.00 KB      -1.31 MB            40  
-                                            aten::addmm         7.72%       1.115ms        10.86%       1.569ms      11.204us     545.444us        34.25%     545.444us       3.896us           0 B           0 B       1.64 MB       1.64 MB           140  
-                                           aten::linear         1.24%     178.513us         9.66%       1.395ms      17.440us       0.000us         0.00%     341.024us       4.263us           0 B           0 B       1.31 MB           0 B            80  
-                                       aten::layer_norm         1.48%     214.143us         7.21%       1.042ms      13.021us       0.000us         0.00%     181.889us       2.274us           0 B           0 B     696.50 KB     -62.00 KB            80  
-                     aten::scaled_dot_product_attention         0.83%     119.704us         5.92%     854.840us      21.371us       0.000us         0.00%     363.741us       9.094us         160 B        -480 B     340.00 KB           0 B            40  
-                                aten::native_layer_norm         2.22%     320.574us         5.73%     827.556us      10.344us     181.889us        11.42%     181.889us       2.274us           0 B           0 B     758.50 KB      -1.50 KB            80  
-                                       cudaLaunchKernel         5.36%     774.946us         5.36%     774.946us       1.761us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           440  
-          aten::_scaled_dot_product_efficient_attention         0.75%     109.007us         5.09%     735.136us      18.378us       0.000us         0.00%     363.741us       9.094us         640 B           0 B     340.00 KB           0 B            40  
-                                        aten::transpose         2.61%     376.871us         3.77%     545.166us       0.909us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           600  
-                                               aten::mm         2.72%     392.892us         3.73%     538.487us       8.975us     131.808us         8.28%     131.808us       2.197us           0 B           0 B           0 B           0 B            60  
-                                            aten::empty         3.58%     517.471us         3.58%     517.471us       1.294us       0.000us         0.00%       0.000us       0.000us         568 B         568 B       1.07 MB       1.07 MB           400  
-                                         cuLaunchKernel         3.57%     515.740us         3.57%     515.740us       1.984us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           260  
-                     aten::_efficient_attention_forward         1.40%     202.306us         3.38%     488.500us      12.213us     363.741us        22.84%     363.741us       9.094us         640 B          72 B     340.00 KB           0 B            40  
-                                            aten::chunk         0.24%      34.494us         3.03%     437.408us      10.935us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B            40  
-                                aten::_addmm_activation         1.95%     281.480us         2.81%     406.210us      10.155us     161.123us        10.12%     161.123us       4.028us           0 B           0 B     660.00 KB     660.00 KB            40  
-                                            aten::split         0.43%      62.031us         2.79%     402.914us      10.073us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B            40  
-                                           aten::narrow         1.50%     216.262us         2.36%     340.883us       2.841us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           120  
-                                             aten::add_         1.30%     188.066us         2.26%     327.209us       4.090us      90.461us         5.68%      90.461us       1.131us           0 B           0 B           0 B           0 B            80  
-triton_poi_fused__native_batch_norm_legit_no_trainin...         1.47%     212.652us         2.11%     304.829us      15.241us      23.458us         1.47%      23.458us       1.173us           0 B           0 B           0 B           0 B            20  
-                               TorchDynamo Cache Lookup         1.87%     269.642us         1.87%     269.642us      13.482us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B            20  
-                                             aten::view         1.57%     226.514us         1.57%     226.514us       0.298us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           760  
-                                                aten::t         0.47%      67.309us         1.45%     209.726us       1.311us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           160  
-                                       aten::as_strided         1.41%     203.651us         1.41%     203.651us       0.283us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B           720  
-              triton_per_fused_mean_permute_unsqueeze_2         1.06%     152.941us         1.34%     193.296us       9.665us      23.232us         1.46%      23.232us       1.162us           0 B           0 B           0 B           0 B            20  
-triton_per_fused__unsafe_view_add_native_layer_norm_...         0.92%     133.017us         1.20%     173.498us       8.675us      25.952us         1.63%      25.952us       1.298us           0 B           0 B           0 B           0 B            20  
-                                Activity Buffer Request         1.18%     170.179us         1.18%     170.179us     170.179us       0.000us         0.00%       0.000us       0.000us           0 B           0 B           0 B           0 B             1  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 14.449ms
-Self CUDA time total: 1.592ms
-
-
-Top CUDA ops (inference):
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-## Call CompiledFxGraph fbnp6yhlifehv3ftgsqc26y42ure...         0.00%       0.000us         0.00%       0.000us       0.000us      10.114ms       635.13%      10.114ms     505.697us           0 B           0 B           0 B           0 B            20  
-                                         inference_step         5.87%     848.468us        99.96%      14.444ms     722.205us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB           0 B            20  
-                             Torch-Compiled Region: 0/0         5.33%     770.511us        92.22%      13.326ms     666.299us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB           0 B            20  
-## Call CompiledFxGraph fbnp6yhlifehv3ftgsqc26y42ure...        26.63%       3.847ms        85.24%      12.317ms     615.834us       0.000us         0.00%       1.592ms      79.621us           0 B           0 B      10.00 KB    -330.00 KB            20  
-                   aten::_transformer_encoder_layer_fwd         3.67%     529.978us        45.69%       6.601ms     165.031us       0.000us         0.00%       1.307ms      32.684us           0 B           0 B     340.00 KB      -1.66 MB            40  
-                     aten::_native_multi_head_attention         4.95%     714.936us        26.17%       3.781ms      94.520us       0.000us         0.00%     704.765us      17.619us           0 B        -160 B     340.00 KB      -1.31 MB            40  
-                                            aten::addmm         7.72%       1.115ms        10.86%       1.569ms      11.204us     545.444us        34.25%     545.444us       3.896us           0 B           0 B       1.64 MB       1.64 MB           140  
-                     aten::scaled_dot_product_attention         0.83%     119.704us         5.92%     854.840us      21.371us       0.000us         0.00%     363.741us       9.094us         160 B        -480 B     340.00 KB           0 B            40  
-          aten::_scaled_dot_product_efficient_attention         0.75%     109.007us         5.09%     735.136us      18.378us       0.000us         0.00%     363.741us       9.094us         640 B           0 B     340.00 KB           0 B            40  
-                     aten::_efficient_attention_forward         1.40%     202.306us         3.38%     488.500us      12.213us     363.741us        22.84%     363.741us       9.094us         640 B          72 B     340.00 KB           0 B            40  
-fmha_cutlassF_f32_aligned_64x64_rf_sm80(PyTorchMemEf...         0.00%       0.000us         0.00%       0.000us       0.000us     363.741us        22.84%     363.741us       9.094us           0 B           0 B           0 B           0 B            40  
-                                           aten::linear         1.24%     178.513us         9.66%       1.395ms      17.440us       0.000us         0.00%     341.024us       4.263us           0 B           0 B       1.31 MB           0 B            80  
-void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_...         0.00%       0.000us         0.00%       0.000us       0.000us     300.132us        18.85%     300.132us       2.501us           0 B           0 B           0 B           0 B           120  
-void cublasLt::splitKreduce_kernel<32, 16, int, floa...         0.00%       0.000us         0.00%       0.000us       0.000us     263.361us        16.54%     263.361us       1.646us           0 B           0 B           0 B           0 B           160  
-                                       aten::layer_norm         1.48%     214.143us         7.21%       1.042ms      13.021us       0.000us         0.00%     181.889us       2.274us           0 B           0 B     696.50 KB     -62.00 KB            80  
-                                aten::native_layer_norm         2.22%     320.574us         5.73%     827.556us      10.344us     181.889us        11.42%     181.889us       2.274us           0 B           0 B     758.50 KB      -1.50 KB            80  
-void at::native::(anonymous namespace)::vectorized_l...         0.00%       0.000us         0.00%       0.000us       0.000us     181.889us        11.42%     181.889us       2.274us           0 B           0 B           0 B           0 B            80  
-                                aten::_addmm_activation         1.95%     281.480us         2.81%     406.210us      10.155us     161.123us        10.12%     161.123us       4.028us           0 B           0 B     660.00 KB     660.00 KB            40  
-                                               aten::mm         2.72%     392.892us         3.73%     538.487us       8.975us     131.808us         8.28%     131.808us       2.197us           0 B           0 B           0 B           0 B            60  
-void cutlass::Kernel2<cutlass_80_tensorop_s1688gemm_...         0.00%       0.000us         0.00%       0.000us       0.000us     107.779us         6.77%     107.779us       2.694us           0 B           0 B           0 B           0 B            40  
-                                             aten::add_         1.30%     188.066us         2.26%     327.209us       4.090us      90.461us         5.68%      90.461us       1.131us           0 B           0 B           0 B           0 B            80  
-void at::native::vectorized_elementwise_kernel<4, at...         0.00%       0.000us         0.00%       0.000us       0.000us      90.461us         5.68%      90.461us       1.131us           0 B           0 B           0 B           0 B            80  
-std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      74.561us         4.68%      74.561us       1.864us           0 B           0 B           0 B           0 B            40  
-                        ampere_sgemm_32x32_sliced1x4_tt         0.00%       0.000us         0.00%       0.000us       0.000us      57.247us         3.59%      57.247us       2.862us           0 B           0 B           0 B           0 B            20  
-std::enable_if<!(false), void>::type internal::gemvx...         0.00%       0.000us         0.00%       0.000us       0.000us      35.295us         2.22%      35.295us       1.765us           0 B           0 B           0 B           0 B            20  
-triton_per_fused__unsafe_view_add_native_layer_norm_...         0.92%     133.017us         1.20%     173.498us       8.675us      25.952us         1.63%      25.952us       1.298us           0 B           0 B           0 B           0 B            20  
-triton_per_fused__unsafe_view_add_native_layer_norm_...         0.00%       0.000us         0.00%       0.000us       0.000us      25.952us         1.63%      25.952us       1.298us           0 B           0 B           0 B           0 B            20  
-        triton_per_fused_addmm_native_layer_norm_relu_4         0.84%     121.863us         1.10%     159.299us       7.965us      24.479us         1.54%      24.479us       1.224us           0 B           0 B           0 B           0 B            20  
-        triton_per_fused_addmm_native_layer_norm_relu_4         0.00%       0.000us         0.00%       0.000us       0.000us      24.479us         1.54%      24.479us       1.224us           0 B           0 B           0 B           0 B            20  
-triton_poi_fused__native_batch_norm_legit_no_trainin...         1.47%     212.652us         2.11%     304.829us      15.241us      23.458us         1.47%      23.458us       1.173us           0 B           0 B           0 B           0 B            20  
--------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 14.449ms
-Self CUDA time total: 1.592ms
-```
-
-An example of the timeline view (with the `trace_inference.json` loaded into perfetto) is shown below:
-![profile_inference_timeline](./docs/images/profile_inference_timeline.png)
-
-# Contributing
-
-## Linting and Formatting
-We are using [ruff](https://docs.astral.sh/ruff/) as a the linter and formatter. Ruff can be used with:
-
-```bash
-# Get check results
-uv run ruff check .
-
-# Get check results and apply fixes (recommend review these with git diff)
-uv run ruff check . --fix
-
-# Run formatter
-uv run ruff format .
-```
-
-Note, if you followed instructions above to setup the git hook, ruff will run the linter (with auto fixing on) and formatting as a pre-commit git hook.
-
-## Future Work
-- Data
-  - Look into additional data augmentation techniques
-- Model
-  - Consider model improvements in transformer arch
-  - Build per team model, do ANOVA, then highlight specific players that are giving tells on coverages
-  - Build multiclass output model instead of binary classification
-  - See if I can build a model to determine blitzer like red circle AWS at post snap
-  - Add in confusion matrix, ROC curve, and prediction post snap accuracy to automatic predictions and not just in notebook
-- Infra
-  - Optimization
-    - Switch to flash attention layer which can accelerate training
-  - General
-    - Get docker working and implemented in CI
-    - Look back on mypy for type
+Seven-class prediction, confusion/calibration reports, batching, typed checks and CPU CI are implemented. The current neural candidate is not promoted: binary discrimination, Cover-1 recall and one-second predictions remain weaknesses; 2-Man recall is particularly low. A future iteration should use development data to address these weaknesses and seek genuinely unexposed games before making a generalization claim. Temporal/context experiments are implemented but did not justify selection. Post-snap identification, blitzer prediction, distributed training and player-specific causal explanations remain outside this release.

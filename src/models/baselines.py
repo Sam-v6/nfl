@@ -58,12 +58,14 @@ def development_folds(index: pd.DataFrame) -> list[tuple[np.ndarray, np.ndarray]
 	for week in (3, 4, 5):
 		train = (index.season.eq(2021) | (index.season.eq(2022) & index.week.lt(week))).to_numpy()
 		tune = (index.season.eq(2022) & index.week.eq(week) & ~index.augmented).to_numpy()
+		if "offset" in index:
+			tune &= index.offset.eq(-1).to_numpy()
 		folds.append((np.flatnonzero(train), np.flatnonzero(tune)))
 	return folds
 
 
 def train_baselines(manifest_path: Path, output_dir: Path) -> Path:
-	"""Fit on -0.1s training snapshots and report development results only."""
+	"""Fit the same training endpoints as neural models; report at -0.1s."""
 	import json
 
 	import joblib
@@ -71,7 +73,7 @@ def train_baselines(manifest_path: Path, output_dir: Path) -> Path:
 	from dataset_io import load_examples
 	from evaluate import KEYS, PROB_COLUMNS, evaluate_predictions
 
-	x_train, _, y_train, train_index = load_examples(manifest_path, "fit", offset=-1)
+	x_train, _, y_train, train_index = load_examples(manifest_path, "fit")
 	x_tune, _, y_tune, tune_index = load_examples(manifest_path, "tune", offset=-1)
 	output_dir.mkdir(parents=True, exist_ok=False)
 	manifest = json.loads(manifest_path.read_text())
@@ -79,7 +81,8 @@ def train_baselines(manifest_path: Path, output_dir: Path) -> Path:
 		"dataset_hash": manifest["dataset_hash"],
 		"endpoint": -1,
 		"training_examples": len(x_train),
-		"training_plays": int(train_index.loc[~train_index.augmented].shape[0]),
+		"training_plays": int(train_index.loc[~train_index.augmented].drop_duplicates(["season", "gameId", "playId"]).shape[0]),
+		"training_endpoints": "all configured cutoffs, identical to neural training",
 		"tune_examples": len(x_tune),
 		"models": {},
 	}
@@ -90,6 +93,9 @@ def train_baselines(manifest_path: Path, output_dir: Path) -> Path:
 		else:
 			model = fit_baseline(x_train[:, -1].numpy(), y_train.numpy(), kind)
 			joblib.dump(model, output_dir / f"{kind}.joblib")
+			from model_bundle import save_baseline_bundle
+
+			save_baseline_bundle(model, output_dir / f"{kind}-bundle", manifest["dataset_hash"])
 			probs = predict_baseline_proba(model, x_tune[:, -1].numpy())
 		predictions = pd.DataFrame(tune_index[KEYS]).copy()
 		predictions["target"] = y_tune.numpy()
@@ -97,6 +103,20 @@ def train_baselines(manifest_path: Path, output_dir: Path) -> Path:
 		predictions.to_parquet(output_dir / f"{kind}_tune.parquet", index=False)
 		metrics_path = evaluate_predictions(predictions, manifest_path, output_dir / kind)
 		receipt["models"][kind] = json.loads(metrics_path.read_text())
+	# Refit preprocessing/model within each forward fold; never import final data.
+	from evaluate import score_predictions
+
+	x_all = np.concatenate([x_train[:, -1].numpy(), x_tune[:, -1].numpy()])
+	y_all = np.concatenate([y_train.numpy(), y_tune.numpy()])
+	all_index = pd.concat([train_index, tune_index], ignore_index=True)
+	receipt["forward_folds"] = []
+	for week, (fit_rows, validation_rows) in zip((3, 4, 5), development_folds(all_index), strict=True):
+		fold = {"week": week, "fit_examples": len(fit_rows), "validation_plays": len(validation_rows), "models": {}}
+		if len(validation_rows) and len(np.unique(y_all[fit_rows])) >= 2:
+			for kind in ("logistic", "lightgbm"):
+				model = fit_baseline(x_all[fit_rows], y_all[fit_rows], kind)
+				fold["models"][kind] = score_predictions(y_all[validation_rows], predict_baseline_proba(model, x_all[validation_rows]))
+		receipt["forward_folds"].append(fold)
 	path = output_dir / "baseline-results.json"
 	path.write_text(json.dumps(receipt, indent=2) + "\n")
 	return path

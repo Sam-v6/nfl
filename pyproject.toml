@@ -26,28 +26,23 @@ classifiers = [
 ]
 
 dependencies = [
-  "catboost>=1.2.8",
-  "ipykernel>=6.30.1",
-  "ipympl>=0.9.8",
-  "kaggle>=1.7.4.5",
-  "lightgbm>=4.6.0",
+  "lightgbm==4.6.0",
   "matplotlib>=3.10.6",
-  "mlflow>=3.4.0",
   "numpy>=2.3.3",
   "pandas>=2.3.2",
-  "pyarrow>=22.0.0",
-  "pip-tools>=7.5.0",
-  "polars>=1.35.1",
-  "pre-commit>=4.5.0",
-  "ray[train,tune]>=2.51.1",
-  "ruff>=0.14.7",
+  "pyarrow==22.0.0",
+  "polars==1.35.2",
   "scikit-learn>=1.7.2",
-  "seaborn>=0.13.2",
-  "torch>=2.8.0",
-  "torchvision>=0.24.1",
+  "scipy>=1.16.3",
+  "torch==2.9.1",
   "tqdm>=4.67.1",
-  "xgboost>=3.0.5",
 ]
+
+[project.optional-dependencies]
+tuning = ["ray[train,tune]==2.59.0"]
+tracking = ["mlflow==3.6.0"]
+notebooks = ["ipykernel>=6.30.1", "ipympl>=0.9.8", "kaggle>=1.7.4.5", "seaborn>=0.13.2"]
+legacy = ["catboost>=1.2.8", "xgboost>=3.0.5", "torchvision==0.24.1", "pip-tools>=7.5.0"]
 
 [project.scripts]
 # command = "module:function"
@@ -55,7 +50,7 @@ nfl = "cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["cli", "audit_data", "coverage_labels", "dataset", "dataset_io", "evaluate", "model_bundle", "training", "benchmark", "inference_data", "football_features", "load_data", "clean_data", "create_features", "train_transformer", "generate_predictions", "process_predictions"]
+py-modules = ["cli", "audit_data", "coverage_labels", "dataset", "dataset_io", "evaluate", "model_bundle", "training", "benchmark", "inference_data", "football_features", "experiment", "calibrate", "final_report", "coverage_display", "load_data", "clean_data", "create_features", "train_transformer", "generate_predictions", "process_predictions"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -89,8 +84,11 @@ indent-style = "tab"
 
 [dependency-groups]
 dev = [
+    "ruff==0.14.7",
+    "pre-commit==4.5.0",
     "pyright>=1.1",
     "pytest>=8",
+    "uv==0.12.17",
 ]
 
 [tool.pytest.ini_options]
@@ -101,5 +99,8 @@ markers = ["integration: bounded real-data or GPU checks"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-include = ["src/cli.py", "src/audit_data.py", "src/common/paths.py", "src/dataset.py", "src/coverage_labels.py", "src/evaluate.py", "src/models/baselines.py", "src/dataset_io.py", "src/model_bundle.py", "src/training.py", "src/models/transformer.py", "src/train_transformer.py", "src/generate_predictions.py", "src/benchmark.py", "src/inference_data.py", "src/models/factory.py", "src/models/temporal.py", "src/football_features.py"]
+include = ["src/cli.py", "src/audit_data.py", "src/common/paths.py", "src/dataset.py", "src/coverage_labels.py", "src/evaluate.py", "src/models/baselines.py", "src/dataset_io.py", "src/model_bundle.py", "src/training.py", "src/models/transformer.py", "src/train_transformer.py", "src/generate_predictions.py", "src/benchmark.py", "src/inference_data.py", "src/models/factory.py", "src/models/temporal.py", "src/football_features.py", "src/experiment.py", "src/calibrate.py", "src/models/tabular.py", "src/final_report.py", "src/coverage_display.py", "scripts/integration_check.py"]
 typeCheckingMode = "standard"
+
+[tool.uv]
+required-version = ">=0.12.17,<0.13"

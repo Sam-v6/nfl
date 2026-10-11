@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 import platform
 import time
 from collections.abc import Callable
@@ -41,6 +42,9 @@ def measure(operation: Callable[[], None], synchronize: Callable[[], None], warm
 def benchmark(config: dict[str, Any], output_dir: Path) -> Path:
 	if output_dir.exists():
 		raise ValueError("Benchmark output already exists")
+	total_started = time.perf_counter()
+	torch.set_num_threads(int(config.get("cpu_threads", 4)))
+	torch.set_float32_matmul_precision("highest")
 	device = select_device(str(config.get("device", "auto")))
 	bundle = Path(config["bundle"])
 	manifest = Path(config["manifest"])
@@ -56,6 +60,7 @@ def benchmark(config: dict[str, Any], output_dir: Path) -> Path:
 	reference = predict_batches(eager, x, mask, batch_size, device)
 	baseline_quality = score_predictions(y.numpy(), reference.numpy())
 	output_dir.mkdir(parents=True)
+	os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", str(output_dir / "compiler-cache"))
 
 	def synchronize() -> None:
 		if device.type == "cuda":
@@ -181,11 +186,15 @@ def benchmark(config: dict[str, Any], output_dir: Path) -> Path:
 		"cuda_runtime": torch.version.cuda,
 		"python": platform.python_version(),
 		"cpu_threads": torch.get_num_threads(),
+		"tf32": bool(torch.backends.cuda.matmul.allow_tf32),
+		"elapsed_seconds": time.perf_counter() - total_started,
 		"batch_size": batch_size,
 		"cold_load_seconds": cold_load,
 		"cache_state": "uncontrolled OS cache; warm tensor cache after verified loading",
 		"manifest_sha256": file_hash(manifest),
 		"weights_sha256": metadata["weights_sha256"],
+		"model_config": metadata["config"],
+		"model_source_sha256": metadata.get("source_sha256", {}),
 		"inference_modes": modes,
 		"transfer_pipelines": pipelines,
 		"training_modes": training_modes,

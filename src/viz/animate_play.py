@@ -9,6 +9,9 @@ import pandas as pd
 from matplotlib.animation import FuncAnimation
 from matplotlib.artist import Artist
 
+from coverage_display import coverage_caption
+from evaluate import PROB_COLUMNS
+
 """
 # TODO
 - Add labels on home team vs away team, score, quarter, down, distance
@@ -132,6 +135,8 @@ def animate_play(
 		frame_offset = frame_id - snap_frame_id
 		time_sec = frame_offset * 0.1  # 0.1 seconds per frame
 		time_text.set_text(f"Time: {time_sec:+.1f} s (relative to snap)")
+		if set(PROB_COLUMNS).issubset(frame_df.columns) and not frame_df.empty:
+			time_text.set_text(time_text.get_text() + "\n" + coverage_caption(frame_df.iloc[0]))
 
 		# Down specification
 		if down == 1:

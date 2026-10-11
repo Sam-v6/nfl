@@ -1,0 +1,29 @@
+{
+  "status": "complete",
+  "rows": 1,
+  "device": "cpu",
+  "precision": "fp32",
+  "batch_size": 512,
+  "classes": [
+    "Cover-0",
+    "Cover-1",
+    "Cover-2",
+    "Cover-3",
+    "Quarters",
+    "2-Man",
+    "Cover-6"
+  ],
+  "elapsed_seconds": 0.1963169159989775,
+  "manifest_sha256": "4fd3f8412f24fb881067f6183f675a4266c786960c1d0d0d29410a6b0f5ff547",
+  "weights_sha256": "052f9bdeec9bbc59b9325a2f2bf20f326baf0ecf1ac3b069ebf85e7d7b0aaadb",
+  "metadata_sha256": "ed7b80cf82edeadfb39c598f074dce6f0b87a820be2a6a6a39bbbbf92e90c480",
+  "predictions_sha256": "01595c4d1761c2717915a034daf08e921e82f4563f5df9bbbaf9c0697b0f4fa1",
+  "outside_checkout": true,
+  "training_data_required": false,
+  "labels_required": false,
+  "exports_sha256": {
+    "candidate-seed42.zip": "a0d15ed27cb7bdc0a1aaa68a5f72fececbb76045fb1ddb290660d891126d1ebf",
+    "binary-seed42.zip": "f00abb731ac8d4c633a75f87a8c75b7efedd5e2e71343503dde4a3ad2499a195",
+    "baseline-seed42.zip": "a4116341b9f4201a34eb5aadbab05a35bb302e096679f2d797ac9e8bb7b936ec"
+  }
+}
