@@ -43,6 +43,8 @@ Seed averaging describes repeatability; it is not ensemble performance. Macro-F1
 
 ## Coverage and calibration
 
+The per-class table uses preselected seed 42 at the primary endpoint, 0.1 seconds before the snap.
+
 | Class | Support | Neural precision | Neural recall | Baseline precision | Baseline recall |
 |---|---:|---:|---:|---:|---:|
 | Cover-0 | 76 | 79.25% | 55.26% | 75.00% | 55.26% |
