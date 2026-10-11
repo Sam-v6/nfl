@@ -4,7 +4,8 @@ Goal activated October 11, 2026. Worktree: `.worktrees/coverage-modernization`; 
 
 - Task 1 complete at `a03d4d0`: isolated CLI/path handling, read-only input inventory, pytest/Pyright, installed packaging, fast CPU CI, manual data integration. 11 tests, Ruff/format, and Pyright passed.
 - Task 2 implemented: fixed vocabulary, game-separated split contract, causal masked prefixes, train-only augmentation and corrected velocity reflection. Real-data dataset preparation completed with verified index/source hashes, 16,457 original primary-endpoint plays, and 1,851 final comparison plays. Dataset hash: `07e30dd6dbee417298224f05db66a90be36f54d7c4fb33de29edd37c5f234ab0`. Missing-cutoff exclusions count play/horizon opportunities, while unknown-label and missing-snap exclusions count plays.
-- Task 3 development baselines running; Tasks 4–8 pending: evaluation/baselines; shared training/checkpoints; GPU/inference optimization; temporal ablations; bounded search/upgrades; calibration/final delivery.
+- Task 3 implemented: verified play-level reports, fixed seven-class metrics, game bootstrap, final-data gate, verified dataset reader, geometry baselines, and forward folds. Week 5 development scores at -0.1s: logistic accuracy 52.62%, macro-F1 0.4082; LightGBM accuracy 52.34%, macro-F1 0.4369. These are development results, not final or comparable to the historical binary headline.
+- Tasks 4–8 pending: evaluation/baselines; shared training/checkpoints; GPU/inference optimization; temporal ablations; bounded search/upgrades; calibration/final delivery.
 
 Host GPU verified: RTX 4090 with 24 GB memory, idle at the check. Sandbox visibility differs from host access; use approved host execution for GPU checks and jobs. Host PyTorch confirms CUDA 12.8 and BF16 support. No GPU training has run yet. Check rendering/process activity before substantial jobs.
 
