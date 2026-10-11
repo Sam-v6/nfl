@@ -29,17 +29,29 @@ Derived binary macro-F1 was 0.7618 / 0.7752 / 0.7737 versus LightGBM's 0.8013. C
 
 The shaded range is seed variation, not a confidence interval. Horizon cohorts differ because missing history is excluded; each neural/baseline comparison uses identical keyed plays. The chart does not establish a causal effect of moving closer to the snap.
 
+## Precision and recall
+
+Macro metrics give each of the seven classes equal weight; they include every eligible play, including abstentions. Precision measures how often a predicted class is correct; recall measures how many examples of that class are recovered. These numbers are derived from the frozen per-class metrics, without training or rescoring.
+
+| Model | Macro precision | Macro recall | Macro-F1 | Accuracy |
+|---|---:|---:|---:|---:|
+| LightGBM baseline | 46.84% | 40.76% | 41.88% | 52.40% |
+| Neural, mean of three seeds | 50.51% | 45.74% | 46.61% | 56.74% |
+| Neural, preselected seed 42 | 55.07% | 46.63% | 47.73% | 58.40% |
+
+Seed averaging describes repeatability; it is not ensemble performance. Macro-F1 is the mean of class F1 scores, not the harmonic mean of the two aggregate columns. In single-label multiclass classification, micro precision and micro recall both equal accuracy.
+
 ## Coverage and calibration
 
-| Class | Primary support | Seed 42 neural recall | Baseline recall |
-|---|---:|---:|---:|
-| Cover 0 | 76 | 55.26% | 55.26% |
-| Cover 1 | 362 | 60.22% | 69.06% |
-| Cover 2 | 272 | 52.94% | 30.51% |
-| Cover 3 | 656 | 74.85% | 70.12% |
-| Quarters | 247 | 59.51% | 40.49% |
-| 2-Man | 46 | 4.35% | 2.17% |
-| Cover 6 | 192 | 19.27% | 17.71% |
+| Class | Support | Neural precision | Neural recall | Baseline precision | Baseline recall |
+|---|---:|---:|---:|---:|---:|
+| Cover-0 | 76 | 79.25% | 55.26% | 75.00% | 55.26% |
+| Cover-1 | 362 | 61.58% | 60.22% | 57.87% | 69.06% |
+| Cover-2 | 272 | 52.36% | 52.94% | 41.50% | 30.51% |
+| Cover-3 | 656 | 65.38% | 74.85% | 55.22% | 70.12% |
+| Quarters | 247 | 45.37% | 59.51% | 44.64% | 40.49% |
+| 2-Man | 46 | 40.00% | 4.35% | 20.00% | 2.17% |
+| Cover-6 | 192 | 41.57% | 19.27% | 33.66% | 17.71% |
 
 Cover 1 recall fell 8.84 points for seed 42. Rare-class 2-Man recall remains poor despite the aggregate improvement. Exact confusion matrices, class F1, Brier score, ECE, calibration bins, and every horizon's counts are in [comparison.json](comparison.json).
 
@@ -81,8 +93,12 @@ uvx --from uv==0.12.17 uv sync --locked --extra tuning
 .venv/bin/python scripts/summarize_comparison.py --run-dir artifacts/runs/final-comparison-v1 --output-dir docs/reports/2026-10-11-coverage-comparison
 ```
 
-For an interrupted existing comparison, copy the same JSON configuration and add only `"resume": true`. Frozen source, lock, data, benchmark and configuration must still match. Completed prediction/report stages are hashed and reused. Fresh experiments need their own output directories, benchmark receipt and accurate prior-budget counters; do not relabel this historical comparison as a new holdout.
+For an interrupted existing comparison, use its frozen source revision and lockfile, copy the same JSON configuration and add only `"resume": true`. The archived run here requires source `3c3d2ad`; later review fixes intentionally change the source identity and cannot resume that run. Frozen source, lock, data, benchmark and configuration must still match. Completed prediction/report stages are hashed and reused. Fresh experiments need their own output directories, benchmark receipt and accurate prior-budget counters; do not relabel this historical comparison as a new holdout.
 
 Portable seed 42 baseline and neural exports are in `artifacts/runs/final-comparison-v1/exports/`. The baseline was loaded from the fresh locked environment outside the checkout and predicted a real unlabeled observation prefix with no training data or coverage/outcome fields. It emitted seven valid keyed probabilities; this is portability evidence, not new predictive validation.
 
 Validation: 96 fast tests; one actual Ray Tune checkpoint test; Ruff, formatting and Pyright; isolated bounded real-data preparation, two-epoch training plus resume to three, calibration and prediction without final-role inference or scoring. Synthetic final-flow tests inject training interruption, late-stage interruption and a corrupt terminal, verify no completed scoring is repeated, and prohibit fixture promotion. Independent read-only review resolved all Important findings before freeze. Remote CI status is recorded in the PR delivery index.
+
+## Post-evaluation code review
+
+GPT-6.1 Sol review found recovery and Ray selection defects: a checkpoint already at the patience limit could run an extra epoch on resume; Ray ranked last-epoch metrics instead of the best exported checkpoint; and an existing exported bundle prevented Ray worker recovery. Regression fixes apply to future execution. The frozen ledger shows six complete local confirmation jobs, all with `resume: false`, each completing 30 epochs, and exactly six attempts beyond the imported 14. These defects did not affect this recorded comparison. The evidence JSON, selected configuration and scores remain unchanged; there was no retraining or final-driven selection.

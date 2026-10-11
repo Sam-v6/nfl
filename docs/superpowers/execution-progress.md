@@ -1,5 +1,7 @@
 # Approved coverage modernization execution
 
+Current status: all eight implementation tasks and frozen comparison complete; candidate promotion rejected. Review/merge status is maintained in the [delivery index](../reports/2026-10-11-delivery.md). The entries below are chronological evidence; earlier development scores and pending states are superseded by the final report and closing entries.
+
 Goal activated October 11, 2026. Worktree: `.worktrees/coverage-modernization`; branch: `Sam-v6/coverage-modernization`; base: `fc898aa`.
 
 - Task 1 complete at `a03d4d0`: isolated CLI/path handling, read-only input inventory, pytest/Pyright, installed packaging, fast CPU CI, manual data integration. 11 tests, Ruff/format, and Pyright passed.
@@ -29,3 +31,7 @@ Final report/figure review found no Important scientific or delivery issue. Repo
 Six reviewable PRs opened and attached (#14–19); all mergeable. Main ancestry reconciliation preserved every stage tree and frozen source/lock hashes. Temporary integration worktree removed cleanly; implementation worktree and model artifacts retained. Remote CPU runs are queued/running on the single self-hosted runner; no remote GPU integration dispatched.
 
 Remote checks for #14–18 passed. Final #19 initially failed before tests because setup-uv v4 prepended the runner’s old ~/.local/bin/uv0.5.24 after installing0.12.17. CI-only repair isolates UV_TOOL_BIN_DIR, verifies uv version, and selects Python3.12; frozen model source/lock/evaluation remain unchanged.
+
+The repaired exact-head #19 CPU run [38155052636](https://github.com/Sam-v6/nfl/actions/runs/38155052636) passed all 96 fast tests, Ruff/format and Pyright. User subsequently authorized full-stack review, GPT-6.1 Sol fixes and merge when checks pass. Documentation was reconciled against frozen evidence, including macro and per-class precision/recall, current commands, research limitations and runtime tradeoffs. No final-model tuning or rescoring was performed.
+
+Post-evaluation GPT-6.1 Sol stack review fixed three recovery/selection findings in `cd936e8`. Final local verification: 99 fast tests, one actual Ray test, Ruff/format and Pyright all passed. All six frozen confirmation jobs were local and non-resumed, so recorded results remain valid under their stated historical-exposure limitation. The review also restored GitHub’s required legacy CI check name without weakening rules; merges use the required squash method with tree-verified successor ancestry. See the delivery index and linked PRs for final checks and merge receipts.
