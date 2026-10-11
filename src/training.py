@@ -161,6 +161,8 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	(run_dir / "config.json").write_text(json.dumps(settings, indent=2) + "\n")
 	try:
 		for epoch in range(start_epoch, epochs):
+			if int(settings["patience"]) > 0 and bad_epochs >= int(settings["patience"]):
+				break
 			epoch_start = time.monotonic()
 			eager.train()
 			loss_sum = torch.zeros((), device=device)

@@ -230,13 +230,16 @@ def _worker() -> None:
 		settings[name] = tune.choice(choices)
 	directory = Path(sys.argv[4])
 	results = run_tune(settings, Path(sys.argv[3]), directory, int(settings.pop("num_samples", 1)))
-	best = results.get_best_result(metric="macro_f1", mode="max")
+	best = results.get_best_result(metric="macro_f1", mode="max", scope="all")
 	if best.error is not None or best.checkpoint is None:
 		raise RuntimeError("Ray search produced no valid checkpoint")
 	import shutil
 
 	with best.checkpoint.as_directory() as checkpoint:
-		shutil.copytree(Path(checkpoint) / "bundle", directory / "bundle")
+		destination = directory / "bundle"
+		if destination.exists():
+			shutil.rmtree(destination)
+		shutil.copytree(Path(checkpoint) / "bundle", destination)
 
 
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--worker":

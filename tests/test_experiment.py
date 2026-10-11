@@ -1,5 +1,8 @@
 import json
+import sys
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -147,3 +150,33 @@ def test_search_space_cannot_override_resource_or_control_fields(tmp_path: Path)
 		config = configuration(tmp_path, trials=[{"device": "cpu", "backend": "ray", "search_space": {field: choices}}])
 		with pytest.raises(ValueError, match="search"):
 			run_experiment(config, tmp_path / field)
+
+
+def test_ray_worker_exports_best_epoch_and_recovers_existing_export(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+	import experiment
+	import train_transformer
+
+	trials = []
+	for name, scores in [("A", [0.9, 0.1]), ("B", [0.5, 0.4])]:
+		checkpoint_dir = tmp_path / name
+		(checkpoint_dir / "bundle").mkdir(parents=True)
+		(checkpoint_dir / "bundle/weights.pt").write_text(name)
+		checkpoint = SimpleNamespace(as_directory=lambda path=checkpoint_dir: nullcontext(str(path)))
+		trials.append(SimpleNamespace(error=None, checkpoint=checkpoint, scores=scores))
+
+	def best_result(metric: str, mode: str, scope: str = "last") -> SimpleNamespace:
+		return max(trials, key=lambda trial: max(trial.scores) if scope == "all" else trial.scores[-1])
+
+	monkeypatch.setitem(sys.modules, "ray", SimpleNamespace(tune=SimpleNamespace()))
+	monkeypatch.setattr(train_transformer, "run_tune", lambda *args: SimpleNamespace(get_best_result=best_result))
+	config = configuration(tmp_path)
+	output = tmp_path / "output"
+	output.mkdir()
+	monkeypatch.setattr(sys, "argv", ["experiment", "--worker", str(config), str(tmp_path / "manifest.json"), str(output)])
+	experiment._worker()
+	assert (output / "bundle/weights.pt").read_text() == "A"
+	(output / "bundle/weights.pt").write_text("interrupted export")
+	(output / "bundle/stale.bin").write_text("prior bundle")
+	experiment._worker()
+	assert (output / "bundle/weights.pt").read_text() == "A"
+	assert not (output / "bundle/stale.bin").exists()
