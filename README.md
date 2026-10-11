@@ -4,7 +4,7 @@ Predict seven coverage labels from player tracking observed before the snap: Cov
 
 Evaluation separates fitting, development, calibration, and final comparison by whole games. The primary endpoint is 0.1 seconds before the snap; a separate one-second endpoint checks earlier prediction. This is an existing labeled pass-play cohort, with exclusions recorded in the dataset manifest. Weeks 7–8 and historical Week 9 were exposed during older development, so their new comparisons cannot establish fresh-data generalization.
 
-[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md) · [Frozen results and gates](docs/reports/2026-10-11-coverage-comparison/README.md)
+[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md) · [Frozen results and gates](docs/reports/2026-10-11-coverage-comparison/README.md) · [PR delivery stack](docs/reports/2026-10-11-delivery.md)
 
 ## Maintained workflow
 
