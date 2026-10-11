@@ -199,3 +199,4 @@ artifacts/
 
 # Any mp4s that sneak in
 *.mp4
+.worktrees/

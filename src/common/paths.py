@@ -3,6 +3,7 @@
 Defines common filesystem paths used across the project.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -23,7 +24,17 @@ def project_root() -> Path:
 PROJECT_ROOT = project_root()
 
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 INFERENCE_DIR = PROJECT_ROOT / "data" / "inference"
-INFERENCE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass(frozen=True)
+class RunPaths:
+	"""Resolved input/output paths; construction never creates directories."""
+
+	data_root: Path
+	run_dir: Path
+
+	@classmethod
+	def resolve(cls, data_root: Path, run_dir: Path) -> "RunPaths":
+		return cls(data_root.expanduser().resolve(), run_dir.expanduser().resolve())
