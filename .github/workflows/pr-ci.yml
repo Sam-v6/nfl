@@ -21,6 +21,9 @@ concurrency:
 
 jobs:
   cpu-verification:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted]
     timeout-minutes: 15
     steps:

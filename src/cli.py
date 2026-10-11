@@ -1,6 +1,8 @@
 """Explicit, isolated entry points for coverage experiments."""
 
 import argparse
+import json
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -23,6 +25,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 			from audit_data import audit_data
 
 			print(audit_data(paths.data_root, paths.run_dir))
+		elif args.command == "prepare":
+			from dataset import prepare_dataset
+
+			logging.basicConfig(level=logging.INFO)
+
+			config = json.loads(args.config.read_text()) if args.config else {}
+			print(prepare_dataset(paths.data_root, config, paths.run_dir))
 		else:
 			parser.error(f"{args.command} is not implemented yet")
 	except (OSError, ValueError) as exc:

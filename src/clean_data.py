@@ -329,6 +329,7 @@ def data_augmentation(df: pd.DataFrame, augmented_frames: Iterable[str]) -> pd.D
 	df_sample = df.loc[df["frameUniqueId"].isin(augmented_frames)].copy()
 
 	df_sample["y_clean"] = (160 / 3) - df_sample["y_clean"]
+	df_sample["v_y"] = -df_sample["v_y"]
 	df_sample["dir_radians"] = (2 * np.pi) - df_sample["dir_radians"]
 	df_sample["dir_clean"] = np.degrees(df_sample["dir_radians"])
 
