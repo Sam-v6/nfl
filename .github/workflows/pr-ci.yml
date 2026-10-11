@@ -24,6 +24,7 @@ jobs:
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
+    name: test-model-training-and-prediction-generation
     runs-on: [self-hosted]
     timeout-minutes: 15
     steps:
