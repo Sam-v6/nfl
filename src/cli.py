@@ -12,7 +12,7 @@ from common.paths import RunPaths
 def main(argv: Sequence[str] | None = None) -> int:
 	parser = argparse.ArgumentParser(prog="nfl", description="Reproducible NFL coverage experiments")
 	commands = parser.add_subparsers(dest="command", required=True)
-	for command in ("audit", "prepare", "train", "predict", "evaluate", "benchmark", "experiment"):
+	for command in ("audit", "prepare", "train", "predict", "evaluate", "benchmark", "experiment", "calibrate"):
 		sub = commands.add_parser(command)
 		sub.add_argument("--data-root", type=Path, required=True)
 		sub.add_argument("--run-dir", type=Path, required=True)
@@ -32,7 +32,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 			logging.basicConfig(level=logging.INFO)
 
 			config = json.loads(args.config.read_text()) if args.config else {}
-			print(prepare_dataset(paths.data_root, config, paths.run_dir))
+			if config.get("unlabeled"):
+				import pandas as pd
+
+				from inference_data import prepare_inference_dataset
+
+				print(
+					prepare_inference_dataset(
+						pd.read_parquet(paths.data_root / config["tracking_file"]), pd.read_parquet(paths.data_root / config["requests_file"]), paths.run_dir, int(config.get("history_frames", 30))
+					)
+				)
+			else:
+				print(prepare_dataset(paths.data_root, config, paths.run_dir))
 		elif args.command == "evaluate":
 			if args.predictions is None:
 				parser.error("evaluate requires --predictions")
@@ -81,8 +92,25 @@ def main(argv: Sequence[str] | None = None) -> int:
 			if args.device != "auto":
 				config["device"] = args.device
 			print(benchmark(config, paths.run_dir))
-		else:
-			parser.error(f"{args.command} is not implemented yet")
+		elif args.command == "experiment":
+			if args.config is None:
+				parser.error("experiment requires --config")
+			from experiment import run_experiment
+
+			config = json.loads(args.config.read_text())
+			if config.get("final_comparison"):
+				from final_report import run_final_comparison
+
+				print(run_final_comparison(paths.data_root / "manifest.json", config, paths.run_dir))
+			else:
+				print(run_experiment(args.config, paths.run_dir))
+		elif args.command == "calibrate":
+			from calibrate import calibrate_bundle
+
+			config = json.loads(args.config.read_text()) if args.config else {}
+			if "bundle" not in config:
+				parser.error("calibrate requires a config naming the model bundle")
+			print(calibrate_bundle(Path(config["bundle"]), paths.data_root / "manifest.json", paths.run_dir, device=args.device if args.device != "auto" else config.get("device", "cpu")))
 	except (OSError, ValueError) as exc:
 		parser.error(str(exc))
 	return 0

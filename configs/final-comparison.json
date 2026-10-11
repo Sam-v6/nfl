@@ -1,0 +1,35 @@
+{
+  "final_comparison": true,
+  "seeds": [
+    17,
+    42,
+    73
+  ],
+  "initial_gpu_seconds": 4061,
+  "initial_attempts": 14,
+  "benchmark": "artifacts/runs/gpu-benchmark-final-config-v2/benchmark.json",
+  "candidate": {
+    "model_type": "spatial",
+    "model_dim": 64,
+    "num_heads": 4,
+    "num_layers": 2,
+    "multiplier": 4,
+    "dropout": 0.1,
+    "num_classes": 7,
+    "feature_len": 5,
+    "epochs": 30,
+    "batch_size": 512,
+    "lr": 0.0003,
+    "weight_decay": 0.01,
+    "device": "cuda",
+    "precision": "fp32",
+    "inference_precision": "fp32",
+    "tf32": false,
+    "compile": false,
+    "input_pipeline": "loader",
+    "cpu_threads": 4,
+    "patience": 10,
+    "class_weighting": false,
+    "fit_season": null
+  }
+}

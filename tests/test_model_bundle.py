@@ -65,3 +65,22 @@ def test_legacy_binary_requires_explicit_metadata(tmp_path: Path) -> None:
 	x = torch.randn(3, 22, 5)
 	with torch.inference_mode():
 		torch.testing.assert_close(model(x), loaded(x), atol=0, rtol=0)
+
+
+def test_tabular_baseline_is_portable_and_uses_same_class_order(tmp_path: Path) -> None:
+	import numpy as np
+
+	from coverage_labels import CLASSES
+	from model_bundle import load_bundle, save_baseline_bundle
+	from models.baselines import fit_baseline, predict_baseline_proba
+
+	x = np.zeros((20, 22, 5), dtype=np.float32)
+	x[:, :11, 4] = 1
+	x[10:, :11, 0] = 10
+	y = np.array([3] * 10 + [5] * 10)
+	estimator = fit_baseline(x, y)
+	bundle = save_baseline_bundle(estimator, tmp_path / "baseline", "fixture")
+	model, metadata = load_bundle(bundle, torch.device("cpu"))
+	assert metadata["classes"] == list(CLASSES)
+	with torch.inference_mode():
+		np.testing.assert_allclose(model(torch.from_numpy(x)).softmax(-1).numpy(), predict_baseline_proba(estimator, x), atol=1e-6)

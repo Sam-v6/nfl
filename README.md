@@ -1,12 +1,45 @@
+# NFL pre-snap coverage prediction
 
-# Overview
-This repo trains a machine learning model on 2021 & 2022 NFL location tracking data to predict pass coverage BEFORE the snap. 
+Predict seven coverage labels from player tracking observed before the snap: Cover 0, Cover 1, Cover 2, Cover 3, Quarters, 2-Man, and Cover 6. Man probability is the sum of Cover 0, Cover 1, and 2-Man. The maintained pipeline supports spatial and masked temporal models, geometric baselines, calibrated probabilities, portable bundles, and bounded local/Ray experiments.
 
-Two models are implemented:
-- LSTM "naive" model that treats location tracking data as true time series inputs
-- Transformer model that follows the SumerSports and SmitBajaj implementation
+Evaluation separates fitting, development, calibration, and final comparison by whole games. The primary endpoint is 0.1 seconds before the snap; a separate one-second endpoint checks earlier prediction. This is an existing labeled pass-play cohort, with exclusions recorded in the dataset manifest. Weeks 7–8 and historical Week 9 were exposed during older development, so their new comparisons cannot establish fresh-data generalization.
 
-Both models yield about 88% accuracy in predicting man or pass coverage BEFORE the snap for all plays in Week 9 of the 2022 NFL season.
+[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md)
+
+## Maintained workflow
+
+Use Python 3.12 and the locked worktree-local environment. If global uv is older, bootstrap with:
+
+```bash
+uvx --from uv==0.12.17 uv sync --locked --extra tuning
+.venv/bin/nfl --help
+.venv/bin/pytest -q -m 'not integration'
+.venv/bin/ruff check src tests scripts
+.venv/bin/pyright
+```
+
+Every command requires explicit input and output paths; existing outputs are protected. Raw Parquet files remain read-only.
+
+```bash
+.venv/bin/nfl audit --data-root /path/to/data/parquet --run-dir artifacts/runs/audit
+.venv/bin/nfl prepare --data-root /path/to/data/parquet --run-dir artifacts/runs/dataset --config configs/coverage.json
+.venv/bin/nfl train --data-root artifacts/runs/dataset --run-dir artifacts/runs/training --config configs/training.json
+```
+
+`predict` accepts a JSON config naming `bundle`, `split`, `batch_size`, and `device`. For unlabeled live observations, `prepare` accepts `unlabeled: true`, a tracking file, and explicit cutoff requests; it requires no coverage labels or outcomes. `calibrate` uses the designated Week 6 role only. `evaluate` verifies complete keyed cohorts and emits confusion/calibration plots. `experiment` enforces persisted budgets; recovery requires `resume: true` with the same frozen configuration. See `configs/experiment.json` for a bounded search and `configs/final-comparison.json` for the frozen three-seed protocol.
+
+A real-data integration check is isolated and does not inspect final features:
+
+```bash
+.venv/bin/python scripts/integration_check.py --data-root /path/to/data/parquet --run-dir artifacts/runs/integration --device cpu
+.venv/bin/pytest -q tests/test_tune_smoke.py -m integration
+```
+
+GPU training uses one job at a time. FP32 is the measured default; AMP and compilation remain explicit experiments. Bundle metadata records vocabulary, preprocessing schema, weight hashes, source provenance, runtime, and calibration.
+
+## Historical binary demonstrations
+
+The examples below belong to the original binary models and their older evaluation protocol. Their approximately 88% Week 9 accuracy is not directly comparable to the seven-class, play-level evaluation.
 
 # Demo
 
@@ -59,7 +92,7 @@ If we look across all plays in Week 9, our model on average is ~88% accurate in 
 ![plot](./docs/images/accuracy_across_frames.png)
 
 
-# Getting started
+# Historical notebook workflow
 
 ## Get the raw data
 The raw data that was provided by NFL NextGenStats has been removed from the original Kaggle source. The orginal csv data has been transformed to parquet data and stored with git large file storage (LFS).

@@ -111,3 +111,13 @@ def test_report_retains_abstentions_in_denominator(tmp_path: Path) -> None:
 	assert report["tune/-1"]["answer_fraction"] == 0.5
 	assert report["tune/-1"]["answered_accuracy"] == 1.0
 	assert (result.parent / "confusion_tune_-1.png").exists()
+
+
+def test_prediction_metadata_cannot_override_manifest_roles(tmp_path: Path) -> None:
+	frame = predictions([0, 1, 2, 3])
+	manifest = manifest_for(tmp_path, frame, "tune")
+	frame = frame.assign(split="final", offset=999, target=6)
+	result = module().evaluate_predictions(frame, manifest, tmp_path / "report")
+	report = json.loads(result.read_text())
+	assert set(report) == {"tune/-1"}
+	assert report["tune/-1"]["accuracy"] == 1.0

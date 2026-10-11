@@ -12,7 +12,10 @@
   "weight_decay": 0.01,
   "seed": 42,
   "device": "cuda",
-  "precision": "bf16",
+  "precision": "fp32",
   "compile": false,
+  "tf32": false,
+  "input_pipeline": "loader",
+  "inference_precision": "fp32",
   "patience": 10
 }

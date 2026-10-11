@@ -12,6 +12,11 @@ on:
         type: boolean
         default: false
 
+      gpu:
+        description: Also use CUDA for integration (run only when rendering is idle)
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -29,7 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --locked
+        with:
+          version: "0.12.17"
+      - run: uv sync --locked --extra tuning
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
       - run: uv run pyright
@@ -43,9 +50,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv sync --locked
-      - name: Audit read-only inputs in an isolated run
+        with:
+          version: "0.12.17"
+      - run: uv sync --locked --extra tuning
+      - name: Verify real-data preparation, training, recovery and predictions
+        env:
+          NFL_DEVICE: ${{ inputs.gpu && 'cuda' || 'cpu' }}
         run: >-
-          uv run nfl audit
+          uv run python scripts/integration_check.py
           --data-root /home/sam/repos/hobby-repos/nfl/data/parquet
-          --run-dir "$RUNNER_TEMP/nfl-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          --run-dir "$RUNNER_TEMP/nfl-integration-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          --device "$NFL_DEVICE"
+      - name: Verify actual Ray Tune checkpoint reporting
+        run: uv run pytest -q tests/test_tune_smoke.py -m integration

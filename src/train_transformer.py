@@ -40,12 +40,17 @@ def run_tune(config: dict[str, Any], manifest_path: Path, output_dir: Path, num_
 	if not 1 <= num_samples <= 24:
 		raise ValueError("Tune trial count must be between 1 and 24")
 	output_dir = output_dir.resolve()
-	if output_dir.exists():
+	if output_dir.exists() and not config.get("resume"):
 		raise ValueError("Tune output directory already exists; restore the experiment explicitly")
 	trainable = tune.with_parameters(tune_trainable, manifest_path=str(manifest_path.resolve()))
 	resources: dict[str, float] = {"cpu": 2.0, "gpu": 1.0 if config.get("device") == "cuda" else 0.0}
+	trainable = tune.with_resources(trainable, resources)
+	if output_dir.exists():
+		if not tune.Tuner.can_restore(str(output_dir)):
+			raise ValueError("Ray output has no restorable experiment state")
+		return tune.Tuner.restore(str(output_dir), trainable=trainable, param_space=config, resume_unfinished=True, resume_errored=True).fit()
 	tuner = tune.Tuner(
-		tune.with_resources(trainable, resources),
+		trainable,
 		param_space=config,
 		tune_config=tune.TuneConfig(
 			metric="macro_f1",

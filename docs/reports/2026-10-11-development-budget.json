@@ -1,0 +1,108 @@
+{
+  "gpu_training_attempts": 14,
+  "known_training_gpu_seconds": 460.84347402299954,
+  "conservative_benchmark_and_startup_allowance_seconds": 3600,
+  "initial_attempts": 14,
+  "initial_gpu_seconds": 4061,
+  "training_receipts": [
+    {
+      "receipt": "artifacts/runs/binary-dev-seed42/terminal.json",
+      "sha256": "01cd613458c896fa400d9c1ee6aef110c8d00fb53d788ad7635922a5c73c1991",
+      "elapsed_seconds": 10.334592274999977,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/snapshot-2022-seed42/terminal.json",
+      "sha256": "d90040454f1d6585d2ca8bbd906cf663ad46e8c4ee59ba393d408675397145a8",
+      "elapsed_seconds": 6.919487494999885,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-dev-seed42/terminal.json",
+      "sha256": "e0a5b4163f93f04a607ab5970c25aab142eb15550ff73b9a2ec473195f23057f",
+      "elapsed_seconds": 10.63554714599968,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-direct-dev-seed42/terminal.json",
+      "sha256": "9f2dcf01d90c965e883ddf39e6f80763d2794e0a538f6cba6ca7ceb3f010bc30",
+      "elapsed_seconds": 12.302721272999861,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-fp32-training-seed42/terminal.json",
+      "sha256": "ab6a94d2495834f0699a7a31cf912c044636ab15711b47a3e812fa31618f0ad3",
+      "elapsed_seconds": 20.456905435999943,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-pipeline-device/terminal.json",
+      "sha256": "49a26c0432389b3754bf87b6dfa4bec61458baabd0db952823f59509da7f011a",
+      "elapsed_seconds": 15.053490440000132,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-pipeline-loader/terminal.json",
+      "sha256": "50e0b12407d2bae5342e6ecf22771f5614833df9998f0b5dd9689a80d591f7d1",
+      "elapsed_seconds": 16.268660659000034,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-reference-dev-seed42/terminal.json",
+      "sha256": "a714130276164729f7d35c75d08ac6bbaf9eebfee175eba94b0b2aca8288327a",
+      "elapsed_seconds": 19.872593410999798,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-stable-seed42/terminal.json",
+      "sha256": "eff736097f34c6faed93132a233d03f43cbae6a18559db499e0593b3ee4122d5",
+      "elapsed_seconds": 19.440595613999903,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/spatial-torch213-dev-seed42/terminal.json",
+      "sha256": "7bb6bb39c529d4377c9cd0b4fbb55bf0697073341c6b9f05856ed53173289a86",
+      "elapsed_seconds": 18.113411467999867,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/temporal-2022-seed42/terminal.json",
+      "sha256": "cec796fec6184d7cf71d90f044844ebb8911ccae4dd3f397e45773ebfc69b557",
+      "elapsed_seconds": 75.37977896500024,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/temporal-geometry-2022-seed42/terminal.json",
+      "sha256": "77b1bf5a9b129b04f5ac6532581490428b55cb82f48946ac9f256930412e4fd5",
+      "elapsed_seconds": 76.17297988700011,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/temporal-geometry-stable-seed42/terminal.json",
+      "sha256": "6c421e72970bb44752f016dc4dea75a0225b137f2aec8c7e8eaada7d9fd1496c",
+      "elapsed_seconds": 83.81704453400016,
+      "status": "complete",
+      "epochs": 30
+    },
+    {
+      "receipt": "artifacts/runs/temporal-weighted-2022-seed42/terminal.json",
+      "sha256": "712db910b22aaeed3c2fd608bd4cc62b7760ffbe1b8aa874a2f7e8b89d6a9fb9",
+      "elapsed_seconds": 76.07566541999995,
+      "status": "complete",
+      "epochs": 30
+    }
+  ],
+  "note": "Allowance covers older benchmarks lacking full process wall time; this is conservative accounting, not exact historical benchmark measurement."
+}
