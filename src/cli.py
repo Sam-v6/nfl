@@ -17,6 +17,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 		sub.add_argument("--data-root", type=Path, required=True)
 		sub.add_argument("--run-dir", type=Path, required=True)
 		sub.add_argument("--config", type=Path)
+		sub.add_argument("--predictions", type=Path)
 		sub.add_argument("--device", choices=("cpu", "cuda", "auto"), default="auto")
 	args = parser.parse_args(argv)
 	paths = RunPaths.resolve(args.data_root, args.run_dir)
@@ -32,6 +33,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 			config = json.loads(args.config.read_text()) if args.config else {}
 			print(prepare_dataset(paths.data_root, config, paths.run_dir))
+		elif args.command == "evaluate":
+			if args.predictions is None:
+				parser.error("evaluate requires --predictions")
+			import pandas as pd
+
+			from evaluate import evaluate_predictions
+
+			print(evaluate_predictions(pd.read_parquet(args.predictions), paths.data_root / "manifest.json", paths.run_dir))
 		else:
 			parser.error(f"{args.command} is not implemented yet")
 	except (OSError, ValueError) as exc:
