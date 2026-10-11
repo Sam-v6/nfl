@@ -41,6 +41,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 			from evaluate import evaluate_predictions
 
 			print(evaluate_predictions(pd.read_parquet(args.predictions), paths.data_root / "manifest.json", paths.run_dir))
+		elif args.command == "train":
+			config = json.loads(args.config.read_text()) if args.config else {}
+			if args.device != "auto":
+				config["device"] = args.device
+			if config.get("model_type") == "baselines":
+				from models.baselines import train_baselines
+
+				print(train_baselines(paths.data_root / "manifest.json", paths.run_dir))
+			else:
+				from training import train_model
+
+				print(train_model(config, paths.data_root / "manifest.json", paths.run_dir))
 		else:
 			parser.error(f"{args.command} is not implemented yet")
 	except (OSError, ValueError) as exc:

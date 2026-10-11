@@ -24,11 +24,18 @@ def test_missing_dataset_fails_without_creating_run(tmp_path: Path) -> None:
 	assert not (tmp_path / "run").exists()
 
 
-@pytest.mark.parametrize("command", ["train", "predict", "benchmark", "experiment"])
+@pytest.mark.parametrize("command", ["predict", "benchmark", "experiment"])
 def test_pending_commands_fail_clearly(command: str, tmp_path: Path) -> None:
 	result = invoke(command, "--data-root", str(tmp_path), "--run-dir", str(tmp_path / "run"), cwd=tmp_path)
 	assert result.returncode != 0
 	assert "not implemented" in result.stderr.lower()
+	assert not (tmp_path / "run").exists()
+
+
+def test_train_missing_manifest_fails_before_creating_run(tmp_path: Path) -> None:
+	result = invoke("train", "--data-root", str(tmp_path), "--run-dir", str(tmp_path / "run"), "--device", "cpu", cwd=tmp_path)
+	assert result.returncode != 0
+	assert "manifest" in result.stderr.lower()
 	assert not (tmp_path / "run").exists()
 
 

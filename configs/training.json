@@ -1,0 +1,18 @@
+{
+  "model_dim": 64,
+  "num_heads": 4,
+  "num_layers": 2,
+  "multiplier": 4,
+  "dropout": 0.1,
+  "num_classes": 7,
+  "feature_len": 5,
+  "epochs": 30,
+  "batch_size": 512,
+  "lr": 0.0003,
+  "weight_decay": 0.01,
+  "seed": 42,
+  "device": "cuda",
+  "precision": "bf16",
+  "compile": false,
+  "patience": 10
+}
