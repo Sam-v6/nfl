@@ -21,3 +21,7 @@ Rulings: user-specified worktree placement takes precedence over native placemen
 Detailed step evidence and rulings live in `.superpowers/sdd/2026-10-10-coverage-modernization/progress.md` until final delivery.
 
 Current matched development comparison supersedes earlier sampler/endpoint reports above: spatial FP32/TF32-off macro-F1 0.4764 versus matched-all-endpoint LightGBM 0.4143. Final selection remains the spatial model; temporal additions were inconclusive/slower. Prior descriptive timing results above belong to their named runs and are not pooled or cherry-picked.
+
+Task 8 final execution complete: all six confirmation trials finished, 20 cumulative attempts / 4,200.92 GPU-accounted seconds. All three seed primary macro-F1 bootstrap intervals positive; mean spatial F1 0.4661 vs LightGBM 0.4188. Promotion rejected by binary loss, seed42 Cover1 recall loss, and seeds42/73 one-second loss. No pointer created, no final-driven retuning. Tracked reports/figures and portable exports produced; real unlabeled baseline inference passed outside checkout. PR delivery and remote gates remain pending.
+
+Final report/figure review found no Important scientific or delivery issue. Report values verified against frozen JSON. Minor wording clarified raw metadata audit versus model-role scoring; first PR will disclose inherited pre-existing feature branch changes. Root user-edited trainer and notebook hashes remain unchanged.

@@ -4,7 +4,7 @@ Predict seven coverage labels from player tracking observed before the snap: Cov
 
 Evaluation separates fitting, development, calibration, and final comparison by whole games. The primary endpoint is 0.1 seconds before the snap; a separate one-second endpoint checks earlier prediction. This is an existing labeled pass-play cohort, with exclusions recorded in the dataset manifest. Weeks 7–8 and historical Week 9 were exposed during older development, so their new comparisons cannot establish fresh-data generalization.
 
-[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md)
+[Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md) · [Frozen results and gates](docs/reports/2026-10-11-coverage-comparison/README.md)
 
 ## Maintained workflow
 
@@ -26,9 +26,9 @@ Every command requires explicit input and output paths; existing outputs are pro
 .venv/bin/nfl train --data-root artifacts/runs/dataset --run-dir artifacts/runs/training --config configs/training.json
 ```
 
-`predict` accepts a JSON config naming `bundle`, `split`, `batch_size`, and `device`. For unlabeled live observations, `prepare` accepts `unlabeled: true`, a tracking file, and explicit cutoff requests; it requires no coverage labels or outcomes. `calibrate` uses the designated Week 6 role only. `evaluate` verifies complete keyed cohorts and emits confusion/calibration plots. `experiment` enforces persisted budgets; recovery requires `resume: true` with the same frozen configuration. See `configs/experiment.json` for a bounded search and `configs/final-comparison.json` for the frozen three-seed protocol.
+`predict` accepts a JSON config naming `bundle`, `split`, `batch_size`, and `device`. For unlabeled live observations, `prepare` accepts `unlabeled: true`, `tracking_file`, and `requests_file` (Parquet paths relative to `--data-root`); it requires no coverage labels or outcomes. `calibrate` uses the designated Week 6 role only. `evaluate` verifies complete keyed cohorts and emits confusion/calibration plots. `experiment` enforces persisted budgets; recovery requires `resume: true` with the same frozen configuration. See `configs/experiment.json` for a bounded search and `configs/final-comparison.json` for the frozen three-seed protocol.
 
-A real-data integration check is isolated and does not inspect final features:
+A real-data integration check is isolated and performs no final-role inference or scoring:
 
 ```bash
 .venv/bin/python scripts/integration_check.py --data-root /path/to/data/parquet --run-dir artifacts/runs/integration --device cpu
@@ -36,6 +36,23 @@ A real-data integration check is isolated and does not inspect final features:
 ```
 
 GPU training uses one job at a time. FP32 is the measured default; AMP and compilation remain explicit experiments. Bundle metadata records vocabulary, preprocessing schema, weight hashes, source provenance, runtime, and calibration.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+    A[Observed tracking prefix] --> B[Cutoff features and history mask]
+    B --> C[Whole-game fit and development splits]
+    C --> D[Shared local or Ray trainer]
+    D --> E[Portable seven-class bundle]
+    E --> F[Week 6 calibration]
+    F --> G[Frozen Weeks 7–8 comparison]
+    G --> H{All three seeds pass?}
+    H -->|Yes| I[Protected accepted bundle]
+    H -->|No| J[Retain baseline and report limitations]
+```
+
+The October 2026 neural model improved mean seven-class macro-F1 from 0.419 to 0.466, but failed binary/recall/earlier-endpoint promotion gates. Both bundles are reproducible; no accepted-model pointer was written.
 
 ## Historical binary demonstrations
 
