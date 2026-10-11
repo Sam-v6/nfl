@@ -89,7 +89,7 @@ class ManZoneTransformer(nn.Module):
 		# Learns a weight per player and computes a weighted sum
 		self.player_pooling_layer = AttentionPooling(model_dim)
 
-		self.decoder = nn.Sequential(
+		self.decoder: nn.Module = nn.Sequential(
 			nn.Linear(model_dim, model_dim),
 			nn.ReLU(),
 			nn.Dropout(dropout),

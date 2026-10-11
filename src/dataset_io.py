@@ -10,11 +10,11 @@ from coverage_labels import CLASSES
 from dataset import FEATURES, file_hash
 
 
-def load_examples(manifest_path: Path, split: str, offset: int | None = None, season: int | None = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
+def load_examples(manifest_path: Path, split: str, offset: int | None = None, season: int | None = None, require_targets: bool = True) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, pd.DataFrame]:
 	manifest = json.loads(manifest_path.read_text())
 	if manifest["classes"] != list(CLASSES) or manifest["features"] != list(FEATURES) or manifest.get("status") != "complete":
 		raise ValueError("Incomplete or incompatible dataset manifest")
-	if split not in ("fit", "tune", "calibrate", "final", "historical"):
+	if split not in ("fit", "tune", "calibrate", "final", "historical") and not (split == "predict" and not require_targets):
 		raise ValueError("Unknown dataset split")
 	if split == "final":
 		receipt_path = manifest_path.parent / "selection.json"
@@ -43,13 +43,16 @@ def load_examples(manifest_path: Path, split: str, offset: int | None = None, se
 		if file_hash(path) != entry["sha256"]:
 			raise ValueError(f"Shard hash mismatch: {name}")
 		shard = torch.load(path, map_location="cpu", weights_only=True)
-		x, mask, y = shard["features"], shard["time_mask"], shard["targets"]
+		x, mask = shard["features"], shard["time_mask"]
+		if require_targets and ("targets" not in shard or "target" not in rows):
+			raise ValueError("Training/evaluation requires targets")
+		y = shard.get("targets", torch.full((len(x),), -1, dtype=torch.long))
 		if x.shape != (entry["rows"], manifest["settings"]["history_frames"], 22, 5) or mask.shape != x.shape[:2] or y.shape != (len(x),):
 			raise ValueError("Shard shape mismatch")
 		if x.dtype != torch.float32 or mask.dtype != torch.bool or y.dtype != torch.long or not torch.isfinite(x).all() or not mask[:, -1].all():
 			raise ValueError("Invalid shard values or types")
 		ids = torch.from_numpy(rows.shard_row.to_numpy(dtype="int64"))
-		if not torch.equal(y[ids], torch.from_numpy(rows.target.to_numpy(dtype="int64"))):
+		if "target" in rows and not torch.equal(y[ids], torch.from_numpy(rows.target.to_numpy(dtype="int64"))):
 			raise ValueError("Index/shard target mismatch")
 		x_parts.append(x[ids])
 		mask_parts.append(mask[ids])

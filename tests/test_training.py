@@ -121,3 +121,17 @@ def test_interrupt_records_failure_and_can_resume_exactly(tmp_path: Path) -> Non
 	for name, tensor in a["model"].items():
 		torch.testing.assert_close(tensor, b["model"][name], atol=0, rtol=0)
 	assert a["history"] == b["history"]
+
+
+def test_direct_and_loader_use_identical_shuffles(tmp_path: Path) -> None:
+	from training import train_model
+
+	manifest = training_fixture(tmp_path / "data")
+	config = {**MODEL_CONFIG, "device": "cpu", "epochs": 3, "batch_size": 7, "seed": 42, "dropout": 0.1}
+	train_model({**config, "input_pipeline": "loader"}, manifest, tmp_path / "loader")
+	train_model({**config, "input_pipeline": "direct"}, manifest, tmp_path / "direct")
+	a = torch.load(tmp_path / "loader/latest.pt", weights_only=True)
+	b = torch.load(tmp_path / "direct/latest.pt", weights_only=True)
+	for name, tensor in a["model"].items():
+		torch.testing.assert_close(tensor, b["model"][name], atol=0, rtol=0)
+	assert a["history"] == b["history"]
