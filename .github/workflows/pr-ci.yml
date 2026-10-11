@@ -36,6 +36,9 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           version: "0.12.17"
+          python-version: "3.12"
+          tool-bin-dir: ${{ runner.temp }}/nfl-uv-tools
+      - run: uv --version
       - run: uv sync --locked --extra tuning
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
@@ -52,6 +55,9 @@ jobs:
       - uses: astral-sh/setup-uv@v4
         with:
           version: "0.12.17"
+          python-version: "3.12"
+          tool-bin-dir: ${{ runner.temp }}/nfl-uv-tools
+      - run: uv --version
       - run: uv sync --locked --extra tuning
       - name: Verify real-data preparation, training, recovery and predictions
         env:

@@ -27,3 +27,5 @@ Task 8 final execution complete: all six confirmation trials finished, 20 cumula
 Final report/figure review found no Important scientific or delivery issue. Report values verified against frozen JSON. Minor wording clarified raw metadata audit versus model-role scoring; first PR will disclose inherited pre-existing feature branch changes. Root user-edited trainer and notebook hashes remain unchanged.
 
 Six reviewable PRs opened and attached (#14–19); all mergeable. Main ancestry reconciliation preserved every stage tree and frozen source/lock hashes. Temporary integration worktree removed cleanly; implementation worktree and model artifacts retained. Remote CPU runs are queued/running on the single self-hosted runner; no remote GPU integration dispatched.
+
+Remote checks for #14–18 passed. Final #19 initially failed before tests because setup-uv v4 prepended the runner’s old ~/.local/bin/uv0.5.24 after installing0.12.17. CI-only repair isolates UV_TOOL_BIN_DIR, verifies uv version, and selects Python3.12; frozen model source/lock/evaluation remain unchanged.
