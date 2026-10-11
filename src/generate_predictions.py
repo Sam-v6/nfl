@@ -276,7 +276,14 @@ def main() -> None:
 			logging.info(f"Finished week {w}... saved to week{w}_preds.csv\n")
 
 			# Merge week_df with preds (per-week, small)
-			preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=["frameUniqueId", "zone_prob", "man_prob", "pred", "actual"])
+			dtype_dict = {
+				"frameUniqueId": str,
+				"zone_prob": float,
+				"man_prob": float,
+				"pred": int,
+				"actual": int,
+			}
+			preds_week = pd.read_csv(weekly_predictions_path_csv, usecols=["frameUniqueId", "zone_prob", "man_prob", "pred", "actual"], dtype=dtype_dict)
 			tracking_preds = week_df.merge(preds_week, on="frameUniqueId", how="left")
 			tracking_preds.to_parquet(PROJECT_ROOT / "data" / "inference" / f"tracking_s{s}_w{w}_preds.parquet", index=False)
 

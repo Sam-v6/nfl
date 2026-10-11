@@ -4,17 +4,45 @@ Processes predictions to create various plots and animations to interpret model 
 """
 
 import logging
+from pathlib import Path
 
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
-from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay, classification_report, confusion_matrix, f1_score, log_loss, precision_score, recall_score, roc_auc_score, roc_curve
 
 from common.args import parse_args
 from common.decorators import set_time_decorators_enabled, time_fcn
 from common.paths import PROJECT_ROOT
 from load_data import RawDataLoader
+
+
+@time_fcn
+def plot_roc(y_actual: np.ndarray, y_proba: np.ndarray, PROJECT_ROOT: Path) -> None:
+	"""
+	Plots and logs an ROC curve for the model predictions.
+
+	Inputs:
+	- y_test: Ground-truth labels.
+	- y_proba: Predicted class probabilities.
+
+	Outputs:
+	- Saves and logs ROC plot artifact via MLflow.
+	"""
+
+	fpr, tpr, thresholds = roc_curve(y_actual, y_proba[:, 1], pos_label=1)
+	plt.figure()
+	plt.plot(fpr, tpr, label=f"ROC Curve (AUC = {roc_auc_score(y_actual, y_proba[:, 1]):.4f})")
+	plt.plot([0, 1], [0, 1], linestyle="--", color="gray")
+	plt.xlabel("False Positive Rate")
+	plt.ylabel("True Positive Rate")
+	plt.title("ROC Curve")
+	plt.legend(loc="lower right")
+	plt.grid(True)
+	image_path = PROJECT_ROOT / "artifacts" / "man_zone_roc_auc.png"
+	plt.savefig(image_path, dpi=200)
 
 
 @time_fcn
@@ -285,9 +313,12 @@ def main() -> None:
 		if args.ci and animation_created:
 			break
 
-	# Create classification report and confusion matrix
-	y_true = predictions_df["actual"]
-	y_pred = predictions_df["pred"]
+	# Snag values for creation of artifacts below
+	y_true = predictions_df["actual"].to_numpy().astype(int)
+	y_pred = predictions_df["pred"].to_numpy().astype(int)
+	y_proba = predictions_df[["zone_prob", "man_prob"]].to_numpy()
+
+	# Create confusion matrix
 	cm_norm = confusion_matrix(y_true, y_pred, labels=[0, 1], normalize="true")
 	class_names = ["Zone", "Man"]
 	disp = ConfusionMatrixDisplay(confusion_matrix=cm_norm, display_labels=class_names)
@@ -299,6 +330,27 @@ def main() -> None:
 	ax.set_ylabel("True label")
 	plt.tight_layout()
 	plt.savefig(PROJECT_ROOT / "artifacts" / "confusion_matrix.png", dpi=200, bbox_inches="tight")
+
+	# Print classification report
+	print(classification_report(y_true, y_pred, target_names=["Zone", "Man"]))
+
+	# Get more summary metrics
+	prec = precision_score(y_true, y_pred, pos_label=1)
+	rec = recall_score(y_true, y_pred, pos_label=1)
+	f1 = f1_score(y_true, y_pred, pos_label=1)
+	ll = log_loss(y_true, y_proba)
+	auc_ = roc_auc_score(y_true, y_proba[:, 1])
+	print("\nSummary Metrics (Positive class = Man)")
+	print("-" * 40)
+	print(f"Precision : {prec:.4f}")
+	print(f"Recall    : {rec:.4f}")
+	print(f"F1 Score  : {f1:.4f}")
+	print(f"Log Loss  : {ll:.4f}")
+	print(f"ROC AUC   : {auc_:.4f}")
+	print("-" * 40)
+
+	# Plot ROC curve
+	plot_roc(y_true, y_proba, PROJECT_ROOT)
 
 
 if __name__ == "__main__":

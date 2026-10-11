@@ -190,7 +190,8 @@ mlruns/
 mlflow.db
 
 # Ray and profiler
-log
+log/
+ray_results/
 
 # Artifacts
 *.pkl
@@ -198,3 +199,4 @@ artifacts/
 
 # Any mp4s that sneak in
 *.mp4
+.worktrees/

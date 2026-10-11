@@ -2,78 +2,48 @@ name: pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      integration:
+        description: Run isolated real-data integration
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 concurrency:
   group: pipeline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-model-training-and-prediction-generation:
-    # Only run on:
-    # - push
-    # - PRs where the branch lives in this repo (not a fork)
-    if: >
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
-    
-    # Self hosted runner
+  cpu-verification:
+    name: test-model-training-and-prediction-generation
     runs-on: [self-hosted]
-
-    # The runner is self hosted on my machine, so this data path will be guaranteed to have this data path
-    env:
-      CI_DATA_ROOT: /home/sam/repos/hobby-repos/nfl/data/parquet
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --locked
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run pyright
+      - run: uv run pytest -q -m 'not integration'
+      - run: uv run nfl --help
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - name: Sync uv
-        run: uv sync --locked
-          
-      - name: Test feature creation
-        run: uv run src/create_features.py --profile
-
-        # This will output model_params.json (--ci only runs 5 epochs for a single trial)
-      - name: Test ray hyperparameter tuning
-        run: uv run src/train_transformer.py --tune --ci
-
-        # This will use model_params.json to create transformer.pt (--ci only runs 5 epochs)
-      - name: Check deterministic transformer training
-        run: |
-          set -euo pipefail
-          uv run src/train_transformer.py --profile --ci
-          cp data/training/training_metrics.json /tmp/training_metrics_run1.json
-          uv run src/train_transformer.py --profile --ci
-          python3 - <<'PY'
-          import json
-          import math
-          from pathlib import Path
-
-          first = json.loads(Path("/tmp/training_metrics_run1.json").read_text())
-          second = json.loads(Path("data/training/training_metrics.json").read_text())
-          tol = 1e-5
-          keys = ("train_loss", "val_loss", "val_accuracy", "best_val_loss")
-          for key in keys:
-            if not math.isclose(first[key], second[key], rel_tol=0.0, abs_tol=tol):
-              raise SystemExit(
-                f"Determinism check failed for {key}: {first[key]} vs {second[key]} (tol={tol})"
-              )
-          print("Determinism check passed.")
-          PY
-
-        # This will use transformer.pt for inference, will make predictions for all of week 9
-      - name: Test prediction generation
-        run: uv run src/generate_predictions.py --profile
-
-        # This will use the predictions saved as parquet in stage above, only 1 plot, one animated play, and one confusion matrix is created
-      - name: Test process predictions
-        run: uv run src/process_predictions.py --profile --ci
+  data-integration:
+    if: github.event_name == 'workflow_dispatch' && inputs.integration
+    runs-on: [self-hosted]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --locked
+      - name: Audit read-only inputs in an isolated run
+        run: >-
+          uv run nfl audit
+          --data-root /home/sam/repos/hobby-repos/nfl/data/parquet
+          --run-dir "$RUNNER_TEMP/nfl-audit-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"

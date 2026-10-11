@@ -2,6 +2,7 @@
 """
 Trains and tunes a transformer model for man/zone classification on tracking data.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -10,14 +11,20 @@ import logging
 import os
 import random
 from pathlib import Path
+from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import ray
+import torch
 import torch.nn as nn
-from ray import tune
-from ray.air.integrations.mlflow import MLflowLoggerCallback
-from ray.tune import FailureConfig, RunConfig, TuneConfig, Tuner
+from ray import train, tune
+from ray.air.integrations.mlflow import MLflowLoggerCallback  # your existing callback
+from ray.train import Checkpoint, FailureConfig, RunConfig, ScalingConfig
+from ray.train.torch import TorchTrainer, get_device, prepare_data_loader, prepare_model
+from ray.tune import Tuner
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.tune_config import TuneConfig
 from torch.amp import autocast
 from torch.profiler import ProfilerActivity, profile, record_function, schedule
 from torch.utils.data import DataLoader, TensorDataset
@@ -28,50 +35,68 @@ from common.paths import PROCESSED_DIR, PROJECT_ROOT
 from models.transformer import create_transformer_model
 
 
-def configure_determinism(deterministic: bool, seed: int = 42) -> torch.Generator:
+def plot_training_results(train_losses: list[float], val_losses: list[float]) -> None:
 	"""
-	Configures PyTorch determinism knobs based on training intent.
+	Plots training and validation losses over epochs.
 
 	Inputs:
-	- deterministic: Whether to enforce fully deterministic execution.
+	- train_losses: List of training losses per epoch.
+	- val_losses: List of validation losses per epoch.
+
+	Outputs:
+	- Saves a plot of training and validation losses in artifacts/.
+	"""
+
+	epochs = range(1, len(train_losses) + 1)
+
+	# Plot losses
+	plt.figure(figsize=(12, 5), dpi=200)
+	plt.plot(epochs, train_losses, label="Training Loss")
+	plt.plot(epochs, val_losses, label="Validation Loss")
+	plt.xlabel("Epochs")
+	plt.ylabel("Loss")
+	plt.title("Training and Validation Loss")
+	plt.legend()
+	plt.tight_layout()
+	plt.savefig(PROJECT_ROOT / "artifacts" / "training_validation_loss_history.png")
+
+
+def set_seed(seed: int = 42) -> torch.Generator:
+	"""
+	Sets Python, NumPy, and Torch seeds for reproducible runs.
+
+	Inputs:
 	- seed: Seed value to apply.
 
 	Outputs:
 	- generator: Torch generator for deterministic DataLoader shuffling.
 	"""
 
-	import torch
-
-	os.environ["PYTHONHASHSEED"] = str(seed)
+	# Set seeds
 	random.seed(seed)
 	np.random.seed(seed)
 	torch.manual_seed(seed)
 	g = torch.Generator()  # Creates a generator that fixes the shuffle in torch Dataloader
 	g.manual_seed(seed)
+	os.environ["PYTHONHASHSEED"] = str(seed)
 
+	# PyTorch CPU & CUDA
+	torch.manual_seed(seed)
 	if torch.cuda.is_available():
 		torch.cuda.manual_seed(seed)
 		torch.cuda.manual_seed_all(seed)
 
-	if deterministic:
-		os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
-		torch.backends.cudnn.benchmark = False
-		torch.backends.cudnn.deterministic = True
-		torch.use_deterministic_algorithms(True)
-		torch.backends.cuda.matmul.allow_tf32 = False
-		torch.backends.cudnn.allow_tf32 = False
-		torch.set_float32_matmul_precision("highest")
-		logging.info("Deterministic training enabled (may reduce throughput).")
-	else:
-		torch.backends.cuda.matmul.allow_tf32 = True
-		torch.backends.cudnn.allow_tf32 = True
+	# Keep cudnn deterministic, but allow normal algorithms
+	# torch.backends.cudnn.benchmark = False
+	# torch.backends.cudnn.deterministic = True
+
+	# DO NOT enforce deterministic algorithms globally
+	# torch.use_deterministic_algorithms(False)
 
 	return g
 
 
 def forward_backpropagate_optimize_step(amp_dtype: torch.dtype, model: nn.Module, features: torch.Tensor, targets: torch.Tensor, loss_fn: nn.Module, optimizer: torch.optim.Optimizer) -> torch.Tensor:
-	import torch
-
 	# For forward pass, allow mixed precision for speed in some operations
 	# NOTE: PyTorch keeps some sensitive ops in FP32 for stability
 	with autocast(device_type="cuda", dtype=amp_dtype):
@@ -102,8 +127,6 @@ def train_epoch(train_loader: DataLoader, model: nn.Module, optimizer: torch.opt
 	Outputs:
 	- avg_train_loss: Mean loss across the epoch.
 	"""
-
-	import torch
 
 	# Training
 	model.train()
@@ -151,8 +174,6 @@ def validate_epoch(val_loader: DataLoader, model: nn.Module, loss_fn: nn.Module,
 	- val_accuracy: Classification accuracy.
 	"""
 
-	import torch
-
 	# Validation
 	model.eval()
 	val_running_loss = 0.0
@@ -194,7 +215,8 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	- Trains the model and optionally reports metrics to Ray Tune.
 	"""
 
-	deterministic = args.profile
+	# Set seeds
+	g = set_seed(42)
 
 	######################################################################
 	# Set things that allow for speed-up in training (valid on Ampere+ GPUs)
@@ -205,8 +227,9 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 	# Use mixed precision with FP16 for speed for forward pass (see train_epoch)
 	amp_dtype = torch.float16
 
-	# Configure determinism (full determinism can slow training; only enforced when profiling)
-	g = configure_determinism(deterministic, seed=42)
+	# Set TensorFloat-32 (TF32) mode for matmul and cudnn (speeds up training on Ampere+ GPUs with minimal impact on accuracy)
+	torch.backends.cuda.matmul.allow_tf32 = True
+	torch.backends.cudnn.allow_tf32 = True
 
 	# Set device
 	device = torch.device("cuda")  # this is the Ray-assigned GPU (Ray sets CUDA_VISIBLE_DEVICES)
@@ -228,9 +251,7 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		model.parameters(),
 		lr=float(config["lr"]),
 		weight_decay=float(config["weight_decay"]),
-		# Fused AdamW uses a single CUDA kernel for speed but can introduce non-deterministic reductions.
-		# Disable it when deterministic mode is requested.
-		fused=not deterministic,
+		fused=True,  # All operations on single CUDA kernel for speed
 	)
 	loss_fn = nn.CrossEntropyLoss()
 
@@ -298,6 +319,8 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 		config["epochs"] = 5
 
 	# Training loop
+	train_losses = []
+	val_losses = []
 	for epoch in range(int(config["epochs"])):
 		# Train
 		avg_train_loss = train_epoch(train_loader, model, optimizer, loss_fn, device, amp_dtype, prof)
@@ -305,6 +328,8 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 
 		# Validate
 		avg_val_loss, val_accuracy = validate_epoch(val_loader, model, loss_fn, device, amp_dtype)
+		val_losses.append(avg_val_loss)
+		val_accuracies.append(val_accuracy)
 
 		# Info
 		logging.info(f"Epoch [{epoch + 1}/{int(config['epochs'])}]")
@@ -323,26 +348,17 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 			}
 			tune.report(metrics)
 		else:
-			# Record metrics
-			val_losses.append(avg_val_loss)
-			val_accuracies.append(val_accuracy)
-
 			# Update saved model
 			best_model_path = PROJECT_ROOT / "data" / "training" / "transformer.pt"
 			if avg_val_loss < best_val_loss:
 				best_val_loss = avg_val_loss
 				torch.save(model.state_dict(), best_model_path)
 
-	if not args.tune and train_losses:
-		metrics_output = {
-			"train_loss": float(train_losses[-1]),
-			"val_loss": float(val_losses[-1]),
-			"val_accuracy": float(val_accuracies[-1]),
-			"best_val_loss": float(best_val_loss),
-		}
-		metrics_path = PROJECT_ROOT / "data" / "training" / "training_metrics.json"
-		with open(metrics_path, "w") as json_file:
-			json.dump(metrics_output, json_file, indent=4)
+	if not args.tune:
+		# Plot the training results (we don't want to do this with HPO because Ray records these as metrics)
+		ARTIFACT_PATH = PROJECT_ROOT / "artifacts"
+		ARTIFACT_PATH.mkdir(parents=True, exist_ok=True)
+		plot_training_results(train_losses, val_losses)
 
 	# Stop profiler
 	if prof:
@@ -356,61 +372,52 @@ def run_trial(config: dict[str, float | int], args: argparse.Namespace) -> None:
 
 @time_fcn
 def run_hpo(args: argparse.Namespace) -> None:
-	"""
-	Launches Ray Tune to search over transformer hyperparameters.
-
-	Inputs:
-	- args: Command-line options controlling CI/tuning behavior.
-
-	Outputs:
-	- Writes best config to disk and logs metrics to MLflow.
-	"""
-
-	######################################################################
-	# Start parent HPO, MLflow session
-	######################################################################
 	mlflow_tracking_uri = "sqlite:///mlflow.db"
 	experiment = "transformer"
 
-	######################################################################
-	# Define search space and scheduler
-	######################################################################
-	transformer_params = {
-		# Varying model shape
+	params = {
 		"model_dim": tune.choice([32, 64, 96, 128]),
 		"num_heads": tune.choice([2, 4, 8]),
 		"num_layers": tune.choice([2, 3, 4, 6]),
 		"dropout": tune.choice([0.0, 0.1, 0.2, 0.3]),
 		"multiplier": tune.choice([2, 3, 4]),
-		# Training
 		"lr": tune.loguniform(1e-5, 5e-3),
 		"weight_decay": tune.loguniform(1e-6, 1e-2),
-		"batch_size": 19200,  # Configured for L4 GPU utilization
-		# Epochs
+		"batch_size": 19200,
 		"epochs": 100,
+		"compile": 1,
 	}
-	params = transformer_params
 
-	# Async Successive Halfing Scheduler (ASHA)
-	# Instead of running all trials for all epochs, it allocates more resources to promising ones and kills of bad ones early
+	if args.ci:
+		total_trials = 1
+		params["epochs"] = 5
+	else:
+		total_trials = 1000
+
 	scheduler = ASHAScheduler(
-		max_t=params["epochs"],  # Max amount of "things" on our whatever our scale is (since we call tune.report once per epoch this max epochs per trial)
-		grace_period=20,  # Allow for 20 epochs before pruning (so each trial gets at least this many epochs)
-		reduction_factor=2,  # ASHA keeps about 50% of the top trials each time it prunes
+		max_t=int(params["epochs"]),
+		grace_period=20 if not args.ci else 1,
+		reduction_factor=2,
 	)
 
-	######################################################################
-	# Build tuner; pass MLflow context and PARENT RUN ID to workers via env vars
-	######################################################################
-	trainable = tune.with_parameters(run_trial, args=args)  # Allows each training run to have any specific params
+	# Build a Trainer factory; Tune will pass each sampled config in here.
+	def trainer_factory(cfg: dict[str, Any]) -> TorchTrainer:
+		return build_trainer(
+			cfg,
+			num_workers=args.num_workers,  # <-- 1 works on any machine
+			use_gpu=args.use_gpu,  # <-- True to use GPU
+			run_name="transformer_hpo",
+			storage_path=os.path.abspath("./ray_results"),
+		)
+
 	tuner = Tuner(
-		tune.with_resources(trainable, resources={"cpu": 16, "gpu": 1}),  # Gives 16 CPU and one GPU per trial
+		trainable=trainer_factory,
 		param_space=params,
 		tune_config=TuneConfig(
 			metric="val_accuracy",
 			mode="max",
 			scheduler=scheduler,
-			num_samples=1,  # total trials, set to 1 for CI, modify here for HPO runs
+			num_samples=total_trials,
 		),
 		run_config=RunConfig(
 			name="transformer_hpo",
@@ -426,17 +433,199 @@ def run_hpo(args: argparse.Namespace) -> None:
 		),
 	)
 
-	######################################################################
-	# Execute HPO
-	######################################################################
 	results = tuner.fit()
 	best = results.get_best_result(metric="val_accuracy", mode="max")
-	print("Best config:", best.config)
+	logging.info(f"Best config: {best.config}")
 
-	# Save file to best config
 	output_file = PROJECT_ROOT / "data" / "training" / "model_params.json"
-	with open(output_file, "w") as json_file:
-		json.dump(best.config, json_file, indent=4)  # indent for pretty-printing
+	output_file.parent.mkdir(parents=True, exist_ok=True)
+	with open(output_file, "w") as f:
+		json.dump(best.config, f, indent=4)
+
+
+def train_loop_per_worker(config: dict[str, Any]) -> None:
+	"""
+	Ray Train entrypoint. Runs once per worker (process).
+	- If num_workers=1: behaves like normal single-process training.
+	- If num_workers>1: wraps model in DDP and shards dataloaders.
+	"""
+	# --- Repro / perf flags ---
+	g = set_seed(42)
+
+	amp_dtype = torch.float16
+	torch.backends.cuda.matmul.allow_tf32 = True
+	torch.backends.cudnn.allow_tf32 = True
+
+	device = get_device()  # Ray-assigned device (cuda:0 per worker if use_gpu=True)
+
+	# --- Model / optim ---
+	model = create_transformer_model(config).to(device)
+
+	# DDP wrapping happens here when world_size > 1
+	model = prepare_model(model)
+
+	# torch.compile: OK in single GPU; with DDP it can be finicky.
+	# Make it configurable so you can disable quickly if it causes trouble.
+	if int(config.get("compile", 1)) == 1:
+		try:
+			# If DDP gives issues, try fullgraph=False first.
+			model = torch.compile(model, mode="default", fullgraph=True)
+		except Exception as e:
+			logging.warning(f"torch.compile failed; continuing uncompiled. Error: {e}")
+
+	optimizer = torch.optim.AdamW(
+		model.parameters(),
+		lr=float(config["lr"]),
+		weight_decay=float(config["weight_decay"]),
+		fused=True,
+	)
+	loss_fn = nn.CrossEntropyLoss()
+
+	# --- Data ---
+	train_features = torch.load(PROCESSED_DIR / "features_training.pt")
+	train_targets = torch.load(PROCESSED_DIR / "targets_training.pt")
+	val_features = torch.load(PROCESSED_DIR / "features_val.pt")
+	val_targets = torch.load(PROCESSED_DIR / "targets_val.pt")
+
+	train_loader = DataLoader(
+		TensorDataset(train_features, train_targets),
+		batch_size=int(config["batch_size"]),
+		shuffle=True,
+		generator=g,
+		num_workers=0,
+		pin_memory=True,
+	)
+	val_loader = DataLoader(
+		TensorDataset(val_features, val_targets),
+		batch_size=int(config["batch_size"]),
+		shuffle=False,
+		num_workers=0,
+		pin_memory=True,
+	)
+
+	# Shard data across workers automatically (no-op if num_workers=1)
+	train_loader = prepare_data_loader(train_loader)
+	val_loader = prepare_data_loader(val_loader)
+
+	# --- Resume from checkpoint if available ---
+	start_epoch = 0
+	best_val_loss = float("inf")
+
+	ckpt = train.get_checkpoint()
+	if ckpt is not None:
+		state = ckpt.to_dict()
+		start_epoch = int(state.get("epoch", -1)) + 1
+		best_val_loss = float(state.get("best_val_loss", float("inf")))
+
+		# model may be DDP-wrapped; checkpoint stores unwrapped state_dict below
+		unwrapped = model.module if hasattr(model, "module") else model
+		unwrapped.load_state_dict(state["model"])
+		optimizer.load_state_dict(state["optimizer"])
+
+	epochs = int(config["epochs"])
+
+	# --- Train ---
+	for epoch in range(start_epoch, epochs):
+		avg_train_loss = train_epoch(
+			train_loader=train_loader,
+			model=model,
+			optimizer=optimizer,
+			loss_fn=loss_fn,
+			device=device,
+			amp_dtype=amp_dtype,
+			prof=None,  # strongly recommend disabling profiler in multi-worker runs initially
+		)
+
+		avg_val_loss, val_accuracy = validate_epoch(
+			val_loader=val_loader,
+			model=model,
+			loss_fn=loss_fn,
+			device=device,
+			amp_dtype=amp_dtype,
+		)
+
+		best_val_loss = min(best_val_loss, float(avg_val_loss))
+
+		metrics = {
+			"epoch": epoch,
+			"train_loss": float(avg_train_loss),
+			"val_loss": float(avg_val_loss),
+			"val_accuracy": float(val_accuracy),
+		}
+
+		# Save checkpoint every epoch (Tune/Train can pick best via metric)
+		unwrapped = model.module if hasattr(model, "module") else model
+		checkpoint = Checkpoint.from_dict(
+			{
+				"epoch": epoch,
+				"best_val_loss": best_val_loss,
+				"model": unwrapped.state_dict(),
+				"optimizer": optimizer.state_dict(),
+			}
+		)
+
+		train.report(metrics, checkpoint=checkpoint)
+
+
+def build_trainer(
+	config: dict[str, Any],
+	*,
+	num_workers: int,
+	use_gpu: bool,
+	run_name: str,
+	storage_path: str,
+) -> TorchTrainer:
+	return TorchTrainer(
+		train_loop_per_worker=train_loop_per_worker,
+		train_loop_config=config,
+		scaling_config=ScalingConfig(
+			num_workers=int(num_workers),
+			use_gpu=bool(use_gpu),
+		),
+		run_config=RunConfig(
+			name=run_name,
+			storage_path=storage_path,
+			failure_config=FailureConfig(fail_fast=True),
+		),
+	)
+
+
+def run_train(args: argparse.Namespace) -> None:
+	# Load fixed params
+	with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as f:
+		config = json.load(f)
+
+	# Add a safety flag for compile toggling
+	config.setdefault("compile", 1)
+
+	if args.ci:
+		config["epochs"] = min(int(config["epochs"]), 5)
+
+	trainer = build_trainer(
+		config,
+		num_workers=args.num_workers,  # 1 works everywhere
+		use_gpu=args.use_gpu,  # True if you want GPU
+		run_name="transformer_train",
+		storage_path=os.path.abspath("./ray_results"),
+	)
+
+	result = trainer.fit()
+	best_ckpt = result.checkpoint
+	if best_ckpt is None:
+		raise RuntimeError("No checkpoint returned from Ray Train run.")
+
+	state = best_ckpt.to_dict()
+	model_state = state["model"]
+
+	# Save to your existing location
+	best_model_path = PROJECT_ROOT / "data" / "training" / "transformer.pt"
+	best_model_path.parent.mkdir(parents=True, exist_ok=True)
+	torch.save(model_state, best_model_path)
+
+	logging.info(f"Saved model state_dict to: {best_model_path}")
+	logging.info(f"Final metrics: {result.metrics}")
+
+	# If you still want local plots, you can plot from result.metrics_dataframe if desired.
 
 
 @time_fcn
@@ -451,39 +640,30 @@ def main() -> None:
 	- Trains models and persists artifacts to disk.
 	"""
 
-	# Set logging
 	logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-	# Get input args
 	args = parse_args()
 
-	# Enable/disable timing decorators
-	if args.profile:
-		set_time_decorators_enabled(True)
-		logging.info("Timing decorators enabled")
-	else:
-		set_time_decorators_enabled(False)
-		logging.info("Timing decorators disabled")
+	# Recommended defaults:
+	if not hasattr(args, "num_workers"):
+		args.num_workers = 1
+	if not hasattr(args, "use_gpu"):
+		args.use_gpu = torch.cuda.is_available()
 
-	# We are doing HPO with Ray
+	# Timing decorators
+	set_time_decorators_enabled(bool(args.profile))
+	logging.info(f"Timing decorators {'enabled' if args.profile else 'disabled'}")
+
+	script_dir = Path(__file__).resolve().parent
+	ray.init(
+		_metrics_export_port=5001,
+		runtime_env={"working_dir": str(script_dir)},
+	)
+
 	if args.tune:
-		# Set the runtime env to only ship src/, the whole repo that has a bunch of data
-		script_dir = Path(__file__).resolve().parent  # Directory containing train_transformer.py (i.e., src/)
-		ray.init(
-			# Set the system config for the metrics exporter to pick a free port
-			_metrics_export_port=5001,
-			# Set the runtime to only bundle the src dir
-			runtime_env={
-				"working_dir": str(script_dir),
-			},
-		)
 		run_hpo(args)
-
-	# We are doing a single run with fixed model parameters located at nfl/data/training/model_params.json
 	else:
-		with open(PROJECT_ROOT / "data" / "training" / "model_params.json") as file:
-			model_params_map = json.load(file)
-		run_trial(model_params_map, args)
+		run_train(args)
 
 
 if __name__ == "__main__":

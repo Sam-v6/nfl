@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nfl"            
 version = "0.1.0"              
-description = "Machine learnin models for NFL"
+description = "Machine learning models for NFL"
 readme = "README.md"          
 license = { file = "LICENSE" }   
 authors = [
@@ -33,9 +33,9 @@ dependencies = [
   "lightgbm>=4.6.0",
   "matplotlib>=3.10.6",
   "mlflow>=3.4.0",
-  "mypy>=1.19.0",
   "numpy>=2.3.3",
   "pandas>=2.3.2",
+  "pyarrow>=22.0.0",
   "pip-tools>=7.5.0",
   "polars>=1.35.1",
   "pre-commit>=4.5.0",
@@ -51,7 +51,11 @@ dependencies = [
 
 [project.scripts]
 # command = "module:function"
-myproject-cli = "myproject.cli:main"
+nfl = "cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["cli", "audit_data", "load_data", "clean_data", "create_features", "train_transformer", "generate_predictions", "process_predictions"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -82,3 +86,20 @@ known-first-party = ["nfl"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "tab"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1",
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["integration: bounded real-data or GPU checks"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src/cli.py", "src/audit_data.py", "src/common/paths.py"]
+typeCheckingMode = "standard"
