@@ -131,13 +131,13 @@ def create_transformer_model(config: dict[str, int | float]) -> ManZoneTransform
 	"""
 
 	model = ManZoneTransformer(
-		feature_len=5,  # num of input features (x, y, v_x, v_y, defense)
+		feature_len=int(config.get("feature_len", 5)),
 		model_dim=int(config["model_dim"]),  # from ray tune or loaded
 		num_heads=int(config["num_heads"]),  # from ray tune or loaded
 		num_layers=int(config["num_layers"]),  # from ray tune or loaded
 		dim_feedforward=int(config["model_dim"]) * int(config["multiplier"]),  # from ray tune or loaded
 		dropout=float(config["dropout"]),  # from ray tune or loaded
-		output_dim=2,  # man or zone classification
+		output_dim=int(config.get("num_classes", 2)),
 	)
 
 	return model
