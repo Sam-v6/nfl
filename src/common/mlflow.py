@@ -6,7 +6,7 @@ Lightweight helper to configure MLflow tracking for experiments.
 import mlflow
 
 
-def setup_mlflow(experiment_name: str = "random-experiement", tracking_uri: str = "file:./mlruns") -> None:
+def setup_mlflow(experiment_name: str = "random-experiement", tracking_uri: str = "sqlite:///mlflow.db") -> None:
 	"""
 	Initializes MLflow tracking URI and experiment.
 

@@ -6,12 +6,18 @@ be added after a workload demonstrates a benefit and global metrics are tested.
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
 	from ray.tune import ResultGrid
+
+# Ray relaunches workers through `uv run` when the driver was started by it, which
+# drops `--extra tuning` and rebuilds an environment without Ray. Trials always run
+# locally, so keep workers on the driver's synced interpreter. Read at Ray import.
+os.environ.setdefault("RAY_ENABLE_UV_RUN_RUNTIME_ENV", "0")
 
 
 def tune_trainable(config: dict[str, Any], manifest_path: str) -> None:
