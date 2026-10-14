@@ -18,6 +18,9 @@ from typing import Any, Self, TextIO
 
 from model_bundle import load_bundle
 
+# Same as train_transformer: keep Ray workers on this interpreter under `uv run`.
+os.environ.setdefault("RAY_ENABLE_UV_RUN_RUNTIME_ENV", "0")
+
 
 class RunLock:
 	"""Kernel locks release on process death
