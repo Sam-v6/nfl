@@ -6,6 +6,8 @@ Evaluation separates fitting, development, calibration, and final comparison by 
 
 [Approved protocol](docs/superpowers/specs/2026-10-10-coverage-modernization.md) · [Implementation plan](docs/superpowers/plans/2026-10-10-coverage-modernization.md) · [Runtime decisions](docs/reports/2026-10-11-runtime-decisions.md) · [Frozen results and gates](docs/reports/2026-10-11-coverage-comparison/README.md) · [PR delivery stack](docs/reports/2026-10-11-delivery.md)
 
+The [October 16 improvement campaign](docs/reports/2026-10-16-coverage-improvement/README.md) tested public-data eligibility, training duration, play sampling, learning curves, context, motion and mild class weighting. None passed the advancement guards; no model was promoted. Its current-runtime benchmarks and development results are separate from the frozen v1 results below.
+
 ## Maintained workflow
 
 Use Python 3.12 and the locked worktree-local environment. If global uv is older, bootstrap with:

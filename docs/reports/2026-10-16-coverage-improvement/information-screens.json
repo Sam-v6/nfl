@@ -1,0 +1,2864 @@
+{
+  "context_columns": [
+    "down",
+    "yardsToGo"
+  ],
+  "raw_hashes": {
+    "2021": "3cea24258f7f1dcadd697a3f21640d651a67fb96bd54071e9a41f62921fa4290",
+    "2022": "107d7e9686bea8d8acc77d65407e8d6b0420c60174ca5efc585f80bbc5fce36b"
+  },
+  "scores": [
+    {
+      "eligible_plays": 945,
+      "accuracy": 0.5058201058201058,
+      "macro_f1": 0.3782415791227622,
+      "top2_accuracy": 0.7470899470899471,
+      "log_loss": 1.2338797687959235,
+      "brier": 0.6108937567123394,
+      "ece": 0.04447546836092631,
+      "calibration": [
+        {
+          "count": 43,
+          "confidence": 0.2779414003006286,
+          "accuracy": 0.27906976744186046
+        },
+        {
+          "count": 193,
+          "confidence": 0.3519192457374426,
+          "accuracy": 0.32642487046632124
+        },
+        {
+          "count": 190,
+          "confidence": 0.4478437599211177,
+          "accuracy": 0.3157894736842105
+        },
+        {
+          "count": 188,
+          "confidence": 0.5470169490575452,
+          "accuracy": 0.5212765957446809
+        },
+        {
+          "count": 148,
+          "confidence": 0.6512757945182095,
+          "accuracy": 0.6283783783783784
+        },
+        {
+          "count": 90,
+          "confidence": 0.7459729734644491,
+          "accuracy": 0.7555555555555555
+        },
+        {
+          "count": 62,
+          "confidence": 0.8431076407747689,
+          "accuracy": 0.8870967741935484
+        },
+        {
+          "count": 31,
+          "confidence": 0.9403969783866518,
+          "accuracy": 0.9354838709677419
+        }
+      ],
+      "confusion": [
+        [
+          9,
+          6,
+          0,
+          4,
+          1,
+          0,
+          0
+        ],
+        [
+          5,
+          159,
+          7,
+          64,
+          1,
+          0,
+          5
+        ],
+        [
+          2,
+          23,
+          35,
+          48,
+          15,
+          0,
+          7
+        ],
+        [
+          3,
+          42,
+          14,
+          214,
+          21,
+          0,
+          13
+        ],
+        [
+          1,
+          4,
+          15,
+          44,
+          49,
+          0,
+          19
+        ],
+        [
+          0,
+          13,
+          2,
+          0,
+          1,
+          1,
+          3
+        ],
+        [
+          0,
+          10,
+          12,
+          35,
+          27,
+          0,
+          11
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.45,
+          "recall": 0.45,
+          "f1": 0.45,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6186770428015564,
+          "recall": 0.6597510373443983,
+          "f1": 0.6385542168674698,
+          "support": 241,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.4117647058823529,
+          "recall": 0.2692307692307692,
+          "f1": 0.32558139534883723,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5232273838630807,
+          "recall": 0.6970684039087948,
+          "f1": 0.5977653631284916,
+          "support": 307,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4260869565217391,
+          "recall": 0.3712121212121212,
+          "f1": 0.3967611336032389,
+          "support": 132,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 1.0,
+          "recall": 0.05,
+          "f1": 0.09523809523809523,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.1896551724137931,
+          "recall": 0.11578947368421053,
+          "f1": 0.1437908496732026,
+          "support": 95,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8285714285714286,
+        "macro_f1": 0.7808441558441559,
+        "log_loss": 0.380683090472133
+      },
+      "week": 3,
+      "hypothesis": "context",
+      "enriched": false,
+      "offset": -1,
+      "fit_plays": 9723,
+      "games": 16
+    },
+    {
+      "eligible_plays": 945,
+      "accuracy": 0.5174603174603175,
+      "macro_f1": 0.40862803426969524,
+      "top2_accuracy": 0.7481481481481481,
+      "log_loss": 1.223414266709086,
+      "brier": 0.6074293613333718,
+      "ece": 0.03770182678806304,
+      "calibration": [
+        {
+          "count": 49,
+          "confidence": 0.27833468266362127,
+          "accuracy": 0.20408163265306123
+        },
+        {
+          "count": 190,
+          "confidence": 0.3518933216126327,
+          "accuracy": 0.3736842105263158
+        },
+        {
+          "count": 207,
+          "confidence": 0.4512538857764076,
+          "accuracy": 0.34299516908212563
+        },
+        {
+          "count": 175,
+          "confidence": 0.5487604657535691,
+          "accuracy": 0.5485714285714286
+        },
+        {
+          "count": 133,
+          "confidence": 0.6449669395734712,
+          "accuracy": 0.6616541353383458
+        },
+        {
+          "count": 101,
+          "confidence": 0.7452329825912066,
+          "accuracy": 0.7227722772277227
+        },
+        {
+          "count": 56,
+          "confidence": 0.8408507680437788,
+          "accuracy": 0.8571428571428571
+        },
+        {
+          "count": 34,
+          "confidence": 0.9409812694110941,
+          "accuracy": 0.9411764705882353
+        }
+      ],
+      "confusion": [
+        [
+          8,
+          7,
+          0,
+          5,
+          0,
+          0,
+          0
+        ],
+        [
+          4,
+          162,
+          7,
+          62,
+          3,
+          0,
+          3
+        ],
+        [
+          1,
+          23,
+          36,
+          48,
+          16,
+          1,
+          5
+        ],
+        [
+          3,
+          39,
+          17,
+          214,
+          22,
+          0,
+          12
+        ],
+        [
+          2,
+          7,
+          14,
+          42,
+          51,
+          0,
+          16
+        ],
+        [
+          0,
+          12,
+          2,
+          0,
+          1,
+          3,
+          2
+        ],
+        [
+          0,
+          11,
+          13,
+          32,
+          24,
+          0,
+          15
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.4444444444444444,
+          "recall": 0.4,
+          "f1": 0.42105263157894735,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6206896551724138,
+          "recall": 0.6721991701244814,
+          "f1": 0.6454183266932271,
+          "support": 241,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.4044943820224719,
+          "recall": 0.27692307692307694,
+          "f1": 0.3287671232876712,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5310173697270472,
+          "recall": 0.6970684039087948,
+          "f1": 0.6028169014084507,
+          "support": 307,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4358974358974359,
+          "recall": 0.38636363636363635,
+          "f1": 0.40963855421686746,
+          "support": 132,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.75,
+          "recall": 0.15,
+          "f1": 0.25,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.2830188679245283,
+          "recall": 0.15789473684210525,
+          "f1": 0.20270270270270271,
+          "support": 95,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8306878306878307,
+        "macro_f1": 0.7835497835497836,
+        "log_loss": 0.37711802166489333
+      },
+      "week": 3,
+      "hypothesis": "context",
+      "enriched": true,
+      "offset": -1,
+      "fit_plays": 9723,
+      "games": 16
+    },
+    {
+      "eligible_plays": 940,
+      "accuracy": 0.4957446808510638,
+      "macro_f1": 0.3560029241384295,
+      "top2_accuracy": 0.7276595744680852,
+      "log_loss": 1.2913427465745317,
+      "brier": 0.6320862816449986,
+      "ece": 0.04529410219490988,
+      "calibration": [
+        {
+          "count": 52,
+          "confidence": 0.27523080922368404,
+          "accuracy": 0.36538461538461536
+        },
+        {
+          "count": 204,
+          "confidence": 0.3532125863754277,
+          "accuracy": 0.27941176470588236
+        },
+        {
+          "count": 190,
+          "confidence": 0.44952923655615495,
+          "accuracy": 0.41578947368421054
+        },
+        {
+          "count": 189,
+          "confidence": 0.5435827697914092,
+          "accuracy": 0.49206349206349204
+        },
+        {
+          "count": 144,
+          "confidence": 0.6500335886241113,
+          "accuracy": 0.6180555555555556
+        },
+        {
+          "count": 90,
+          "confidence": 0.7432335601453413,
+          "accuracy": 0.7333333333333333
+        },
+        {
+          "count": 47,
+          "confidence": 0.8566853163543111,
+          "accuracy": 0.8723404255319149
+        },
+        {
+          "count": 24,
+          "confidence": 0.9355726991547381,
+          "accuracy": 0.9166666666666666
+        }
+      ],
+      "confusion": [
+        [
+          7,
+          5,
+          1,
+          6,
+          1,
+          0,
+          0
+        ],
+        [
+          5,
+          146,
+          13,
+          67,
+          7,
+          0,
+          2
+        ],
+        [
+          1,
+          27,
+          29,
+          54,
+          14,
+          1,
+          4
+        ],
+        [
+          5,
+          37,
+          11,
+          213,
+          24,
+          0,
+          15
+        ],
+        [
+          1,
+          9,
+          16,
+          37,
+          51,
+          0,
+          17
+        ],
+        [
+          0,
+          10,
+          1,
+          4,
+          1,
+          0,
+          4
+        ],
+        [
+          0,
+          8,
+          8,
+          32,
+          26,
+          0,
+          20
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.3684210526315789,
+          "recall": 0.35,
+          "f1": 0.358974358974359,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6033057851239669,
+          "recall": 0.6083333333333333,
+          "f1": 0.6058091286307054,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.3670886075949367,
+          "recall": 0.2230769230769231,
+          "f1": 0.27751196172248804,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5157384987893463,
+          "recall": 0.6983606557377049,
+          "f1": 0.5933147632311978,
+          "support": 305,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4112903225806452,
+          "recall": 0.3893129770992366,
+          "f1": 0.4,
+          "support": 131,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.3225806451612903,
+          "recall": 0.2127659574468085,
+          "f1": 0.2564102564102564,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8138297872340425,
+        "macro_f1": 0.7581590093487347,
+        "log_loss": 0.4124644847282693
+      },
+      "week": 3,
+      "hypothesis": "context",
+      "enriched": false,
+      "offset": -10,
+      "fit_plays": 9723,
+      "games": 16
+    },
+    {
+      "eligible_plays": 940,
+      "accuracy": 0.4978723404255319,
+      "macro_f1": 0.3564430247802738,
+      "top2_accuracy": 0.725531914893617,
+      "log_loss": 1.286278122546624,
+      "brier": 0.6314328378790944,
+      "ece": 0.034867303655367804,
+      "calibration": [
+        {
+          "count": 52,
+          "confidence": 0.2742274913015572,
+          "accuracy": 0.21153846153846154
+        },
+        {
+          "count": 198,
+          "confidence": 0.3546452537266487,
+          "accuracy": 0.2777777777777778
+        },
+        {
+          "count": 213,
+          "confidence": 0.45478829785656966,
+          "accuracy": 0.43661971830985913
+        },
+        {
+          "count": 179,
+          "confidence": 0.5481552056508138,
+          "accuracy": 0.547486033519553
+        },
+        {
+          "count": 126,
+          "confidence": 0.6528463364106316,
+          "accuracy": 0.626984126984127
+        },
+        {
+          "count": 99,
+          "confidence": 0.740762323412707,
+          "accuracy": 0.6767676767676768
+        },
+        {
+          "count": 44,
+          "confidence": 0.8503626555318324,
+          "accuracy": 0.8636363636363636
+        },
+        {
+          "count": 29,
+          "confidence": 0.9354425804602194,
+          "accuracy": 0.9310344827586207
+        }
+      ],
+      "confusion": [
+        [
+          7,
+          6,
+          0,
+          6,
+          1,
+          0,
+          0
+        ],
+        [
+          4,
+          150,
+          11,
+          66,
+          6,
+          0,
+          3
+        ],
+        [
+          2,
+          25,
+          30,
+          55,
+          12,
+          1,
+          5
+        ],
+        [
+          4,
+          34,
+          13,
+          208,
+          28,
+          0,
+          18
+        ],
+        [
+          2,
+          8,
+          16,
+          33,
+          57,
+          0,
+          15
+        ],
+        [
+          0,
+          13,
+          0,
+          4,
+          1,
+          0,
+          2
+        ],
+        [
+          0,
+          9,
+          7,
+          36,
+          26,
+          0,
+          16
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.3684210526315789,
+          "recall": 0.35,
+          "f1": 0.358974358974359,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6122448979591837,
+          "recall": 0.625,
+          "f1": 0.6185567010309279,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.38961038961038963,
+          "recall": 0.23076923076923078,
+          "f1": 0.2898550724637681,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5098039215686274,
+          "recall": 0.6819672131147541,
+          "f1": 0.5834502103786816,
+          "support": 305,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4351145038167939,
+          "recall": 0.4351145038167939,
+          "f1": 0.4351145038167939,
+          "support": 131,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.2711864406779661,
+          "recall": 0.1702127659574468,
+          "f1": 0.20915032679738563,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8106382978723404,
+        "macro_f1": 0.7568857194334502,
+        "log_loss": 0.40886492785260975
+      },
+      "week": 3,
+      "hypothesis": "context",
+      "enriched": true,
+      "offset": -10,
+      "fit_plays": 9723,
+      "games": 16
+    },
+    {
+      "eligible_plays": 940,
+      "accuracy": 0.5063829787234042,
+      "macro_f1": 0.40369230178562826,
+      "top2_accuracy": 0.7127659574468085,
+      "log_loss": 1.3712232982417376,
+      "brier": 0.6524871915535609,
+      "ece": 0.06655584308015201,
+      "calibration": [
+        {
+          "count": 26,
+          "confidence": 0.2712065966366381,
+          "accuracy": 0.3076923076923077
+        },
+        {
+          "count": 169,
+          "confidence": 0.3563658871261185,
+          "accuracy": 0.3727810650887574
+        },
+        {
+          "count": 216,
+          "confidence": 0.4465255292919047,
+          "accuracy": 0.36574074074074076
+        },
+        {
+          "count": 170,
+          "confidence": 0.5458412659823217,
+          "accuracy": 0.5588235294117647
+        },
+        {
+          "count": 147,
+          "confidence": 0.6454174624259319,
+          "accuracy": 0.47619047619047616
+        },
+        {
+          "count": 96,
+          "confidence": 0.7463517054772497,
+          "accuracy": 0.71875
+        },
+        {
+          "count": 66,
+          "confidence": 0.8488732230216859,
+          "accuracy": 0.7272727272727273
+        },
+        {
+          "count": 50,
+          "confidence": 0.9526287280058711,
+          "accuracy": 0.88
+        }
+      ],
+      "confusion": [
+        [
+          8,
+          6,
+          1,
+          4,
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          154,
+          16,
+          56,
+          6,
+          1,
+          4
+        ],
+        [
+          1,
+          26,
+          42,
+          43,
+          11,
+          0,
+          7
+        ],
+        [
+          1,
+          37,
+          22,
+          209,
+          17,
+          1,
+          18
+        ],
+        [
+          0,
+          5,
+          21,
+          52,
+          42,
+          0,
+          11
+        ],
+        [
+          0,
+          10,
+          2,
+          4,
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          6,
+          16,
+          28,
+          25,
+          0,
+          19
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.6153846153846154,
+          "recall": 0.4,
+          "f1": 0.48484848484848486,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6311475409836066,
+          "recall": 0.6416666666666667,
+          "f1": 0.6363636363636364,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.35,
+          "recall": 0.3230769230769231,
+          "f1": 0.336,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5277777777777778,
+          "recall": 0.6852459016393443,
+          "f1": 0.5962910128388017,
+          "support": 305,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4117647058823529,
+          "recall": 0.32061068702290074,
+          "f1": 0.3605150214592275,
+          "support": 131,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.5,
+          "recall": 0.1,
+          "f1": 0.16666666666666666,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.3114754098360656,
+          "recall": 0.20212765957446807,
+          "f1": 0.24516129032258063,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8117021276595745,
+        "macro_f1": 0.7527488449575654,
+        "log_loss": 0.4211585600469109
+      },
+      "week": 3,
+      "hypothesis": "motion",
+      "enriched": false,
+      "offset": -1,
+      "fit_plays": 2081,
+      "games": 16
+    },
+    {
+      "eligible_plays": 940,
+      "accuracy": 0.4978723404255319,
+      "macro_f1": 0.38861460174633666,
+      "top2_accuracy": 0.7265957446808511,
+      "log_loss": 1.352869835790132,
+      "brier": 0.6419695432813239,
+      "ece": 0.06911866779042503,
+      "calibration": [
+        {
+          "count": 32,
+          "confidence": 0.275026894405208,
+          "accuracy": 0.375
+        },
+        {
+          "count": 162,
+          "confidence": 0.35937957577526747,
+          "accuracy": 0.2962962962962963
+        },
+        {
+          "count": 219,
+          "confidence": 0.45183413735241895,
+          "accuracy": 0.3926940639269406
+        },
+        {
+          "count": 179,
+          "confidence": 0.5465348386565171,
+          "accuracy": 0.4301675977653631
+        },
+        {
+          "count": 135,
+          "confidence": 0.6452453854676089,
+          "accuracy": 0.6296296296296297
+        },
+        {
+          "count": 99,
+          "confidence": 0.7445079934913099,
+          "accuracy": 0.6464646464646465
+        },
+        {
+          "count": 61,
+          "confidence": 0.8446137632430261,
+          "accuracy": 0.7868852459016393
+        },
+        {
+          "count": 53,
+          "confidence": 0.9516159795676429,
+          "accuracy": 0.9056603773584906
+        }
+      ],
+      "confusion": [
+        [
+          8,
+          6,
+          1,
+          4,
+          1,
+          0,
+          0
+        ],
+        [
+          4,
+          158,
+          16,
+          52,
+          4,
+          0,
+          6
+        ],
+        [
+          1,
+          22,
+          38,
+          53,
+          10,
+          1,
+          5
+        ],
+        [
+          1,
+          36,
+          27,
+          207,
+          16,
+          0,
+          18
+        ],
+        [
+          1,
+          5,
+          16,
+          53,
+          40,
+          0,
+          16
+        ],
+        [
+          0,
+          11,
+          3,
+          2,
+          0,
+          2,
+          2
+        ],
+        [
+          0,
+          6,
+          18,
+          30,
+          25,
+          0,
+          15
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5333333333333333,
+          "recall": 0.4,
+          "f1": 0.45714285714285713,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6475409836065574,
+          "recall": 0.6583333333333333,
+          "f1": 0.6528925619834711,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.31932773109243695,
+          "recall": 0.2923076923076923,
+          "f1": 0.30522088353413657,
+          "support": 130,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.516209476309227,
+          "recall": 0.6786885245901639,
+          "f1": 0.5864022662889519,
+          "support": 305,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4166666666666667,
+          "recall": 0.3053435114503817,
+          "f1": 0.3524229074889868,
+          "support": 131,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.6666666666666666,
+          "recall": 0.1,
+          "f1": 0.17391304347826086,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.24193548387096775,
+          "recall": 0.1595744680851064,
+          "f1": 0.19230769230769232,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8106382978723404,
+        "macro_f1": 0.7530273777683311,
+        "log_loss": 0.413077878916079
+      },
+      "week": 3,
+      "hypothesis": "motion",
+      "enriched": true,
+      "offset": -1,
+      "fit_plays": 2081,
+      "games": 16
+    },
+    {
+      "eligible_plays": 935,
+      "accuracy": 0.4823529411764706,
+      "macro_f1": 0.35835137065043615,
+      "top2_accuracy": 0.6941176470588235,
+      "log_loss": 1.4315286596616097,
+      "brier": 0.6713073022043916,
+      "ece": 0.07003201267680197,
+      "calibration": [
+        {
+          "count": 33,
+          "confidence": 0.2800459448384985,
+          "accuracy": 0.2727272727272727
+        },
+        {
+          "count": 170,
+          "confidence": 0.3541557591958143,
+          "accuracy": 0.34705882352941175
+        },
+        {
+          "count": 203,
+          "confidence": 0.4533993458226001,
+          "accuracy": 0.39408866995073893
+        },
+        {
+          "count": 197,
+          "confidence": 0.547554559029215,
+          "accuracy": 0.4619289340101523
+        },
+        {
+          "count": 145,
+          "confidence": 0.6414122821990231,
+          "accuracy": 0.5655172413793104
+        },
+        {
+          "count": 81,
+          "confidence": 0.7416817904429868,
+          "accuracy": 0.5555555555555556
+        },
+        {
+          "count": 59,
+          "confidence": 0.8389065077191314,
+          "accuracy": 0.7627118644067796
+        },
+        {
+          "count": 47,
+          "confidence": 0.9478113059348668,
+          "accuracy": 0.851063829787234
+        }
+      ],
+      "confusion": [
+        [
+          6,
+          5,
+          2,
+          5,
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          143,
+          16,
+          65,
+          6,
+          2,
+          5
+        ],
+        [
+          0,
+          28,
+          38,
+          46,
+          10,
+          0,
+          7
+        ],
+        [
+          3,
+          39,
+          19,
+          200,
+          18,
+          2,
+          22
+        ],
+        [
+          2,
+          6,
+          21,
+          40,
+          48,
+          0,
+          12
+        ],
+        [
+          0,
+          7,
+          4,
+          5,
+          1,
+          1,
+          2
+        ],
+        [
+          0,
+          6,
+          16,
+          27,
+          29,
+          1,
+          15
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.42857142857142855,
+          "recall": 0.3,
+          "f1": 0.35294117647058826,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6111111111111112,
+          "recall": 0.5958333333333333,
+          "f1": 0.6033755274261603,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.3275862068965517,
+          "recall": 0.29457364341085274,
+          "f1": 0.31020408163265306,
+          "support": 129,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5154639175257731,
+          "recall": 0.6600660066006601,
+          "f1": 0.5788712011577424,
+          "support": 303,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.42105263157894735,
+          "recall": 0.37209302325581395,
+          "f1": 0.3950617283950617,
+          "support": 129,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.16666666666666666,
+          "recall": 0.05,
+          "f1": 0.07692307692307693,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.23809523809523808,
+          "recall": 0.1595744680851064,
+          "f1": 0.1910828025477707,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.7839572192513369,
+        "macro_f1": 0.7176898609300824,
+        "log_loss": 0.45311716745301506
+      },
+      "week": 3,
+      "hypothesis": "motion",
+      "enriched": false,
+      "offset": -10,
+      "fit_plays": 2081,
+      "games": 16
+    },
+    {
+      "eligible_plays": 935,
+      "accuracy": 0.46737967914438505,
+      "macro_f1": 0.34227102701062245,
+      "top2_accuracy": 0.7090909090909091,
+      "log_loss": 1.4160242144609771,
+      "brier": 0.6638460072301572,
+      "ece": 0.08678861455106407,
+      "calibration": [
+        {
+          "count": 36,
+          "confidence": 0.2734164625818876,
+          "accuracy": 0.16666666666666666
+        },
+        {
+          "count": 155,
+          "confidence": 0.3523741278602093,
+          "accuracy": 0.25806451612903225
+        },
+        {
+          "count": 216,
+          "confidence": 0.45189911774101577,
+          "accuracy": 0.37962962962962965
+        },
+        {
+          "count": 203,
+          "confidence": 0.5480417737061878,
+          "accuracy": 0.4729064039408867
+        },
+        {
+          "count": 136,
+          "confidence": 0.643958115119876,
+          "accuracy": 0.5588235294117647
+        },
+        {
+          "count": 79,
+          "confidence": 0.748554136064648,
+          "accuracy": 0.5822784810126582
+        },
+        {
+          "count": 60,
+          "confidence": 0.844369050407904,
+          "accuracy": 0.8
+        },
+        {
+          "count": 50,
+          "confidence": 0.9489491841932883,
+          "accuracy": 0.86
+        }
+      ],
+      "confusion": [
+        [
+          6,
+          6,
+          2,
+          4,
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          142,
+          17,
+          64,
+          6,
+          0,
+          8
+        ],
+        [
+          1,
+          25,
+          38,
+          47,
+          13,
+          1,
+          4
+        ],
+        [
+          3,
+          43,
+          27,
+          196,
+          15,
+          1,
+          18
+        ],
+        [
+          2,
+          8,
+          24,
+          41,
+          43,
+          0,
+          11
+        ],
+        [
+          0,
+          8,
+          3,
+          3,
+          1,
+          1,
+          4
+        ],
+        [
+          0,
+          7,
+          18,
+          29,
+          29,
+          0,
+          11
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.4,
+          "recall": 0.3,
+          "f1": 0.34285714285714286,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.5941422594142259,
+          "recall": 0.5916666666666667,
+          "f1": 0.592901878914405,
+          "support": 240,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.29457364341085274,
+          "recall": 0.29457364341085274,
+          "f1": 0.29457364341085274,
+          "support": 129,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.5104166666666666,
+          "recall": 0.6468646864686468,
+          "f1": 0.5705967976710334,
+          "support": 303,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.3944954128440367,
+          "recall": 0.3333333333333333,
+          "f1": 0.36134453781512604,
+          "support": 129,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.3333333333333333,
+          "recall": 0.05,
+          "f1": 0.08695652173913043,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.19642857142857142,
+          "recall": 0.11702127659574468,
+          "f1": 0.14666666666666667,
+          "support": 94,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.7828877005347593,
+        "macro_f1": 0.7151311217804885,
+        "log_loss": 0.4443554786739667
+      },
+      "week": 3,
+      "hypothesis": "motion",
+      "enriched": true,
+      "offset": -10,
+      "fit_plays": 2081,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1049,
+      "accuracy": 0.5224022878932316,
+      "macro_f1": 0.4251315915522024,
+      "top2_accuracy": 0.7597712106768351,
+      "log_loss": 1.1849120654514214,
+      "brier": 0.6013068240902021,
+      "ece": 0.04211920966908696,
+      "calibration": [
+        {
+          "count": 58,
+          "confidence": 0.2728535506174231,
+          "accuracy": 0.3448275862068966
+        },
+        {
+          "count": 239,
+          "confidence": 0.3513913934421113,
+          "accuracy": 0.3514644351464435
+        },
+        {
+          "count": 213,
+          "confidence": 0.44928301147561284,
+          "accuracy": 0.3615023474178404
+        },
+        {
+          "count": 185,
+          "confidence": 0.5497248975947822,
+          "accuracy": 0.6
+        },
+        {
+          "count": 148,
+          "confidence": 0.652047378186849,
+          "accuracy": 0.6148648648648649
+        },
+        {
+          "count": 97,
+          "confidence": 0.7478589764764109,
+          "accuracy": 0.711340206185567
+        },
+        {
+          "count": 70,
+          "confidence": 0.8494975377009878,
+          "accuracy": 0.8714285714285714
+        },
+        {
+          "count": 39,
+          "confidence": 0.9336517813148765,
+          "accuracy": 0.8974358974358975
+        }
+      ],
+      "confusion": [
+        [
+          19,
+          14,
+          0,
+          9,
+          3,
+          0,
+          0
+        ],
+        [
+          6,
+          178,
+          2,
+          62,
+          6,
+          4,
+          4
+        ],
+        [
+          1,
+          26,
+          55,
+          77,
+          14,
+          1,
+          12
+        ],
+        [
+          5,
+          37,
+          14,
+          228,
+          22,
+          0,
+          9
+        ],
+        [
+          4,
+          8,
+          7,
+          60,
+          52,
+          0,
+          14
+        ],
+        [
+          0,
+          12,
+          4,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          7,
+          8,
+          31,
+          18,
+          0,
+          12
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5428571428571428,
+          "recall": 0.4222222222222222,
+          "f1": 0.475,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6312056737588653,
+          "recall": 0.6793893129770993,
+          "f1": 0.6544117647058824,
+          "support": 262,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.6111111111111112,
+          "recall": 0.2956989247311828,
+          "f1": 0.39855072463768115,
+          "support": 186,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.48822269807280516,
+          "recall": 0.7238095238095238,
+          "f1": 0.5831202046035806,
+          "support": 315,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.45217391304347826,
+          "recall": 0.3586206896551724,
+          "f1": 0.4,
+          "support": 145,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.4444444444444444,
+          "recall": 0.2,
+          "f1": 0.27586206896551724,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.23529411764705882,
+          "recall": 0.15789473684210525,
+          "f1": 0.1889763779527559,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8398474737845567,
+        "macro_f1": 0.7998364454136568,
+        "log_loss": 0.3787883614712322
+      },
+      "week": 4,
+      "hypothesis": "context",
+      "enriched": false,
+      "offset": -1,
+      "fit_plays": 10848,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1049,
+      "accuracy": 0.5252621544327931,
+      "macro_f1": 0.41729310193977553,
+      "top2_accuracy": 0.7550047664442326,
+      "log_loss": 1.1925662476421266,
+      "brier": 0.602275858097388,
+      "ece": 0.0219397164599044,
+      "calibration": [
+        {
+          "count": 61,
+          "confidence": 0.27334437817146695,
+          "accuracy": 0.3114754098360656
+        },
+        {
+          "count": 228,
+          "confidence": 0.3540181403604901,
+          "accuracy": 0.3684210526315789
+        },
+        {
+          "count": 214,
+          "confidence": 0.44636002129998115,
+          "accuracy": 0.38317757009345793
+        },
+        {
+          "count": 196,
+          "confidence": 0.5459294945339105,
+          "accuracy": 0.5459183673469388
+        },
+        {
+          "count": 141,
+          "confidence": 0.6504503952577713,
+          "accuracy": 0.6453900709219859
+        },
+        {
+          "count": 101,
+          "confidence": 0.7485520918011399,
+          "accuracy": 0.7227722772277227
+        },
+        {
+          "count": 66,
+          "confidence": 0.8518490551035749,
+          "accuracy": 0.8484848484848485
+        },
+        {
+          "count": 42,
+          "confidence": 0.9367232264321836,
+          "accuracy": 0.9285714285714286
+        }
+      ],
+      "confusion": [
+        [
+          17,
+          16,
+          0,
+          9,
+          3,
+          0,
+          0
+        ],
+        [
+          6,
+          176,
+          3,
+          66,
+          4,
+          3,
+          4
+        ],
+        [
+          0,
+          26,
+          57,
+          77,
+          15,
+          1,
+          10
+        ],
+        [
+          5,
+          28,
+          17,
+          230,
+          24,
+          0,
+          11
+        ],
+        [
+          4,
+          7,
+          6,
+          58,
+          56,
+          0,
+          14
+        ],
+        [
+          0,
+          10,
+          6,
+          1,
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          6,
+          10,
+          27,
+          21,
+          0,
+          12
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.53125,
+          "recall": 0.37777777777777777,
+          "f1": 0.44155844155844154,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.654275092936803,
+          "recall": 0.6717557251908397,
+          "f1": 0.6629001883239172,
+          "support": 262,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.5757575757575758,
+          "recall": 0.3064516129032258,
+          "f1": 0.4,
+          "support": 186,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.49145299145299143,
+          "recall": 0.7301587301587301,
+          "f1": 0.5874840357598978,
+          "support": 315,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.45528455284552843,
+          "recall": 0.38620689655172413,
+          "f1": 0.417910447761194,
+          "support": 145,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.42857142857142855,
+          "recall": 0.15,
+          "f1": 0.2222222222222222,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.23529411764705882,
+          "recall": 0.15789473684210525,
+          "f1": 0.1889763779527559,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8408007626310772,
+        "macro_f1": 0.8016597886203715,
+        "log_loss": 0.3768776325870804
+      },
+      "week": 4,
+      "hypothesis": "context",
+      "enriched": true,
+      "offset": -1,
+      "fit_plays": 10848,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1039,
+      "accuracy": 0.49759384023099135,
+      "macro_f1": 0.36545298445363145,
+      "top2_accuracy": 0.714148219441771,
+      "log_loss": 1.3045916239689426,
+      "brier": 0.6445605976793072,
+      "ece": 0.03272504694798592,
+      "calibration": [
+        {
+          "count": 72,
+          "confidence": 0.2728625433812788,
+          "accuracy": 0.2361111111111111
+        },
+        {
+          "count": 226,
+          "confidence": 0.35586261137236624,
+          "accuracy": 0.3495575221238938
+        },
+        {
+          "count": 212,
+          "confidence": 0.4471419427730797,
+          "accuracy": 0.39622641509433965
+        },
+        {
+          "count": 190,
+          "confidence": 0.5484857986806062,
+          "accuracy": 0.5526315789473685
+        },
+        {
+          "count": 148,
+          "confidence": 0.6464105098705217,
+          "accuracy": 0.6013513513513513
+        },
+        {
+          "count": 93,
+          "confidence": 0.7417117246654369,
+          "accuracy": 0.6774193548387096
+        },
+        {
+          "count": 70,
+          "confidence": 0.8486908269802061,
+          "accuracy": 0.7857142857142857
+        },
+        {
+          "count": 28,
+          "confidence": 0.9390063079798396,
+          "accuracy": 0.8928571428571429
+        }
+      ],
+      "confusion": [
+        [
+          15,
+          13,
+          0,
+          12,
+          5,
+          0,
+          0
+        ],
+        [
+          4,
+          169,
+          5,
+          67,
+          8,
+          1,
+          6
+        ],
+        [
+          1,
+          30,
+          42,
+          82,
+          17,
+          1,
+          11
+        ],
+        [
+          4,
+          28,
+          13,
+          228,
+          25,
+          0,
+          13
+        ],
+        [
+          3,
+          11,
+          6,
+          55,
+          54,
+          0,
+          14
+        ],
+        [
+          0,
+          12,
+          4,
+          2,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          8,
+          7,
+          30,
+          23,
+          0,
+          8
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5555555555555556,
+          "recall": 0.3333333333333333,
+          "f1": 0.4166666666666667,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6236162361623616,
+          "recall": 0.65,
+          "f1": 0.6365348399246704,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.5454545454545454,
+          "recall": 0.22826086956521738,
+          "f1": 0.3218390804597701,
+          "support": 184,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.4789915966386555,
+          "recall": 0.7331189710610932,
+          "f1": 0.579415501905972,
+          "support": 311,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4090909090909091,
+          "recall": 0.3776223776223776,
+          "f1": 0.3927272727272727,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.3333333333333333,
+          "recall": 0.05,
+          "f1": 0.08695652173913043,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.1509433962264151,
+          "recall": 0.10526315789473684,
+          "f1": 0.12403100775193798,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8152069297401348,
+        "macro_f1": 0.765330321852061,
+        "log_loss": 0.41516127837269434
+      },
+      "week": 4,
+      "hypothesis": "context",
+      "enriched": false,
+      "offset": -10,
+      "fit_plays": 10848,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1039,
+      "accuracy": 0.47834456207892206,
+      "macro_f1": 0.3490355121115339,
+      "top2_accuracy": 0.7054860442733397,
+      "log_loss": 1.3088887960378217,
+      "brier": 0.6456599446725328,
+      "ece": 0.050100850597558144,
+      "calibration": [
+        {
+          "count": 65,
+          "confidence": 0.27080729811111454,
+          "accuracy": 0.15384615384615385
+        },
+        {
+          "count": 217,
+          "confidence": 0.35208604348188166,
+          "accuracy": 0.3225806451612903
+        },
+        {
+          "count": 238,
+          "confidence": 0.4493552134557793,
+          "accuracy": 0.3697478991596639
+        },
+        {
+          "count": 191,
+          "confidence": 0.54813469767842,
+          "accuracy": 0.5235602094240838
+        },
+        {
+          "count": 144,
+          "confidence": 0.6514692422481629,
+          "accuracy": 0.625
+        },
+        {
+          "count": 94,
+          "confidence": 0.7465289727775208,
+          "accuracy": 0.7021276595744681
+        },
+        {
+          "count": 59,
+          "confidence": 0.8536655678484848,
+          "accuracy": 0.7627118644067796
+        },
+        {
+          "count": 31,
+          "confidence": 0.937348615197917,
+          "accuracy": 0.9032258064516129
+        }
+      ],
+      "confusion": [
+        [
+          14,
+          15,
+          0,
+          11,
+          5,
+          0,
+          0
+        ],
+        [
+          5,
+          164,
+          5,
+          70,
+          9,
+          2,
+          5
+        ],
+        [
+          1,
+          31,
+          40,
+          80,
+          21,
+          0,
+          11
+        ],
+        [
+          4,
+          34,
+          15,
+          218,
+          27,
+          0,
+          13
+        ],
+        [
+          3,
+          7,
+          6,
+          57,
+          53,
+          0,
+          17
+        ],
+        [
+          0,
+          13,
+          3,
+          2,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          9,
+          9,
+          29,
+          22,
+          0,
+          7
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5185185185185185,
+          "recall": 0.3111111111111111,
+          "f1": 0.3888888888888889,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6007326007326007,
+          "recall": 0.6307692307692307,
+          "f1": 0.6153846153846154,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.5128205128205128,
+          "recall": 0.21739130434782608,
+          "f1": 0.3053435114503817,
+          "support": 184,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.4668094218415418,
+          "recall": 0.7009646302250804,
+          "f1": 0.5604113110539846,
+          "support": 311,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.38686131386861317,
+          "recall": 0.3706293706293706,
+          "f1": 0.37857142857142856,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.3333333333333333,
+          "recall": 0.05,
+          "f1": 0.08695652173913043,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.12962962962962962,
+          "recall": 0.09210526315789473,
+          "f1": 0.1076923076923077,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8200192492781521,
+        "macro_f1": 0.7706637299235006,
+        "log_loss": 0.4138086960748379
+      },
+      "week": 4,
+      "hypothesis": "context",
+      "enriched": true,
+      "offset": -10,
+      "fit_plays": 10848,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1039,
+      "accuracy": 0.5052935514918191,
+      "macro_f1": 0.409227108862496,
+      "top2_accuracy": 0.7314725697786333,
+      "log_loss": 1.2396858091367122,
+      "brier": 0.6142185025836349,
+      "ece": 0.04937549728299113,
+      "calibration": [
+        {
+          "count": 39,
+          "confidence": 0.28017031927796615,
+          "accuracy": 0.1282051282051282
+        },
+        {
+          "count": 192,
+          "confidence": 0.3505949702692653,
+          "accuracy": 0.2760416666666667
+        },
+        {
+          "count": 259,
+          "confidence": 0.4488111015564607,
+          "accuracy": 0.44787644787644787
+        },
+        {
+          "count": 186,
+          "confidence": 0.5481281388109905,
+          "accuracy": 0.4731182795698925
+        },
+        {
+          "count": 137,
+          "confidence": 0.6477621736603907,
+          "accuracy": 0.5912408759124088
+        },
+        {
+          "count": 102,
+          "confidence": 0.7440676207302893,
+          "accuracy": 0.696078431372549
+        },
+        {
+          "count": 79,
+          "confidence": 0.8517312741880008,
+          "accuracy": 0.8860759493670886
+        },
+        {
+          "count": 45,
+          "confidence": 0.9447735859202143,
+          "accuracy": 0.9111111111111111
+        }
+      ],
+      "confusion": [
+        [
+          17,
+          15,
+          0,
+          9,
+          4,
+          0,
+          0
+        ],
+        [
+          4,
+          171,
+          7,
+          69,
+          2,
+          2,
+          5
+        ],
+        [
+          2,
+          25,
+          61,
+          73,
+          13,
+          2,
+          8
+        ],
+        [
+          4,
+          36,
+          26,
+          217,
+          20,
+          0,
+          8
+        ],
+        [
+          3,
+          6,
+          8,
+          63,
+          46,
+          1,
+          16
+        ],
+        [
+          0,
+          9,
+          5,
+          2,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          6,
+          9,
+          36,
+          16,
+          0,
+          9
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5666666666666667,
+          "recall": 0.37777777777777777,
+          "f1": 0.4533333333333333,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6380597014925373,
+          "recall": 0.6576923076923077,
+          "f1": 0.6477272727272727,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.5258620689655172,
+          "recall": 0.33152173913043476,
+          "f1": 0.4066666666666667,
+          "support": 184,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.4626865671641791,
+          "recall": 0.6977491961414791,
+          "f1": 0.5564102564102564,
+          "support": 311,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.45544554455445546,
+          "recall": 0.32167832167832167,
+          "f1": 0.3770491803278688,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.4444444444444444,
+          "recall": 0.2,
+          "f1": 0.27586206896551724,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.1956521739130435,
+          "recall": 0.11842105263157894,
+          "f1": 0.14754098360655737,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8296438883541867,
+        "macro_f1": 0.7885581834926307,
+        "log_loss": 0.392825565527735
+      },
+      "week": 4,
+      "hypothesis": "motion",
+      "enriched": false,
+      "offset": -1,
+      "fit_plays": 3195,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1039,
+      "accuracy": 0.5110683349374399,
+      "macro_f1": 0.40445955147271256,
+      "top2_accuracy": 0.7430221366698749,
+      "log_loss": 1.257534747549959,
+      "brier": 0.6205709540317683,
+      "ece": 0.04272971149571423,
+      "calibration": [
+        {
+          "count": 40,
+          "confidence": 0.2739424114778536,
+          "accuracy": 0.225
+        },
+        {
+          "count": 200,
+          "confidence": 0.3537603584217672,
+          "accuracy": 0.335
+        },
+        {
+          "count": 236,
+          "confidence": 0.4470700741451759,
+          "accuracy": 0.4322033898305085
+        },
+        {
+          "count": 181,
+          "confidence": 0.5502750485635333,
+          "accuracy": 0.4585635359116022
+        },
+        {
+          "count": 143,
+          "confidence": 0.6451889358511046,
+          "accuracy": 0.5874125874125874
+        },
+        {
+          "count": 110,
+          "confidence": 0.7452774510210258,
+          "accuracy": 0.6818181818181818
+        },
+        {
+          "count": 78,
+          "confidence": 0.8482913142414864,
+          "accuracy": 0.8333333333333334
+        },
+        {
+          "count": 51,
+          "confidence": 0.9444866835776811,
+          "accuracy": 0.9019607843137255
+        }
+      ],
+      "confusion": [
+        [
+          15,
+          17,
+          0,
+          11,
+          2,
+          0,
+          0
+        ],
+        [
+          6,
+          166,
+          9,
+          68,
+          1,
+          3,
+          7
+        ],
+        [
+          3,
+          24,
+          65,
+          71,
+          12,
+          2,
+          7
+        ],
+        [
+          3,
+          37,
+          19,
+          223,
+          18,
+          0,
+          11
+        ],
+        [
+          4,
+          7,
+          11,
+          60,
+          45,
+          1,
+          15
+        ],
+        [
+          0,
+          9,
+          6,
+          2,
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          5,
+          12,
+          31,
+          14,
+          0,
+          14
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.4838709677419355,
+          "recall": 0.3333333333333333,
+          "f1": 0.39473684210526316,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6264150943396226,
+          "recall": 0.6384615384615384,
+          "f1": 0.6323809523809524,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.5327868852459017,
+          "recall": 0.3532608695652174,
+          "f1": 0.42483660130718953,
+          "support": 184,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.47854077253218885,
+          "recall": 0.7170418006430869,
+          "f1": 0.574002574002574,
+          "support": 311,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4891304347826087,
+          "recall": 0.3146853146853147,
+          "f1": 0.3829787234042553,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.3333333333333333,
+          "recall": 0.15,
+          "f1": 0.20689655172413793,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.25925925925925924,
+          "recall": 0.18421052631578946,
+          "f1": 0.2153846153846154,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.821944177093359,
+        "macro_f1": 0.7761352214772292,
+        "log_loss": 0.39711294090970556
+      },
+      "week": 4,
+      "hypothesis": "motion",
+      "enriched": true,
+      "offset": -1,
+      "fit_plays": 3195,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1030,
+      "accuracy": 0.47572815533980584,
+      "macro_f1": 0.35263753094083183,
+      "top2_accuracy": 0.6902912621359223,
+      "log_loss": 1.3527540091338237,
+      "brier": 0.6554716919263931,
+      "ece": 0.06474892748526007,
+      "calibration": [
+        {
+          "count": 42,
+          "confidence": 0.277407842363261,
+          "accuracy": 0.19047619047619047
+        },
+        {
+          "count": 216,
+          "confidence": 0.35394523889364565,
+          "accuracy": 0.3055555555555556
+        },
+        {
+          "count": 229,
+          "confidence": 0.44861898206804457,
+          "accuracy": 0.37117903930131
+        },
+        {
+          "count": 204,
+          "confidence": 0.5487181476914245,
+          "accuracy": 0.49019607843137253
+        },
+        {
+          "count": 142,
+          "confidence": 0.6500266375275656,
+          "accuracy": 0.5563380281690141
+        },
+        {
+          "count": 96,
+          "confidence": 0.7482806829943246,
+          "accuracy": 0.71875
+        },
+        {
+          "count": 56,
+          "confidence": 0.8443737551897638,
+          "accuracy": 0.7857142857142857
+        },
+        {
+          "count": 45,
+          "confidence": 0.9442708204423201,
+          "accuracy": 0.8666666666666667
+        }
+      ],
+      "confusion": [
+        [
+          14,
+          16,
+          0,
+          10,
+          5,
+          0,
+          0
+        ],
+        [
+          3,
+          164,
+          10,
+          67,
+          7,
+          1,
+          8
+        ],
+        [
+          2,
+          31,
+          49,
+          76,
+          13,
+          0,
+          9
+        ],
+        [
+          5,
+          32,
+          22,
+          209,
+          23,
+          1,
+          14
+        ],
+        [
+          2,
+          8,
+          13,
+          61,
+          44,
+          1,
+          14
+        ],
+        [
+          0,
+          11,
+          4,
+          3,
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          8,
+          9,
+          29,
+          21,
+          0,
+          9
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5384615384615384,
+          "recall": 0.3111111111111111,
+          "f1": 0.39436619718309857,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6074074074074074,
+          "recall": 0.6307692307692307,
+          "f1": 0.6188679245283019,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.45794392523364486,
+          "recall": 0.2722222222222222,
+          "f1": 0.34146341463414637,
+          "support": 180,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.4593406593406593,
+          "recall": 0.6830065359477124,
+          "f1": 0.5492772667542707,
+          "support": 306,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.3893805309734513,
+          "recall": 0.3076923076923077,
+          "f1": 0.34375,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.25,
+          "recall": 0.05,
+          "f1": 0.08333333333333333,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.16363636363636364,
+          "recall": 0.11842105263157894,
+          "f1": 0.13740458015267176,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8087378640776699,
+        "macro_f1": 0.7608262345013255,
+        "log_loss": 0.42877181357552113
+      },
+      "week": 4,
+      "hypothesis": "motion",
+      "enriched": false,
+      "offset": -10,
+      "fit_plays": 3195,
+      "games": 16
+    },
+    {
+      "eligible_plays": 1030,
+      "accuracy": 0.4825242718446602,
+      "macro_f1": 0.37674843552640336,
+      "top2_accuracy": 0.7135922330097088,
+      "log_loss": 1.350732725186048,
+      "brier": 0.6545177448939481,
+      "ece": 0.06525124886380496,
+      "calibration": [
+        {
+          "count": 46,
+          "confidence": 0.2809298455811499,
+          "accuracy": 0.2391304347826087
+        },
+        {
+          "count": 188,
+          "confidence": 0.353175611267922,
+          "accuracy": 0.35638297872340424
+        },
+        {
+          "count": 255,
+          "confidence": 0.4482565423299415,
+          "accuracy": 0.36470588235294116
+        },
+        {
+          "count": 182,
+          "confidence": 0.5485466502094477,
+          "accuracy": 0.4725274725274725
+        },
+        {
+          "count": 135,
+          "confidence": 0.6452629798648734,
+          "accuracy": 0.562962962962963
+        },
+        {
+          "count": 112,
+          "confidence": 0.7462716916360278,
+          "accuracy": 0.6428571428571429
+        },
+        {
+          "count": 72,
+          "confidence": 0.8476980154768731,
+          "accuracy": 0.7916666666666666
+        },
+        {
+          "count": 40,
+          "confidence": 0.9453732714943275,
+          "accuracy": 0.875
+        }
+      ],
+      "confusion": [
+        [
+          15,
+          17,
+          1,
+          10,
+          2,
+          0,
+          0
+        ],
+        [
+          6,
+          164,
+          11,
+          63,
+          8,
+          0,
+          8
+        ],
+        [
+          1,
+          31,
+          50,
+          78,
+          13,
+          0,
+          7
+        ],
+        [
+          5,
+          36,
+          19,
+          207,
+          20,
+          1,
+          18
+        ],
+        [
+          2,
+          8,
+          9,
+          62,
+          46,
+          2,
+          14
+        ],
+        [
+          0,
+          9,
+          7,
+          1,
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          6,
+          14,
+          28,
+          15,
+          0,
+          13
+        ]
+      ],
+      "per_class": {
+        "Cover-0": {
+          "precision": 0.5172413793103449,
+          "recall": 0.3333333333333333,
+          "f1": 0.40540540540540543,
+          "support": 45,
+          "sufficient_support": true
+        },
+        "Cover-1": {
+          "precision": 0.6051660516605166,
+          "recall": 0.6307692307692307,
+          "f1": 0.6177024482109228,
+          "support": 260,
+          "sufficient_support": true
+        },
+        "Cover-2": {
+          "precision": 0.45045045045045046,
+          "recall": 0.2777777777777778,
+          "f1": 0.3436426116838488,
+          "support": 180,
+          "sufficient_support": true
+        },
+        "Cover-3": {
+          "precision": 0.4610244988864143,
+          "recall": 0.6764705882352942,
+          "f1": 0.5483443708609271,
+          "support": 306,
+          "sufficient_support": true
+        },
+        "Quarters": {
+          "precision": 0.4380952380952381,
+          "recall": 0.32167832167832167,
+          "f1": 0.3709677419354839,
+          "support": 143,
+          "sufficient_support": true
+        },
+        "2-Man": {
+          "precision": 0.4,
+          "recall": 0.1,
+          "f1": 0.16,
+          "support": 20,
+          "sufficient_support": true
+        },
+        "Cover-6": {
+          "precision": 0.21666666666666667,
+          "recall": 0.17105263157894737,
+          "f1": 0.19117647058823528,
+          "support": 76,
+          "sufficient_support": true
+        }
+      },
+      "binary": {
+        "accuracy": 0.8184466019417476,
+        "macro_f1": 0.773945456316582,
+        "log_loss": 0.4275811298137827
+      },
+      "week": 4,
+      "hypothesis": "motion",
+      "enriched": true,
+      "offset": -10,
+      "fit_plays": 3195,
+      "games": 16
+    }
+  ],
+  "seconds_3_context": 4.964326743996935,
+  "seconds_3_motion": 3.2257387540012132,
+  "seconds_4_context": 5.790741953009274,
+  "seconds_4_motion": 4.248232776997611
+}

@@ -14,7 +14,7 @@ def load_examples(manifest_path: Path, split: str, offset: int | None = None, se
 	manifest = json.loads(manifest_path.read_text())
 	if manifest["classes"] != list(CLASSES) or manifest["features"] != list(FEATURES) or manifest.get("status") != "complete":
 		raise ValueError("Incomplete or incompatible dataset manifest")
-	if split not in ("fit", "tune", "calibrate", "final", "historical") and not (split == "predict" and not require_targets):
+	if split not in ("fit", "tune", "calibrate", "final", "historical", "development") and not (split == "predict" and not require_targets):
 		raise ValueError("Unknown dataset split")
 	if split == "final":
 		receipt_path = manifest_path.parent / "selection.json"

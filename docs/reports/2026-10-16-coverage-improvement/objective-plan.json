@@ -1,0 +1,34 @@
+[
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/fold-3/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "class_weighting": "sqrt_play",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/fold-4/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "class_weighting": "sqrt_play",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  }
+]

@@ -9,7 +9,19 @@ import pytest
 
 def configuration(tmp_path: Path, **updates: object) -> Path:
 	path = tmp_path / "experiment.json"
-	path.write_text(json.dumps({"manifest": str(tmp_path / "manifest.json"), "trials": [{"device": "cpu", "epochs": 2}], "max_trials": 2, "gpu_hours": 24, "reserve_hours": 12, **updates}))
+	path.write_text(
+		json.dumps(
+			{
+				"manifest": str(tmp_path / "manifest.json"),
+				"gpu_lock": str(tmp_path / "gpu.lock"),
+				"trials": [{"device": "cpu", "epochs": 2}],
+				"max_trials": 2,
+				"gpu_hours": 24,
+				"reserve_hours": 12,
+				**updates,
+			}
+		)
+	)
 	return path
 
 
@@ -180,3 +192,19 @@ def test_ray_worker_exports_best_epoch_and_recovers_existing_export(tmp_path: Pa
 	experiment._worker()
 	assert (output / "bundle/weights.pt").read_text() == "A"
 	assert not (output / "bundle/stale.bin").exists()
+
+
+def test_approved_campaign_stops_at_thirty_six_attempts(tmp_path: Path) -> None:
+	from experiment import run_experiment
+
+	calls = []
+
+	def trainer(settings: dict, manifest: Path, directory: Path, timeout: float) -> Path:
+		calls.append(directory)
+		return directory
+
+	config = configuration(tmp_path, max_trials=36, initial_attempts=35, trials=[{"device": "cpu"}, {"device": "cpu"}])
+	result = run_experiment(config, tmp_path / "campaign", trainer=trainer, validate=lambda _: None)
+	assert len(calls) == 1
+	assert json.loads(result.read_text())["status"] == "budget_exhausted"
+	assert json.loads((result.parent / "ledger.json").read_text())["attempts"] == 36

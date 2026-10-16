@@ -1,0 +1,317 @@
+{
+  "status": "complete",
+  "hardware": "x86_64",
+  "device": "cpu",
+  "torch": "2.10.0+cu128",
+  "cuda_runtime": "12.8",
+  "python": "3.12.3",
+  "cpu_threads": 4,
+  "tf32": false,
+  "elapsed_seconds": 12.717622331983875,
+  "batch_size": 512,
+  "cold_load_seconds": 0.008072247001109645,
+  "cache_state": "uncontrolled OS cache; warm tensor cache after verified loading",
+  "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854",
+  "weights_sha256": "82c9a704fc22f6e46c770dd5277d94fa9137977f8c3136d856b0afa25c485cd4",
+  "model_config": {
+    "model_dim": 64,
+    "num_heads": 4,
+    "num_layers": 2,
+    "multiplier": 4,
+    "dropout": 0.1,
+    "num_classes": 7,
+    "feature_len": 5,
+    "epochs": 30,
+    "batch_size": 512,
+    "lr": 0.0003,
+    "weight_decay": 0.01,
+    "seed": 42,
+    "device": "cuda",
+    "precision": "fp32",
+    "compile": false,
+    "patience": 10,
+    "input_pipeline": "loader",
+    "model_type": "spatial",
+    "fit_season": null,
+    "class_weighting": false,
+    "inference_precision": "fp32",
+    "tf32": false,
+    "cpu_threads": 4,
+    "sampling": "endpoint"
+  },
+  "model_source_sha256": {
+    "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+    "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+    "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+    "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+    "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+    "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+  },
+  "inference_modes": [
+    {
+      "compile": false,
+      "precision": "fp32",
+      "status": "complete",
+      "parity": true,
+      "cold_compile_and_first_prediction_seconds": 0.0341539760120213,
+      "latencies": {
+        "1": {
+          "warmups": 5,
+          "repeats": 30,
+          "median_ms": 0.5299795011524111,
+          "p95_ms": 0.5520368053112179,
+          "total_seconds": 0.015956083894707263,
+          "examples_per_second": 1886.8654312582946
+        },
+        "512": {
+          "warmups": 5,
+          "repeats": 30,
+          "median_ms": 18.111430501448922,
+          "p95_ms": 18.588084455404896,
+          "total_seconds": 0.5427146631118376,
+          "examples_per_second": 28269.440117335835
+        }
+      },
+      "quality": {
+        "eligible_plays": 945,
+        "accuracy": 0.5925925925925926,
+        "macro_f1": 0.4607422096932176,
+        "top2_accuracy": 0.7968253968253968,
+        "log_loss": 1.1340310191594758,
+        "brier": 0.5644115665803019,
+        "ece": 0.06004866418384373,
+        "calibration": [
+          {
+            "count": 55,
+            "confidence": 0.2775662140412764,
+            "accuracy": 0.34545454545454546
+          },
+          {
+            "count": 207,
+            "confidence": 0.3540244129832816,
+            "accuracy": 0.45893719806763283
+          },
+          {
+            "count": 212,
+            "confidence": 0.44996477171497523,
+            "accuracy": 0.5141509433962265
+          },
+          {
+            "count": 131,
+            "confidence": 0.5515361819558471,
+            "accuracy": 0.5801526717557252
+          },
+          {
+            "count": 132,
+            "confidence": 0.6439226039431312,
+            "accuracy": 0.7045454545454546
+          },
+          {
+            "count": 146,
+            "confidence": 0.7526413365586163,
+            "accuracy": 0.7534246575342466
+          },
+          {
+            "count": 62,
+            "confidence": 0.8415746256228416,
+            "accuracy": 0.9354838709677419
+          }
+        ],
+        "confusion": [
+          [
+            6,
+            6,
+            0,
+            7,
+            0,
+            0,
+            1
+          ],
+          [
+            8,
+            169,
+            4,
+            52,
+            7,
+            0,
+            1
+          ],
+          [
+            0,
+            29,
+            54,
+            23,
+            13,
+            0,
+            11
+          ],
+          [
+            0,
+            37,
+            8,
+            227,
+            25,
+            0,
+            10
+          ],
+          [
+            0,
+            4,
+            7,
+            29,
+            74,
+            1,
+            17
+          ],
+          [
+            0,
+            9,
+            5,
+            0,
+            1,
+            2,
+            3
+          ],
+          [
+            0,
+            8,
+            14,
+            15,
+            28,
+            2,
+            28
+          ]
+        ],
+        "per_class": {
+          "Cover-0": {
+            "precision": 0.42857142857142855,
+            "recall": 0.3,
+            "f1": 0.35294117647058826,
+            "support": 20,
+            "sufficient_support": true
+          },
+          "Cover-1": {
+            "precision": 0.6450381679389313,
+            "recall": 0.7012448132780082,
+            "f1": 0.6719681908548708,
+            "support": 241,
+            "sufficient_support": true
+          },
+          "Cover-2": {
+            "precision": 0.5869565217391305,
+            "recall": 0.4153846153846154,
+            "f1": 0.4864864864864865,
+            "support": 130,
+            "sufficient_support": true
+          },
+          "Cover-3": {
+            "precision": 0.6430594900849859,
+            "recall": 0.739413680781759,
+            "f1": 0.6878787878787879,
+            "support": 307,
+            "sufficient_support": true
+          },
+          "Quarters": {
+            "precision": 0.5,
+            "recall": 0.5606060606060606,
+            "f1": 0.5285714285714286,
+            "support": 132,
+            "sufficient_support": true
+          },
+          "2-Man": {
+            "precision": 0.4,
+            "recall": 0.1,
+            "f1": 0.16,
+            "support": 20,
+            "sufficient_support": true
+          },
+          "Cover-6": {
+            "precision": 0.39436619718309857,
+            "recall": 0.29473684210526313,
+            "f1": 0.3373493975903614,
+            "support": 95,
+            "sufficient_support": true
+          }
+        },
+        "binary": {
+          "accuracy": 0.819047619047619,
+          "macro_f1": 0.7717987643424536,
+          "log_loss": 0.3944904784318223
+        }
+      }
+    }
+  ],
+  "transfer_pipelines": [
+    {
+      "workers": null,
+      "warmups": 1,
+      "repeats": 3,
+      "median_ms": 0.018677004845812917,
+      "p95_ms": 0.020015306654386222,
+      "total_seconds": 5.70130068808794e-05
+    },
+    {
+      "workers": 0,
+      "warmups": 1,
+      "repeats": 3,
+      "median_ms": 7.472905010217801,
+      "p95_ms": 7.502247695811093,
+      "total_seconds": 0.02243245701538399
+    },
+    {
+      "workers": 2,
+      "warmups": 1,
+      "repeats": 3,
+      "median_ms": 8.385633991565555,
+      "p95_ms": 9.196590719511732,
+      "total_seconds": 0.025912470009643584
+    },
+    {
+      "workers": 4,
+      "warmups": 1,
+      "repeats": 3,
+      "median_ms": 6.493866007076576,
+      "p95_ms": 7.418470183620229,
+      "total_seconds": 0.0203100299986545
+    }
+  ],
+  "training_modes": [
+    {
+      "compile": false,
+      "precision": "fp32",
+      "cold_step_seconds": 0.1378915950190276,
+      "warmups": 5,
+      "repeats": 30,
+      "median_ms": 123.37090898654424,
+      "p95_ms": 133.4228253996116,
+      "total_seconds": 3.6842875559523236
+    }
+  ],
+  "weekly_end_to_end": [
+    {
+      "batch_size": 1,
+      "rows": 4679,
+      "offsets": "all configured pre-snap horizons",
+      "repeats": 3,
+      "seconds": [
+        1.1885702619911171,
+        2.509105726989219,
+        2.5191374930145685
+      ],
+      "median_seconds": 2.509105726989219
+    },
+    {
+      "batch_size": 512,
+      "rows": 4679,
+      "offsets": "all configured pre-snap horizons",
+      "repeats": 3,
+      "seconds": [
+        0.33338406300754286,
+        0.3278474050166551,
+        0.31668453698512167
+      ],
+      "median_seconds": 0.3278474050166551
+    }
+  ],
+  "peak_cuda_allocated_bytes": null
+}

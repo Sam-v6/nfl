@@ -1,0 +1,16 @@
+{
+  "decision": "retain endpoint/30 reference",
+  "reason": "No consistent two-fold improvement; play sampling loses more than one F1 point at -1 second on fold A; longer training barely changes primary outer F1.",
+  "learning_curve_recipe": {
+    "epochs": 30,
+    "sampling": "endpoint",
+    "precision": "fp32",
+    "device": "cuda",
+    "input_pipeline": "loader",
+    "cpu_threads": 4,
+    "seed": 42,
+    "patience": 10
+  },
+  "pilot_attempts": 6,
+  "pilot_gpu_seconds": 199.06711316108704
+}

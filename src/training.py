@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 from torch.amp.grad_scaler import GradScaler
@@ -45,6 +46,12 @@ DEFAULTS = {
 	"tf32": False,
 	"cpu_threads": 4,
 }
+
+
+def play_sampling_weights(index: pd.DataFrame) -> torch.Tensor:
+	"""Give each season/game/play equal mass across endpoints and mirrors."""
+	counts = index.groupby(["season", "gameId", "playId"])["playId"].transform("size")
+	return torch.from_numpy(1.0 / counts.to_numpy(dtype="float64"))
 
 
 def select_device(name: str) -> torch.device:
@@ -87,6 +94,8 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	if settings["inference_precision"] != "fp32":
 		raise ValueError("Model selection uses the FP32 inference reference")
 	identity = {key: value for key, value in settings.items() if key not in ("epochs", "fitted_class_weights")}
+	if settings.get("sampling", "endpoint") not in ("endpoint", "play"):
+		raise ValueError("Sampling must be endpoint or play")
 	x_train, mask_train, y_train, train_index = load_examples(manifest_path, "fit", season=settings["fit_season"])
 	x_val, mask_val, y_val, _ = load_examples(manifest_path, "tune", offset=-1)
 	if settings["model_type"] == "spatial":
@@ -95,6 +104,7 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	if settings["num_classes"] == 2:
 		y_train = ((y_train == 0) | (y_train == 1) | (y_train == 5)).long()
 		y_val = ((y_val == 0) | (y_val == 1) | (y_val == 5)).long()
+	sampling_weights = play_sampling_weights(train_index) if settings.get("sampling") == "play" else None
 	manifest = json.loads(manifest_path.read_text())
 	run_dir.mkdir(parents=True, exist_ok=resume)
 	started = time.monotonic()
@@ -108,10 +118,16 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 	model: nn.Module = eager
 	optimizer = torch.optim.AdamW(eager.parameters(), lr=float(settings["lr"]), weight_decay=float(settings["weight_decay"]), fused=device.type == "cuda")
 	scaler = GradScaler("cuda", enabled=precision == "fp16")
+	if settings["class_weighting"] not in (False, True, "sqrt_play"):
+		raise ValueError("Class weighting must be false, true or sqrt_play")
 	weights = None
 	if settings["class_weighting"]:
 		counts = torch.bincount(y_train[torch.from_numpy((~train_index.augmented).to_numpy())], minlength=int(settings["num_classes"])).float()
 		weights = (counts.sum() / (len(counts) * counts.clamp_min(1))).clamp_max(5).to(device)
+		if settings["class_weighting"] == "sqrt_play":
+			unique = train_index.loc[~train_index.augmented].drop_duplicates(["season", "gameId", "playId"]).index.to_numpy()
+			counts = torch.bincount(y_train[torch.from_numpy(unique)], minlength=int(settings["num_classes"])).float()
+			weights = (counts.sum() / (len(counts) * counts.clamp_min(1))).sqrt().clamp_max(3).to(device)
 		settings["fitted_class_weights"] = weights.cpu().tolist()
 	loss_fn = nn.CrossEntropyLoss(weight=weights)
 	val_loader = DataLoader(TensorDataset(x_val, mask_val, y_val), batch_size=batch_size, pin_memory=device.type == "cuda", num_workers=0)
@@ -166,7 +182,7 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 			epoch_start = time.monotonic()
 			eager.train()
 			loss_sum = torch.zeros((), device=device)
-			order = torch.randperm(len(x_train), generator=generator)
+			order = torch.randperm(len(x_train), generator=generator) if sampling_weights is None else torch.multinomial(sampling_weights, len(x_train), replacement=True, generator=generator)
 			if pipeline == "loader":
 				batches = iter(
 					DataLoader(
@@ -238,6 +254,9 @@ def train_model(config: dict[str, Any], manifest_path: Path, run_dir: Path, repo
 			"device": str(device),
 			"precision": precision,
 			"epochs_completed": len(history),
+			"fit_examples": len(x_train),
+			"fit_plays": len(train_index.drop_duplicates(["season", "gameId", "playId"])),
+			"optimizer_steps": len(history) * math.ceil(len(x_train) / batch_size),
 			"elapsed_seconds": elapsed_base + time.monotonic() - started,
 			"best_macro_f1": best[0],
 			"compile_fallback": compile_fallback,

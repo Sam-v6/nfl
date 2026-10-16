@@ -1,0 +1,1164 @@
+{
+  "base_revision": "528d581",
+  "source_manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-modernization/artifacts/runs/dataset-v1/manifest.json",
+  "source_manifest_sha256": "33d4c6fbe7e0aac7672a0a87ce1c7228654711829f82b99c85633c31e02b1e2d",
+  "lock_sha256": "0716033b2e400a20f3b8235ef3545365bed2bc6e73f94f9bb3c4c4fa4ed8ac8f",
+  "source_hashes": {
+    "src/dataset.py": "767b6e048216fbe59949b0bc82a5d701121eb4ec90d101a4aa0c78d41f91cd1a",
+    "src/benchmark.py": "74749f98ca7acdf29aaaba7bf5f6cb44b683d3043298b5921e98cf9a2d483351",
+    "src/model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+    "src/audit_data.py": "814850515f554b4994e838b6395392bba1a3f8094d4b6dc6e6e4d2ea021578de",
+    "src/train_transformer.py": "18f70a435dff72275c52cd48323477ef618c9ad142aa37ca09457dfcaf176ac4",
+    "src/train_lstm.py": "8185d52ec86f3f1e707505c8144ce24671c80a8edb22e3ffd09f25479954be3b",
+    "src/cli.py": "a944e2cce8ef50f22734e4e5ae8375a580ef3d17fe0d6e9c5c1ab2c4c8c2d4f4",
+    "src/calibrate.py": "5e7d9cd413e6932bbcc303175cb56921d7a9376a73cd51f6a8b3b03e75f40236",
+    "src/load_data.py": "ee796bea3407506688b8e91aa99508321244f3ad85d127ff34166634145ba524",
+    "src/training.py": "bb1b68c299647c02dd918bbb8a435b65a247f0b2a5341e35c87bc3723819227c",
+    "src/dataset_io.py": "7b13a14c311be8ae4efb6d67cae351a899eaf30b1b505c894dfcb42313759085",
+    "src/final_report.py": "970a3f20357587687332476d9153b634ab75e20f5716579c16bdb71053d396ce",
+    "src/development_features.py": "6e8f324b6998214c48c6fdde8440f27e8a9117f2dd3a33da563ea0d39fc1c0f8",
+    "src/coverage_display.py": "909e1e8420d2b91c5c1a0e635f25e5a89a0673d779864f2013d46ff185ba90d8",
+    "src/experiment.py": "fe354e02586abec07c76a9a73df5c9e52012c18aa168766095b169601800aec7",
+    "src/evaluate.py": "6267ec9b10ed336d2c0e1aa376d709245d87f46ce6067ae9eb2403bcf07354d1",
+    "src/create_features.py": "d12c57f51866a86025c1f147b7c92d89647bbc9154958a12ed19108ebea117ca",
+    "src/clean_data.py": "355b22e9d13e98a75e2d70a2abf11a07d1dca4b19bdf832ea77d751e6a5d2f87",
+    "src/__init__.py": "82a943eadb031a933db967b5d17c130d6a1ae9db10622a434500ff0605a71fbb",
+    "src/generate_predictions.py": "0c11b53caa7866b08c61ac4eadf83b1556d8ea4e143ecea7cbd14bd3e2ab4ba4",
+    "src/coverage_labels.py": "9769804e25b9eb875f19104d4cd62b8c1e583d724bd66cee79c3bf67c525ddb8",
+    "src/football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755",
+    "src/development.py": "85697f73f5684b363242ffc3bebade64faf6bb6389c65b3b89aba8bf4c3decfa",
+    "src/inference_data.py": "3d91cfd76f25e7ee900706ef045b82fda35703f74e6fc702ea9a4f7e59c3f331",
+    "src/process_predictions.py": "76df66b02c13c9a94ea32fe1aec8d51a5ee0a3ce660a8eb06276b6e50efb917b",
+    "scripts/score_development.py": "7cf31f6f836c590435a7cdf49afb563e1426318b13ca50a50a717150be2debcd",
+    "scripts/summarize_development.py": "c7ac951ecc513abb4a0304bc1f5f47589fc5f6da01b12cef04e6157d40fdf772",
+    "scripts/run_development_batch.py": "250d7e352d03d069f0978f7c0f3cd1240a2e4445f0d1f1c92e956977aebb4f07",
+    "scripts/screen_information.py": "e44a0872c5115d0dcedc41d04a91c15e585a4338f0609e4970ecfb2b43fa6485",
+    "scripts/run_coverage_pilot.py": "cb375b32c53113cd1eb3b5845f866ffa37534c28ed75efabc4cce49983c7b774"
+  },
+  "training_runs": [
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-4/trial-000/terminal.json",
+      "sha256": "1229e90ae393ad606bc1502487d31dfc03e998fd6a66e9b3e6a84543bb0b1a33",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 41568,
+        "fit_plays": 10848,
+        "optimizer_steps": 2460,
+        "elapsed_seconds": 22.00088534699171,
+        "best_macro_f1": 0.4607422096932176,
+        "compile_fallback": null,
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "weights_sha256": "82c9a704fc22f6e46c770dd5277d94fa9137977f8c3136d856b0afa25c485cd4",
+        "best_epoch": 27,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-4/trial-001/terminal.json",
+      "sha256": "18dc426014d4dbf33987aada20924f3349f5eaabc88d5f0d6b44790df59af7ef",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 38,
+        "fit_examples": 41568,
+        "fit_plays": 10848,
+        "optimizer_steps": 3116,
+        "elapsed_seconds": 31.520349089987576,
+        "best_macro_f1": 0.4607422096932176,
+        "compile_fallback": null,
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 100,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "weights_sha256": "82c9a704fc22f6e46c770dd5277d94fa9137977f8c3136d856b0afa25c485cd4",
+        "best_epoch": 27,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-4/trial-002/terminal.json",
+      "sha256": "4b99396a7931b690024b7742d5fede770f1a66f096be87065e40d6e2779e5b2d",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 47,
+        "fit_examples": 41568,
+        "fit_plays": 10848,
+        "optimizer_steps": 3854,
+        "elapsed_seconds": 26.822192576015368,
+        "best_macro_f1": 0.4586567970501973,
+        "compile_fallback": null,
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 100,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "play"
+        },
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "weights_sha256": "545a88e0c84291c8ab915bfa24bed0a73494c963f262e00ac46f4bacef58661c",
+        "best_epoch": 36,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-3/trial-000/terminal.json",
+      "sha256": "ee2cedc82ee5b1e6d7704cf49b607818327e6d1a27b687354193cb44a5767edd",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 34267,
+        "fit_plays": 9723,
+        "optimizer_steps": 2010,
+        "elapsed_seconds": 15.879003276990261,
+        "best_macro_f1": 0.4819957713458464,
+        "compile_fallback": null,
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "manifest_sha256": "5df1aa24cee56281cf4c2c707971b482e08f7caad39323f60f6d78964e2dc997"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "weights_sha256": "c41148677ed5fa6b29b9d6823dc92e23cb776711dc6592dfb7ed14a1504e90ed",
+        "best_epoch": 28,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-3/trial-001/terminal.json",
+      "sha256": "e04d858576db524344e3f6999e899d1b69af90a7c5ca13b4e434a10dce160a4c",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 90,
+        "fit_examples": 34267,
+        "fit_plays": 9723,
+        "optimizer_steps": 6030,
+        "elapsed_seconds": 53.211574921995634,
+        "best_macro_f1": 0.5696935365337439,
+        "compile_fallback": null,
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "manifest_sha256": "5df1aa24cee56281cf4c2c707971b482e08f7caad39323f60f6d78964e2dc997"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 100,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "weights_sha256": "af069a56445e64d89bd775e0464c76b37d30df8aa307d2d12f19210677c675d4",
+        "best_epoch": 79,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/pilot-3/trial-002/terminal.json",
+      "sha256": "eed7128a0c4c68792ce35a51ac3274578435ca8ff14bfa450d814fc5bd0ec6ac",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 50,
+        "fit_examples": 34267,
+        "fit_plays": 9723,
+        "optimizer_steps": 3350,
+        "elapsed_seconds": 30.44087685699924,
+        "best_macro_f1": 0.5459523067634725,
+        "compile_fallback": null,
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "manifest_sha256": "5df1aa24cee56281cf4c2c707971b482e08f7caad39323f60f6d78964e2dc997"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 100,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "play"
+        },
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "weights_sha256": "d8f79239542666216a1e6002cc3ba7ac74018c4a7fad1d79718e8f312aa9fcb7",
+        "best_epoch": 39,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-03/trial-000/terminal.json",
+      "sha256": "64843a147492083d1210f9af3271fb07beb05be197875000d89232ed7bb4314a",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 11272,
+        "fit_plays": 2730,
+        "optimizer_steps": 690,
+        "elapsed_seconds": 8.500816854008008,
+        "best_macro_f1": 0.25590101873524335,
+        "compile_fallback": null,
+        "dataset_hash": "847d81d64c652c48be34a45fe2ffb2c206b714dd826be79fab3aac00e43f0842",
+        "manifest_sha256": "6bd1ccd18bfa5d98f633d774110df3baf6c94ed93385ed98ba255e491468ed8d"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "847d81d64c652c48be34a45fe2ffb2c206b714dd826be79fab3aac00e43f0842",
+        "weights_sha256": "236b99de9fc0b9d2f5dcea393e5af39f1857ceb86c1d03750aa7ae634fafbadd",
+        "best_epoch": 28,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-00/trial-000/terminal.json",
+      "sha256": "69e7bd01aafe8cbae2a3ec082cd0b444884512b6b9556705b2c4585246eeada2",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 9260,
+        "fit_plays": 2454,
+        "optimizer_steps": 570,
+        "elapsed_seconds": 6.9357735110097565,
+        "best_macro_f1": 0.20203756822753566,
+        "compile_fallback": null,
+        "dataset_hash": "4c3a4d5f365426b1e93ac367ba0b3c2cce416c020c7f36013a449bc2b97025c1",
+        "manifest_sha256": "70996771ec32429d50a010ff6cde0c7c38f565da3769138d4d3366f0770928c8"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "4c3a4d5f365426b1e93ac367ba0b3c2cce416c020c7f36013a449bc2b97025c1",
+        "weights_sha256": "91e241c1ad91c800755020f617eb8c0bcf102adf60bca84da974a8f7d2063fdf",
+        "best_epoch": 28,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-05/trial-000/terminal.json",
+      "sha256": "0219d713b5682d9fd976e3ade058353c049458fd1c50ea141ef154a747fb48b8",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 41568,
+        "fit_plays": 10848,
+        "optimizer_steps": 2460,
+        "elapsed_seconds": 24.457406811008696,
+        "best_macro_f1": 0.4607422096932176,
+        "compile_fallback": null,
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "weights_sha256": "82c9a704fc22f6e46c770dd5277d94fa9137977f8c3136d856b0afa25c485cd4",
+        "best_epoch": 27,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-01/trial-000/terminal.json",
+      "sha256": "519fa3228ae7c59789833e870b80f4849d1f9d82d6c69bc2d96b00e452551ff4",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 19018,
+        "fit_plays": 4960,
+        "optimizer_steps": 1140,
+        "elapsed_seconds": 11.29236200201558,
+        "best_macro_f1": 0.32751859696506547,
+        "compile_fallback": null,
+        "dataset_hash": "b0d18f4a300f83c8b1257152cc1f6d383eab8a6416f88f36cac46a9ceca662c7",
+        "manifest_sha256": "30b0656d9f0d769830c92ee3f971334fb41327189d1877dae73b44bf7282ffd8"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "b0d18f4a300f83c8b1257152cc1f6d383eab8a6416f88f36cac46a9ceca662c7",
+        "weights_sha256": "d6ba30a927fcdc6dde2263eba01fcb6fb08a37bb0f3f5b0ade3408bda65b086e",
+        "best_epoch": 29,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-02/trial-000/terminal.json",
+      "sha256": "597ab6e117c1598b66e7da1d4acc5b786990437922cd4e2f029983178173003a",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 34267,
+        "fit_plays": 9723,
+        "optimizer_steps": 2010,
+        "elapsed_seconds": 17.659909372014226,
+        "best_macro_f1": 0.4819957713458464,
+        "compile_fallback": null,
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "manifest_sha256": "5df1aa24cee56281cf4c2c707971b482e08f7caad39323f60f6d78964e2dc997"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "weights_sha256": "c41148677ed5fa6b29b9d6823dc92e23cb776711dc6592dfb7ed14a1504e90ed",
+        "best_epoch": 28,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/curves/job-04/trial-000/terminal.json",
+      "sha256": "bff63a8d9b892fab2bf38e0105c424eaa990db28d0f464c70dc2ec92a631e883",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 23064,
+        "fit_plays": 5519,
+        "optimizer_steps": 1380,
+        "elapsed_seconds": 13.240932050015545,
+        "best_macro_f1": 0.38304738092438734,
+        "compile_fallback": null,
+        "dataset_hash": "0e298a78082d3f26abe13373820cbffd0ca9e030a38bfac7a39a51588b44db16",
+        "manifest_sha256": "50800d6bddeae1e0f8091fd2fba7281dd7e2d84b054195b854e3498fd5b0c2b6"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": false,
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint"
+        },
+        "dataset_hash": "0e298a78082d3f26abe13373820cbffd0ca9e030a38bfac7a39a51588b44db16",
+        "weights_sha256": "de469faf7c481cc488c504e826366dcd6c84386fe30bb7f8c569518f456e430b",
+        "best_epoch": 29,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "538c9239aaa9397016d83845fbc6085f676591b53cf4b51a58c907fd73c2f721",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/objective/job-00/trial-000/terminal.json",
+      "sha256": "d4f3aa6ba7fb5dde5eeba79b68a035b7e91dac15d03fee80bf6d608668ce5b17",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 34267,
+        "fit_plays": 9723,
+        "optimizer_steps": 2010,
+        "elapsed_seconds": 17.69147828000132,
+        "best_macro_f1": 0.515128274236885,
+        "compile_fallback": null,
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "manifest_sha256": "5df1aa24cee56281cf4c2c707971b482e08f7caad39323f60f6d78964e2dc997"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": "sqrt_play",
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint",
+          "fitted_class_weights": [
+            2.009425401687622,
+            0.7683165073394775,
+            1.0135910511016846,
+            0.6568869352340698,
+            1.045390009880066,
+            2.584160327911377,
+            1.1929609775543213
+          ]
+        },
+        "dataset_hash": "36f0ef6ebb736a6df9b07b3c06e7329a6f658e087869bf06b52d0e1398315ffb",
+        "weights_sha256": "4f7ab9aba57c97b2fde433b2699c51249953801cda9e61398804651ad380c80c",
+        "best_epoch": 24,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "bb1b68c299647c02dd918bbb8a435b65a247f0b2a5341e35c87bc3723819227c",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    },
+    {
+      "path": "artifacts/runs/coverage-v2/objective/job-01/trial-000/terminal.json",
+      "sha256": "03799b40df4450e088cbab0d4953077ec374cee3b8ef63b63e5648710adb27df",
+      "receipt": {
+        "status": "complete",
+        "device": "cuda",
+        "precision": "fp32",
+        "epochs_completed": 30,
+        "fit_examples": 41568,
+        "fit_plays": 10848,
+        "optimizer_steps": 2460,
+        "elapsed_seconds": 21.940626466996036,
+        "best_macro_f1": 0.4706835054897331,
+        "compile_fallback": null,
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "manifest_sha256": "c78db9863a39d035f652a5d591d72c983160133101972bbb320f2d1ce8490854"
+      },
+      "bundle_metadata": {
+        "format_version": 1,
+        "classes": [
+          "Cover-0",
+          "Cover-1",
+          "Cover-2",
+          "Cover-3",
+          "Quarters",
+          "2-Man",
+          "Cover-6"
+        ],
+        "features": [
+          "x_clean",
+          "y_clean",
+          "v_x",
+          "v_y",
+          "defense"
+        ],
+        "config": {
+          "model_dim": 64,
+          "num_heads": 4,
+          "num_layers": 2,
+          "multiplier": 4,
+          "dropout": 0.1,
+          "num_classes": 7,
+          "feature_len": 5,
+          "epochs": 30,
+          "batch_size": 512,
+          "lr": 0.0003,
+          "weight_decay": 0.01,
+          "seed": 42,
+          "device": "cuda",
+          "precision": "fp32",
+          "compile": false,
+          "patience": 10,
+          "input_pipeline": "loader",
+          "model_type": "spatial",
+          "fit_season": null,
+          "class_weighting": "sqrt_play",
+          "inference_precision": "fp32",
+          "tf32": false,
+          "cpu_threads": 4,
+          "sampling": "endpoint",
+          "fitted_class_weights": [
+            1.9883040189743042,
+            0.7682073712348938,
+            1.0144095420837402,
+            0.6574780344963074,
+            1.0480024814605713,
+            2.573462724685669,
+            1.1901923418045044
+          ]
+        },
+        "dataset_hash": "a38339821fbb6edd09a42a30e71d19716a1e46bd300bc50b030c4a47fe6479d3",
+        "weights_sha256": "82705252e53eb9a6cea58e42c28ded9452b885ed0c8ffb28f4e60413ba3b8b03",
+        "best_epoch": 29,
+        "code_revision": "528d581cd3322a3bb92028314a5ccc38b24c5f64",
+        "source_sha256": {
+          "training.py": "bb1b68c299647c02dd918bbb8a435b65a247f0b2a5341e35c87bc3723819227c",
+          "model_bundle.py": "5388182310f02e30801ce65c0ba0b267cdc795e5587d48f83588b8315abd94a3",
+          "models/transformer.py": "900c11751b6983ed06a6731fb063743c6c83d1a6208e5887bd0d63cf85d5496f",
+          "models/factory.py": "dd6b8f4b435cbf8e4f496655dbf7d82c31a07cfc3dd3b94953273dd69f219dc5",
+          "models/temporal.py": "d04d85d2cd6cda301dd61d873461dc22bc8c6d0962c3e285d5671fcaa2e1692d",
+          "football_features.py": "11f50b264a74ea42c47b9f5444d29a0673d7055a1a7c54859620b51cf333c755"
+        },
+        "environment": {
+          "torch": "2.10.0+cu128",
+          "python": "3.12.3"
+        }
+      }
+    }
+  ]
+}
