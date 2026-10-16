@@ -1,0 +1,7 @@
+{
+  "decision": "stop context and motion screens before GPU fitting",
+  "context_mean_f1_gain_pp": 1.1273982767253088,
+  "motion_mean_f1_gain_pp": -0.9922628714537516,
+  "reason": "Neither meets two-point mean screening gain; both have fold or horizon regressions. No neural winner is claimed.",
+  "next": "one mild square-root inverse unique-play-frequency weighting, clamp 3, fixed 30 epochs, seed 42"
+}

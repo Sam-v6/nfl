@@ -1,0 +1,92 @@
+[
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-3-0.25/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-3-0.5/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-3-1.0/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-4-0.25/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-4-0.5/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  },
+  {
+    "manifest": "/home/sam/repos/hobby-repos/nfl/.worktrees/coverage-improvement/artifacts/runs/coverage-v2/curve-4-1.0/manifest.json",
+    "trials": [
+      {
+        "epochs": 30,
+        "sampling": "endpoint",
+        "precision": "fp32",
+        "device": "cuda",
+        "input_pipeline": "loader",
+        "cpu_threads": 4,
+        "seed": 42,
+        "patience": 10
+      }
+    ]
+  }
+]

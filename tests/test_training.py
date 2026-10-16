@@ -75,10 +75,11 @@ def test_cpu_training_overfits_tiny_separable_dataset(tmp_path: Path) -> None:
 	assert receipt["device"] == "cpu"
 
 
-def test_resumed_training_matches_uninterrupted_cpu_run(tmp_path: Path) -> None:
+@pytest.mark.parametrize("sampling", ["endpoint", "play"])
+def test_resumed_training_matches_uninterrupted_cpu_run(tmp_path: Path, sampling: str) -> None:
 	module = importlib.import_module("training")
 	manifest = training_fixture(tmp_path / "data")
-	config = {**MODEL_CONFIG, "device": "cpu", "epochs": 4, "batch_size": 8, "lr": 0.01, "seed": 17}
+	config = {**MODEL_CONFIG, "device": "cpu", "epochs": 4, "batch_size": 8, "lr": 0.01, "seed": 17, "sampling": sampling}
 	module.train_model(config, manifest, tmp_path / "whole")
 	module.train_model({**config, "epochs": 2}, manifest, tmp_path / "resumed")
 	module.train_model({**config, "resume": True}, manifest, tmp_path / "resumed")
@@ -164,3 +165,23 @@ def test_resume_honors_checkpoint_early_stop(tmp_path: Path, monkeypatch: pytest
 	for name, tensor in whole["model"].items():
 		torch.testing.assert_close(tensor, resumed["model"][name], atol=0, rtol=0)
 	assert json.loads((tmp_path / "resumed/terminal.json").read_text())["epochs_completed"] == 2
+
+
+def test_mild_class_weights_count_unique_plays(tmp_path: Path) -> None:
+	from training import train_model
+
+	manifest = training_fixture(tmp_path / "data")
+	from dataset import file_hash
+
+	index_path = manifest.parent / "examples.parquet"
+	index = pd.read_parquet(index_path)
+	index.loc[index.split.eq("fit") & index.target.eq(0), "playId"] = 0
+	index.to_parquet(index_path, index=False)
+	metadata = json.loads(manifest.read_text())
+	metadata["examples_sha256"] = file_hash(index_path)
+	manifest.write_text(json.dumps(metadata))
+	bundle = train_model({**MODEL_CONFIG, "device": "cpu", "epochs": 1, "class_weighting": "sqrt_play"}, manifest, tmp_path / "run")
+	weights = json.loads((bundle / "metadata.json").read_text())["config"]["fitted_class_weights"]
+	# Sixteen repeated endpoints of class zero count as one play.
+	assert weights[:2] == pytest.approx([(17 / 7) ** 0.5, (17 / 112) ** 0.5])
+	assert max(weights) <= 3

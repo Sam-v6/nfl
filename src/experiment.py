@@ -112,7 +112,7 @@ def run_experiment(
 	initial_gpu_seconds = float(config.get("initial_gpu_seconds", 0))
 	initial_attempts = int(config.get("initial_attempts", 0))
 	if not (
-		1 <= max_trials <= 24
+		1 <= max_trials <= 36
 		and math.isfinite(gpu_hours)
 		and 0 < gpu_hours <= 24
 		and 0 <= reserve_hours < gpu_hours

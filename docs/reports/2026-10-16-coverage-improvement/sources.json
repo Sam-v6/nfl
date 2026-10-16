@@ -1,0 +1,156 @@
+{
+  "sources": [
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_2018.parquet",
+      "sha256": "334f03887775e98f818ab7f5b22c7973f050cae7c3594e5d4b6f5c9c9890969d",
+      "bytes": 2978916,
+      "rows": 47875,
+      "columns": [
+        "nflverse_game_id",
+        "old_game_id",
+        "play_id",
+        "possession_team",
+        "offense_formation",
+        "offense_personnel",
+        "defenders_in_box",
+        "defense_personnel",
+        "number_of_pass_rushers",
+        "players_on_play",
+        "offense_players",
+        "defense_players",
+        "n_offense",
+        "n_defense",
+        "ngs_air_yards",
+        "time_to_throw",
+        "was_pressure",
+        "route",
+        "defense_man_zone_type",
+        "defense_coverage_type"
+      ],
+      "coverage_counts": {
+        "defense_coverage_type": {
+          "null": 29481,
+          "COVER_3": 6287,
+          "COVER_1": 5292,
+          "COVER_2": 2302,
+          "COVER_4": 2055,
+          "COVER_6": 1197,
+          "COVER_0": 701,
+          "2_MAN": 463,
+          "PREVENT": 97
+        }
+      },
+      "eligibility": "labels only; tracking join and pre-snap eligibility not established"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_2023.parquet",
+      "sha256": "b157736972248e6f71e0c5ad6c1010b71375a500a63944dc4956c65de263e5a6",
+      "bytes": 4700238,
+      "rows": 46168,
+      "columns": [
+        "nflverse_game_id",
+        "old_game_id",
+        "play_id",
+        "possession_team",
+        "offense_formation",
+        "offense_personnel",
+        "defenders_in_box",
+        "defense_personnel",
+        "number_of_pass_rushers",
+        "players_on_play",
+        "offense_players",
+        "defense_players",
+        "n_offense",
+        "n_defense",
+        "ngs_air_yards",
+        "time_to_throw",
+        "was_pressure",
+        "route",
+        "defense_man_zone_type",
+        "defense_coverage_type",
+        "offense_names",
+        "defense_names",
+        "offense_positions",
+        "defense_positions",
+        "offense_numbers",
+        "defense_numbers"
+      ],
+      "coverage_counts": {
+        "defense_coverage_type": {
+          "null": 23252,
+          "COVER_1": 7512,
+          "COVER_3": 4087,
+          "COVER_2": 3517,
+          "COVER_4": 2745,
+          "2_MAN": 1397,
+          "COMBO": 1233,
+          "COVER_6": 1158,
+          "COVER_0": 774,
+          "COVER_9": 455,
+          "BLOWN": 38
+        }
+      },
+      "eligibility": "labels only; tracking join and pre-snap eligibility not established"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_2025.parquet",
+      "sha256": "3b26b9487267f011fdbafbce133800ce964c963fdb8b27725abf65663cc46e0f",
+      "bytes": 4741443,
+      "rows": 45184,
+      "columns": [
+        "nflverse_game_id",
+        "old_game_id",
+        "play_id",
+        "possession_team",
+        "offense_formation",
+        "offense_personnel",
+        "defenders_in_box",
+        "defense_personnel",
+        "number_of_pass_rushers",
+        "players_on_play",
+        "offense_players",
+        "defense_players",
+        "n_offense",
+        "n_defense",
+        "ngs_air_yards",
+        "time_to_throw",
+        "was_pressure",
+        "route",
+        "defense_man_zone_type",
+        "defense_coverage_type",
+        "offense_names",
+        "defense_names",
+        "offense_positions",
+        "defense_positions",
+        "offense_numbers",
+        "defense_numbers"
+      ],
+      "coverage_counts": {
+        "defense_coverage_type": {
+          "null": 23129,
+          "COVER_3": 5957,
+          "COVER_1": 5118,
+          "COVER_2": 5004,
+          "COVER_4": 2205,
+          "COVER_6": 1189,
+          "2_MAN": 1049,
+          "COVER_0": 868,
+          "COVER_9": 563,
+          "COMBO": 77,
+          "BLOWN": 25
+        }
+      },
+      "eligibility": "labels only; tracking join and pre-snap eligibility not established"
+    },
+    {
+      "url": "https://www.kaggle.com/api/v1/competitions/data/list/nfl-big-data-bowl-2021",
+      "error": "HTTP Error 401: Unauthorized",
+      "eligibility": "blocked pending official access and terms verification"
+    },
+    {
+      "url": "https://www.kaggle.com/api/v1/competitions/data/list/nfl-big-data-bowl-2027",
+      "error": "HTTP Error 401: Unauthorized",
+      "eligibility": "blocked pending official access and terms verification"
+    }
+  ]
+}

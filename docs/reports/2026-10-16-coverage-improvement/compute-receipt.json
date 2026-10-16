@@ -1,0 +1,6 @@
+{
+  "status": "complete",
+  "attempts": 15,
+  "gpu_seconds": 361.71781896959874,
+  "note": "14 fits plus one benchmark allocation; benchmark includes disposable training-step timing, no candidate fit"
+}
