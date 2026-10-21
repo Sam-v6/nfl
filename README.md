@@ -13,7 +13,7 @@ The [October 16 improvement campaign](docs/reports/2026-10-16-coverage-improveme
 Use Python 3.12 and the locked worktree-local environment. If global uv is older, bootstrap with:
 
 ```bash
-uvx --from uv==0.12.17 uv sync --locked --extra tuning
+uvx --from uv==0.13.4 uv sync --locked --extra tuning
 .venv/bin/nfl --help
 .venv/bin/pytest -q -m 'not integration'
 .venv/bin/ruff check src tests scripts
